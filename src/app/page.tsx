@@ -56,11 +56,26 @@ export default function LoginPage() {
 console.log("User data:", user);
 console.log("Query error:", queryError);
 
-    if (queryError || !user) {
-      setError("Nama pengguna atau kata laluan tidak sah.");
-      setLoading(false);
-      return;
-    }
+if (queryError || !user) {
+  setError("Nama pengguna atau kata laluan tidak sah.");
+  setLoading(false);
+  return;
+}
+
+// Check kedai status kalau bukan superadmin
+if (user.role !== "superadmin" && user.kedai_id) {
+  const { data: kedai } = await supabase
+    .from("kedai")
+    .select("status, nama")
+    .eq("id", user.kedai_id)
+    .single() as any;
+
+  if (kedai?.status === "suspended") {
+    setError("Akaun kedai anda telah digantung. Sila hubungi UrusPOS.");
+    setLoading(false);
+    return;
+  }
+}
 
     const role = user.role as UserRole;
     const redirectPath = ROLE_DASHBOARD_PATHS[role];
