@@ -17,6 +17,8 @@ export default function StaffDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
   const [cart, setCart] = useState<{ [id: string]: CartItem }>({});
   const [currentMeja, setCurrentMeja] = useState("T1");
+  const [kedaiId, setKedaiId] = useState<string | null>(null);
+  const [staffNama, setStaffNama] = useState("Staff");
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
@@ -25,21 +27,48 @@ export default function StaffDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [lastTotal, setLastTotal] = useState(0);
   const [activeTab, setActiveTab] = useState("pos");
-const [rekod, setRekod] = useState<any[]>([]);
-const [loadingRekod, setLoadingRekod] = useState(false);
+  const [rekod, setRekod] = useState<any[]>([]);
+  const [loadingRekod, setLoadingRekod] = useState(false);
 
   const mejaList = ["T1", "T2", "T3", "T4", "T5", "T6", "Bungkus"];
 
   useEffect(() => {
+    // Get session
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    if (sessionValue) {
+      const session = JSON.parse(decodeURIComponent(sessionValue));
+      setKedaiId(session.kedai_id);
+      setStaffNama(session.nama);
+    }
     fetchProduk();
   }, []);
 
   async function fetchProduk() {
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    let kId = null;
+    if (sessionValue) {
+      const session = JSON.parse(decodeURIComponent(sessionValue));
+      kId = session.kedai_id;
+      setKedaiId(kId);
+      setStaffNama(session.nama);
+    }
+  
+    if (!kId) {
+      setLoading(false);
+      return;
+    }
+  
     const { data } = await supabase
       .from("produk")
       .select("*")
       .eq("is_active", true)
+      .eq("kedai_id", kId)
       .order("nama");
+  
     setProduk(data || []);
     setLoading(false);
   }
@@ -100,6 +129,7 @@ const [loadingRekod, setLoadingRekod] = useState(false);
         meja: currentMeja,
         status: "pending",
         total: total,
+        kedai_id: kedaiId,
       })
       .select()
       .single() as any;
