@@ -24,6 +24,9 @@ export default function StaffDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastTotal, setLastTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState("pos");
+const [rekod, setRekod] = useState<any[]>([]);
+const [loadingRekod, setLoadingRekod] = useState(false);
 
   const mejaList = ["T1", "T2", "T3", "T4", "T5", "T6", "Bungkus"];
 
@@ -41,6 +44,16 @@ export default function StaffDashboardPage() {
     setLoading(false);
   }
 
+  async function fetchRekod() {
+    setLoadingRekod(true);
+    const { data } = await supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .order("created_at", { ascending: false })
+      .limit(50) as any;
+    setRekod(data || []);
+    setLoadingRekod(false);
+  }
   function addToCart(item: Produk) {
     if (item.stok === 0) return;
     setCart((prev) => ({
@@ -142,32 +155,90 @@ export default function StaffDashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-gray-900 font-bold text-lg">Urus<span className="text-green-600">POS</span></span>
-        <div className="flex items-center gap-3">
-          <div className="bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1.5 rounded-full">
-            🧑‍💼 Ali
-          </div>
-          <a href="/auth/logout" className="text-gray-400 text-xs">Keluar</a>
-        </div>
-      </div>
+<div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+  <span className="text-gray-900 font-bold text-lg">Urus<span className="text-green-600">POS</span></span>
+  <div className="flex items-center gap-2">
+    <button
+      onClick={() => setActiveTab("pos")}
+      className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
+        activeTab === "pos" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+      }`}
+    >
+      🛒 POS
+    </button>
+    <button
+      onClick={() => { setActiveTab("rekod"); fetchRekod(); }}
+      className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${
+        activeTab === "rekod" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"
+      }`}
+    >
+      📋 Rekod
+    </button>
+    <a href="/auth/logout" className="text-gray-400 text-xs ml-2">Keluar</a>
+  </div>
+</div>
 
-      {/* Meja Selector */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex gap-2 overflow-x-auto flex-shrink-0">
-        {mejaList.map((meja) => (
-          <button
-            key={meja}
-            onClick={() => { setCurrentMeja(meja); clearCart(); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 border transition-all ${
-              currentMeja === meja
-                ? "bg-gray-900 text-white border-gray-900"
-                : "bg-white text-gray-400 border-gray-200"
-            }`}
-          >
-            {meja}
-          </button>
+{activeTab === "pos" && (
+  <>
+    {/* Meja Selector */}
+    ... semua kod pos ...
+    {/* Order Panel */}
+    ... 
+  </>
+)}
+
+{activeTab === "rekod" && (
+  <div className="flex-1 overflow-y-auto p-4">
+    <div className="mb-4">
+      <h2 className="text-gray-900 font-bold text-lg">Rekod Order</h2>
+      <p className="text-gray-400 text-xs mt-1">50 order terkini</p>
+    </div>
+    {loadingRekod ? (
+      <div className="text-center text-gray-400 py-10">Loading...</div>
+    ) : rekod.length === 0 ? (
+      <div className="text-center py-10">
+        <div className="text-4xl mb-3">📋</div>
+        <div className="text-gray-400 text-sm">Tiada rekod lagi</div>
+      </div>
+    ) : (
+      <div className="flex flex-col gap-3">
+        {rekod.map((order) => (
+          <div key={order.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-gray-900 font-black text-sm">
+                  {order.order_number || "ORD-LAMA"}
+                </div>
+                <div className="text-gray-400 text-xs mt-0.5">
+                  Meja {order.meja} · {new Date(order.created_at).toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-gray-900 font-black">RM {Number(order.total).toFixed(2)}</div>
+                <div className={`text-xs font-bold mt-0.5 ${
+                  order.status === "paid" ? "text-green-600" :
+                  order.status === "done" ? "text-blue-600" :
+                  "text-amber-500"
+                }`}>
+                  {order.status === "paid" ? "✓ Dibayar" :
+                   order.status === "done" ? "Siap" : "Dalam proses"}
+                </div>
+              </div>
+            </div>
+            <div className="border-t border-gray-100 pt-2 mt-2">
+              {order.order_items?.map((item: any) => (
+                <div key={item.id} className="flex justify-between text-xs text-gray-500 py-0.5">
+                  <span>{item.nama} ×{item.qty}</span>
+                  <span>RM {(item.harga * item.qty).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+    )}
+  </div>
+)}
 
       {/* Menu Grid */}
       <div className="flex-1 overflow-y-auto p-4">

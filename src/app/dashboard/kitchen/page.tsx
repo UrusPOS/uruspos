@@ -16,6 +16,7 @@ type Order = {
   status: string;
   created_at: string;
   completed_at: string | null;
+  order_number: string | null;
   order_items: OrderItem[];
 };
 
@@ -147,7 +148,12 @@ export default function KitchenDashboardPage() {
                 newOrders.map((order) => (
                   <div key={order.id} className="bg-[#292524] rounded-2xl p-3 border border-stone-700">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-white font-black text-sm">Meja {order.meja}</span>
+                    <div>
+  <span className="text-white font-black text-sm">Meja {order.meja}</span>
+  <div className="text-stone-500 text-xs mt-0.5">
+    {order.order_number || "ORD-LAMA"}
+  </div>
+</div>
                       <span className="bg-orange-500/20 text-orange-400 text-xs font-bold px-2 py-1 rounded-full">
                         {getTimeDiff(order.created_at)}
                       </span>
@@ -191,7 +197,12 @@ export default function KitchenDashboardPage() {
                 doneOrders.map((order) => (
                   <div key={order.id} className="bg-[#1a2e1a] rounded-2xl p-3 border border-green-900/40 opacity-70">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-stone-400 font-black text-sm">Meja {order.meja}</span>
+                    <div>
+  <span className="text-stone-400 font-black text-sm">Meja {order.meja}</span>
+  <div className="text-stone-600 text-xs mt-0.5">
+    {order.order_number || "ORD-LAMA"}
+  </div>
+</div>
                       <div className="flex flex-col items-end gap-1">
                         <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
                           Siap ✓
