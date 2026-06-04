@@ -79,12 +79,25 @@ export default function KitchenDashboardPage() {
 }
 
   async function markDone(id: string) {
+  const { data: order } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("id", id)
+    .single() as any;
+
+  if (order?.status === "paid") {
     await supabase.from("orders").update({
       status: "done",
       completed_at: new Date().toISOString()
     } as any).eq("id", id);
-    fetchOrders();
+  } else {
+    await supabase.from("orders").update({
+      status: "done",
+      completed_at: new Date().toISOString()
+    } as any).eq("id", id);
   }
+  fetchOrders();
+}
 
   async function undoDone(id: string) {
     await supabase.from("orders").update({

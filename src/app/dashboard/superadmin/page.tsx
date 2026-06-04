@@ -49,7 +49,7 @@ export default function SuperadminDashboardPage() {
     const statsMap: { [id: string]: KedaiStats } = {};
     for (const kedai of kedais) {
       const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const { data: orders } = await supabase.from("orders").select("total").eq("status", "paid").gte("created_at", firstDay) as any;
+      const { data: orders } = await supabase.from("orders").select("total").in("status", ["paid", "done"]).eq("kedai_id", kedai.id).gte("created_at", firstDay) as any;
       const { data: staffData } = await supabase.from("users").select("id").eq("kedai_id", kedai.id).neq("role", "superadmin") as any;
       const jualan = orders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
       statsMap[kedai.id] = { kedai_id: kedai.id, jualan, fee: jualan * 0.02, staff: staffData?.length || 0 };

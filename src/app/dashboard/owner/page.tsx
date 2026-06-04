@@ -97,18 +97,18 @@ export default function OwnerDashboardPage() {
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
   
     const { data: harianOrders } = await supabase
-      .from("orders")
-      .select("total")
-      .eq("status", "paid")
-      .eq("kedai_id", kedaiId)
-      .gte("created_at", todayISO) as any;
+  .from("orders")
+  .select("total")
+  .in("status", ["paid", "done"])
+  .eq("kedai_id", kedaiId)
+  .gte("created_at", todayISO) as any;
   
-    const { data: bulananOrders } = await supabase
-      .from("orders")
-      .select("*, order_items(qty, harga, kos)")
-      .eq("status", "paid")
-      .eq("kedai_id", kedaiId)
-      .gte("created_at", firstDay) as any;
+  const { data: bulananOrders } = await supabase
+  .from("orders")
+  .select("*, order_items(qty, harga, kos)")
+  .in("status", ["paid", "done"])
+  .eq("kedai_id", kedaiId)
+  .gte("created_at", firstDay) as any;
   
     const { data: stokRendah } = await supabase
       .from("produk")

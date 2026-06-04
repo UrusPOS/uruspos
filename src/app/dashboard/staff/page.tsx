@@ -172,6 +172,8 @@ export default function StaffDashboardPage() {
 
   async function completePayment() {
     if (!currentOrderId) return;
+    console.log("currentOrderId:", currentOrderId);
+    console.log("cartItems:", cartItems);
     setSaving(true);
 
     // 1. Update order status to paid
