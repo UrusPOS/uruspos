@@ -34,10 +34,20 @@ export default function OwnerDashboardPage() {
   const [produkKos, setProdukKos] = useState("");
   const [produkStok, setProdukStok] = useState("");
   const [saving, setSaving] = useState(false);
+  const [salesData, setSalesData] = useState({
+    harianTotal: 0,
+    harianTransaksi: 0,
+    bulananTotal: 0,
+    bulananCOGS: 0,
+    bulananUntung: 0,
+    bulananMargin: 0,
+    stokKritikal: 0,
+  });
 
   useEffect(() => {
     if (activeTab === "staff") fetchStaff();
     if (activeTab === "inventory") fetchProduk();
+    if (activeTab === "dashboard") fetchSalesData();
   }, [activeTab]);
 
   async function fetchStaff() {
@@ -55,6 +65,55 @@ export default function OwnerDashboardPage() {
       .select("*")
       .order("created_at", { ascending: false });
     setProduk(data || []);
+  }
+
+  async function fetchSalesData() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+  
+    const { data: harianOrders } = await supabase
+      .from("orders")
+      .select("total")
+      .eq("status", "paid")
+      .gte("created_at", todayISO) as any;
+  
+    const { data: bulananOrders } = await supabase
+      .from("orders")
+      .select("*, order_items(qty, harga, kos)")
+      .eq("status", "paid")
+      .gte("created_at", firstDay) as any;
+  
+    const { data: stokRendah } = await supabase
+      .from("produk")
+      .select("id")
+      .lte("stok", 5)
+      .eq("is_active", true) as any;
+  
+    const harianTotal = harianOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
+    const harianTransaksi = harianOrders?.length || 0;
+    const bulananTotal = bulananOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
+  
+    let bulananCOGS = 0;
+    bulananOrders?.forEach((order: any) => {
+      order.order_items?.forEach((item: any) => {
+        bulananCOGS += Number(item.kos) * Number(item.qty);
+      });
+    });
+  
+    const bulananUntung = bulananTotal - bulananCOGS;
+    const bulananMargin = bulananTotal > 0 ? Math.round((bulananUntung / bulananTotal) * 100) : 0;
+  
+    setSalesData({
+      harianTotal,
+      harianTransaksi,
+      bulananTotal,
+      bulananCOGS,
+      bulananUntung,
+      bulananMargin,
+      stokKritikal: stokRendah?.length || 0,
+    });
   }
 
   async function addStaff() {
@@ -136,38 +195,40 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">Jualan Hari Ini</div>
-              <div className="text-white text-4xl font-black mt-1">RM 0.00</div>
-              <div className="flex gap-3 mt-3">
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🧾 0 transaksi</span>
-              </div>
+              <div className="text-white text-4xl font-black mt-1">RM {salesData.harianTotal.toFixed(2)}</div>
+<div className="flex gap-3 mt-3">
+  <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
+    🧾 {salesData.harianTransaksi} transaksi
+  </span>
+</div>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">💰</div>
-                <div className="text-gray-900 text-lg font-black">RM 0</div>
-                <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">📊</div>
-                <div className="text-gray-900 text-lg font-black">0%</div>
-                <div className="text-gray-400 text-xs mt-1">Margin</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">⚠️</div>
-                <div className="text-amber-500 text-lg font-black">0 item</div>
-                <div className="text-gray-400 text-xs mt-1">Stok Kritikal</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">👥</div>
-                <div className="text-gray-900 text-lg font-black">{staff.length} orang</div>
-                <div className="text-gray-400 text-xs mt-1">Jumlah Staff</div>
-              </div>
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+  <div className="text-xl mb-1">💰</div>
+  <div className="text-green-600 text-lg font-black">RM {salesData.bulananUntung.toFixed(0)}</div>
+  <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
+</div>
+<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+  <div className="text-xl mb-1">📊</div>
+  <div className="text-gray-900 text-lg font-black">{salesData.bulananMargin}%</div>
+  <div className="text-gray-400 text-xs mt-1">Margin</div>
+</div>
+<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+  <div className="text-xl mb-1">⚠️</div>
+  <div className="text-amber-500 text-lg font-black">{salesData.stokKritikal} item</div>
+  <div className="text-gray-400 text-xs mt-1">Stok Kritikal</div>
+</div>
+<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+  <div className="text-xl mb-1">👥</div>
+  <div className="text-gray-900 text-lg font-black">{staff.length} orang</div>
+  <div className="text-gray-400 text-xs mt-1">Jumlah Staff</div>
+</div>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-              <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
-              <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
-              <div className="text-gray-400 text-xs mt-1">2% daripada jualan bulanan</div>
-            </div>
+  <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+  <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
+  <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+</div>
           </div>
         )}
 
@@ -223,11 +284,11 @@ export default function OwnerDashboardPage() {
           <div>
             <h2 className="text-gray-900 font-bold text-lg mb-4">Laporan</h2>
             <div className="bg-gray-900 rounded-2xl p-5 mb-4 grid grid-cols-2 gap-4">
-              <div><div className="text-gray-400 text-xs">Jualan Bulan</div><div className="text-white text-xl font-black mt-1">RM 0</div></div>
-              <div><div className="text-gray-400 text-xs">COGS</div><div className="text-red-400 text-xl font-black mt-1">RM 0</div></div>
-              <div><div className="text-gray-400 text-xs">Untung Kasar</div><div className="text-green-400 text-xl font-black mt-1">RM 0</div></div>
-              <div><div className="text-gray-400 text-xs">Margin</div><div className="text-green-400 text-xl font-black mt-1">0%</div></div>
-            </div>
+  <div><div className="text-gray-400 text-xs">Jualan Bulan</div><div className="text-white text-xl font-black mt-1">RM {salesData.bulananTotal.toFixed(2)}</div></div>
+  <div><div className="text-gray-400 text-xs">COGS</div><div className="text-red-400 text-xl font-black mt-1">RM {salesData.bulananCOGS.toFixed(2)}</div></div>
+  <div><div className="text-gray-400 text-xs">Untung Kasar</div><div className="text-green-400 text-xl font-black mt-1">RM {salesData.bulananUntung.toFixed(2)}</div></div>
+  <div><div className="text-gray-400 text-xs">Margin</div><div className="text-green-400 text-xl font-black mt-1">{salesData.bulananMargin}%</div></div>
+</div>
             <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
               <div className="text-4xl mb-3">📊</div>
               <div className="text-gray-400 text-sm">Data akan keluar bila ada jualan</div>
