@@ -20,7 +20,10 @@ export default function StaffDashboardPage() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [lastTotal, setLastTotal] = useState(0);
 
   const mejaList = ["T1", "T2", "T3", "T4", "T5", "T6", "Bungkus"];
 
@@ -66,6 +69,7 @@ export default function StaffDashboardPage() {
   function clearCart() {
     setCart({});
     setOrderSent(false);
+    setCurrentOrderId(null);
   }
 
   const cartItems = Object.values(cart);
@@ -74,14 +78,65 @@ export default function StaffDashboardPage() {
 
   async function sendOrder() {
     if (cartItems.length === 0) return;
-    // In real app — save to orders table & trigger kitchen
+    setSaving(true);
+
+    // 1. Create order
+    const { data: order } = await supabase
+      .from("orders")
+      .insert({
+        meja: currentMeja,
+        status: "pending",
+        total: total,
+      })
+      .select()
+      .single() as any;
+
+    if (!order) { setSaving(false); return; }
+
+    // 2. Create order items
+    const items = cartItems.map((item) => ({
+      order_id: order.id,
+      produk_id: item.id,
+      nama: item.nama,
+      qty: item.qty,
+      harga: item.harga_jual,
+      kos: item.kos_beli,
+      nota: "",
+    }));
+
+    await supabase.from("order_items").insert(items);
+
+    // 3. Update order status to preparing
+    await supabase.from("orders").update({ status: "preparing" } as any).eq("id", order.id);
+
+    setCurrentOrderId(order.id);
     setOrderSent(true);
+    setSaving(false);
   }
 
   async function completePayment() {
-    // In real app — record transaction, update stock, calculate COGS
+    if (!currentOrderId) return;
+    setSaving(true);
+
+    // 1. Update order status to paid
+    await supabase.from("orders").update({ status: "paid" } as any).eq("id", currentOrderId);
+
+    // 2. Deduct stock for each item
+    for (const item of cartItems) {
+      const produkItem = produk.find((p) => p.id === item.id);
+      if (produkItem) {
+        const newStok = Math.max(0, produkItem.stok - item.qty);
+        await supabase.from("produk").update({ stok: newStok } as any).eq("id", item.id);
+      }
+    }
+
+    setLastTotal(total);
     setShowCheckout(false);
     setShowSuccess(true);
+    setSaving(false);
+
+    // Refresh produk untuk update stok
+    fetchProduk();
   }
 
   return (
@@ -175,7 +230,6 @@ export default function StaffDashboardPage() {
           )}
         </div>
 
-        {/* Cart Items */}
         {cartItems.length > 0 && (
           <div className="flex flex-col gap-2 mb-3 max-h-32 overflow-y-auto">
             {cartItems.map((item) => (
@@ -196,7 +250,6 @@ export default function StaffDashboardPage() {
           <div className="text-center text-gray-300 text-xs py-3">Tiada item dipilih</div>
         )}
 
-        {/* Total & Buttons */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-gray-500 text-sm">Jumlah</span>
           <span className="text-gray-900 text-xl font-black">RM {total.toFixed(2)}</span>
@@ -205,15 +258,16 @@ export default function StaffDashboardPage() {
         {!orderSent ? (
           <button
             onClick={sendOrder}
-            disabled={cartItems.length === 0}
-            className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-99 transition-all"
+            disabled={cartItems.length === 0 || saving}
+            className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-30 transition-all"
           >
-            Hantar ke Dapur 🍳
+            {saving ? "Menghantar..." : "Hantar ke Dapur 🍳"}
           </button>
         ) : (
           <button
             onClick={() => setShowCheckout(true)}
-            className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl text-sm active:scale-99 transition-all"
+            disabled={saving}
+            className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl text-sm transition-all"
           >
             Checkout & Bayar 💳
           </button>
@@ -227,7 +281,6 @@ export default function StaffDashboardPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <h3 className="text-gray-900 font-bold text-lg mb-2">Bayaran</h3>
             <p className="text-gray-400 text-sm mb-4">Meja {currentMeja} · {cartItems.length} produk</p>
-
             <div className="bg-gray-50 rounded-2xl p-4 mb-4">
               {cartItems.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm py-1">
@@ -240,13 +293,12 @@ export default function StaffDashboardPage() {
                 <span className="text-gray-900 font-black text-lg">RM {total.toFixed(2)}</span>
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3 mb-3">
-              <button onClick={completePayment} className="bg-green-600 text-white font-bold py-4 rounded-2xl text-sm">
-                💵 Tunai
+              <button onClick={completePayment} disabled={saving} className="bg-green-600 text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-50">
+                {saving ? "..." : "💵 Tunai"}
               </button>
-              <button onClick={completePayment} className="bg-blue-600 text-white font-bold py-4 rounded-2xl text-sm">
-                📱 DuitNow
+              <button onClick={completePayment} disabled={saving} className="bg-blue-600 text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-50">
+                {saving ? "..." : "📱 DuitNow"}
               </button>
             </div>
             <button onClick={() => setShowCheckout(false)} className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl text-sm">
@@ -263,7 +315,7 @@ export default function StaffDashboardPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <div className="text-5xl mb-3">✅</div>
             <h3 className="text-gray-900 font-bold text-xl">Bayaran Berjaya!</h3>
-            <div className="text-green-600 text-3xl font-black my-4">RM {total.toFixed(2)}</div>
+            <div className="text-green-600 text-3xl font-black my-4">RM {lastTotal.toFixed(2)}</div>
             <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left">
               <div className="flex justify-between text-xs text-gray-500 py-1"><span>Stok dikemaskini</span><span className="text-green-600">✓</span></div>
               <div className="flex justify-between text-xs text-gray-500 py-1"><span>COGS direkod</span><span className="text-green-600">✓</span></div>
