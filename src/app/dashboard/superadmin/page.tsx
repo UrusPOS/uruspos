@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 type Kedai = {
@@ -13,7 +12,6 @@ type Kedai = {
 };
 
 export default function SuperadminDashboardPage() {
-  const router = useRouter();
   const [kedaiList, setKedaiList] = useState<Kedai[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
