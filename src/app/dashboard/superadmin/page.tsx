@@ -34,9 +34,9 @@ const [saving, setSaving] = useState(false);
   }
 
   async function updateStatus(id: string, status: string) {
-    await supabase.from("kedai").update({ status }).eq("id", id);
-    fetchKedai();
-  }
+  await supabase.from("kedai").update({ status } as any).eq("id", id);
+  fetchKedai();
+}
 
   async function deleteKedai(id: string) {
     await supabase.from("kedai").delete().eq("id", id);
