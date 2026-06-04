@@ -11,7 +11,7 @@ export default async function SuperadminDashboardPage() {
   const { data: kedaiList } = await supabase
     .from("kedai")
     .select("*")
-    .order("created_at", { ascending: false }) as { data: any[] | null };
+    .order("created_at", { ascending: false }) as { data: {id: string, nama: string, status: string, tema_warna: string, created_at: string}[] | null };
 
   const stats = {
     total: kedaiList?.length || 0,
