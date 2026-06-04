@@ -34,6 +34,9 @@ export default function OwnerDashboardPage() {
   const [produkKos, setProdukKos] = useState("");
   const [produkStok, setProdukStok] = useState("");
   const [saving, setSaving] = useState(false);
+  const [tambahStokId, setTambahStokId] = useState<string | null>(null);
+  const [tambahStokNama, setTambahStokNama] = useState("");
+  const [tambahStokQty, setTambahStokQty] = useState("");
   const [salesData, setSalesData] = useState({
     harianTotal: 0,
     harianTransaksi: 0,
@@ -51,19 +54,12 @@ export default function OwnerDashboardPage() {
   }, [activeTab]);
 
   async function fetchStaff() {
-    const { data } = await supabase
-      .from("users")
-      .select("*")
-      .neq("role", "superadmin")
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("users").select("*").neq("role", "superadmin").order("created_at", { ascending: false });
     setStaff(data || []);
   }
 
   async function fetchProduk() {
-    const { data } = await supabase
-      .from("produk")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data } = await supabase.from("produk").select("*").order("created_at", { ascending: false });
     setProduk(data || []);
   }
 
@@ -72,65 +68,24 @@ export default function OwnerDashboardPage() {
     today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-  
-    const { data: harianOrders } = await supabase
-      .from("orders")
-      .select("total")
-      .eq("status", "paid")
-      .gte("created_at", todayISO) as any;
-  
-    const { data: bulananOrders } = await supabase
-      .from("orders")
-      .select("*, order_items(qty, harga, kos)")
-      .eq("status", "paid")
-      .gte("created_at", firstDay) as any;
-  
-    const { data: stokRendah } = await supabase
-      .from("produk")
-      .select("id")
-      .lte("stok", 5)
-      .eq("is_active", true) as any;
-  
+    const { data: harianOrders } = await supabase.from("orders").select("total").eq("status", "paid").gte("created_at", todayISO) as any;
+    const { data: bulananOrders } = await supabase.from("orders").select("*, order_items(qty, harga, kos)").eq("status", "paid").gte("created_at", firstDay) as any;
+    const { data: stokRendah } = await supabase.from("produk").select("id").lte("stok", 5).eq("is_active", true) as any;
     const harianTotal = harianOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
     const harianTransaksi = harianOrders?.length || 0;
     const bulananTotal = bulananOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
-  
     let bulananCOGS = 0;
-    bulananOrders?.forEach((order: any) => {
-      order.order_items?.forEach((item: any) => {
-        bulananCOGS += Number(item.kos) * Number(item.qty);
-      });
-    });
-  
+    bulananOrders?.forEach((order: any) => { order.order_items?.forEach((item: any) => { bulananCOGS += Number(item.kos) * Number(item.qty); }); });
     const bulananUntung = bulananTotal - bulananCOGS;
     const bulananMargin = bulananTotal > 0 ? Math.round((bulananUntung / bulananTotal) * 100) : 0;
-  
-    setSalesData({
-      harianTotal,
-      harianTransaksi,
-      bulananTotal,
-      bulananCOGS,
-      bulananUntung,
-      bulananMargin,
-      stokKritikal: stokRendah?.length || 0,
-    });
+    setSalesData({ harianTotal, harianTransaksi, bulananTotal, bulananCOGS, bulananUntung, bulananMargin, stokKritikal: stokRendah?.length || 0 });
   }
 
   async function addStaff() {
     if (!newStaffNama.trim() || !newStaffUsername.trim()) return;
     setSaving(true);
-    await supabase.from("users").insert({
-      nama: newStaffNama,
-      username: newStaffUsername.toLowerCase(),
-      role: newStaffRole,
-      is_active: true,
-    } as any);
-    setNewStaffNama("");
-    setNewStaffUsername("");
-    setNewStaffRole("staff");
-    setShowAddStaff(false);
-    setSaving(false);
-    fetchStaff();
+    await supabase.from("users").insert({ nama: newStaffNama, username: newStaffUsername.toLowerCase(), role: newStaffRole, is_active: true } as any);
+    setNewStaffNama(""); setNewStaffUsername(""); setNewStaffRole("staff"); setShowAddStaff(false); setSaving(false); fetchStaff();
   }
 
   async function removeStaff(id: string) {
@@ -146,19 +101,8 @@ export default function OwnerDashboardPage() {
   async function addProduk() {
     if (!produkNama.trim()) return;
     setSaving(true);
-    await supabase.from("produk").insert({
-      nama: produkNama,
-      harga_jual: parseFloat(produkHarga) || 0,
-      kos_beli: parseFloat(produkKos) || 0,
-      stok: parseInt(produkStok) || 0,
-    } as any);
-    setProdukNama("");
-    setProdukHarga("");
-    setProdukKos("");
-    setProdukStok("");
-    setShowAddProduk(false);
-    setSaving(false);
-    fetchProduk();
+    await supabase.from("produk").insert({ nama: produkNama, harga_jual: parseFloat(produkHarga) || 0, kos_beli: parseFloat(produkKos) || 0, stok: parseInt(produkStok) || 0 } as any);
+    setProdukNama(""); setProdukHarga(""); setProdukKos(""); setProdukStok(""); setShowAddProduk(false); setSaving(false); fetchProduk();
   }
 
   async function removeProduk(id: string) {
@@ -166,9 +110,16 @@ export default function OwnerDashboardPage() {
     fetchProduk();
   }
 
-  const margin = produkHarga && produkKos
-    ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100)
-    : 0;
+  async function tambahStok() {
+    if (!tambahStokId || !tambahStokQty) return;
+    setSaving(true);
+    const { data: current } = await supabase.from("produk").select("stok").eq("id", tambahStokId).single() as any;
+    const newStok = (current?.stok || 0) + parseInt(tambahStokQty);
+    await supabase.from("produk").update({ stok: newStok } as any).eq("id", tambahStokId);
+    setTambahStokId(null); setTambahStokNama(""); setTambahStokQty(""); setSaving(false); fetchProduk();
+  }
+
+  const margin = produkHarga && produkKos ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -196,39 +147,21 @@ export default function OwnerDashboardPage() {
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">Jualan Hari Ini</div>
               <div className="text-white text-4xl font-black mt-1">RM {salesData.harianTotal.toFixed(2)}</div>
-<div className="flex gap-3 mt-3">
-  <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
-    🧾 {salesData.harianTransaksi} transaksi
-  </span>
-</div>
+              <div className="flex gap-3 mt-3">
+                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🧾 {salesData.harianTransaksi} transaksi</span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-  <div className="text-xl mb-1">💰</div>
-  <div className="text-green-600 text-lg font-black">RM {salesData.bulananUntung.toFixed(0)}</div>
-  <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
-</div>
-<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-  <div className="text-xl mb-1">📊</div>
-  <div className="text-gray-900 text-lg font-black">{salesData.bulananMargin}%</div>
-  <div className="text-gray-400 text-xs mt-1">Margin</div>
-</div>
-<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-  <div className="text-xl mb-1">⚠️</div>
-  <div className="text-amber-500 text-lg font-black">{salesData.stokKritikal} item</div>
-  <div className="text-gray-400 text-xs mt-1">Stok Kritikal</div>
-</div>
-<div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-  <div className="text-xl mb-1">👥</div>
-  <div className="text-gray-900 text-lg font-black">{staff.length} orang</div>
-  <div className="text-gray-400 text-xs mt-1">Jumlah Staff</div>
-</div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">💰</div><div className="text-green-600 text-lg font-black">RM {salesData.bulananUntung.toFixed(0)}</div><div className="text-gray-400 text-xs mt-1">Untung Kasar</div></div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">📊</div><div className="text-gray-900 text-lg font-black">{salesData.bulananMargin}%</div><div className="text-gray-400 text-xs mt-1">Margin</div></div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">⚠️</div><div className="text-amber-500 text-lg font-black">{salesData.stokKritikal} item</div><div className="text-gray-400 text-xs mt-1">Stok Kritikal</div></div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">👥</div><div className="text-gray-900 text-lg font-black">{staff.length} orang</div><div className="text-gray-400 text-xs mt-1">Jumlah Staff</div></div>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-  <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
-  <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
-  <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
-</div>
+              <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+              <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
+              <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+            </div>
           </div>
         )}
 
@@ -237,9 +170,7 @@ export default function OwnerDashboardPage() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-gray-900 font-bold text-lg">Inventori ({produk.length})</h2>
-              <button onClick={() => setShowAddProduk(true)} className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full">
-                + Tambah Produk
-              </button>
+              <button onClick={() => setShowAddProduk(true)} className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Tambah Produk</button>
             </div>
             {produk.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
@@ -254,21 +185,15 @@ export default function OwnerDashboardPage() {
                     <div key={p.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-gray-900 font-bold">{p.nama}</div>
-                        <button onClick={() => removeProduk(p.id)} className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50">🗑</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => { setTambahStokId(p.id); setTambahStokNama(p.nama); setTambahStokQty(""); }} className="text-green-600 text-xs font-bold px-2 py-1 rounded-lg bg-green-50">+ Stok</button>
+                          <button onClick={() => removeProduk(p.id)} className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50">🗑</button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div className="text-gray-900 text-sm font-black">RM {p.harga_jual}</div>
-                          <div className="text-gray-400 text-xs">Harga Jual</div>
-                        </div>
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div className="text-gray-900 text-sm font-black">RM {p.kos_beli}</div>
-                          <div className="text-gray-400 text-xs">Kos Beli</div>
-                        </div>
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div className={`text-sm font-black ${m >= 40 ? "text-green-600" : "text-amber-500"}`}>{m}%</div>
-                          <div className="text-gray-400 text-xs">Margin</div>
-                        </div>
+                        <div className="text-center bg-gray-50 rounded-xl p-2"><div className="text-gray-900 text-sm font-black">RM {p.harga_jual}</div><div className="text-gray-400 text-xs">Harga Jual</div></div>
+                        <div className="text-center bg-gray-50 rounded-xl p-2"><div className="text-gray-900 text-sm font-black">RM {p.kos_beli}</div><div className="text-gray-400 text-xs">Kos Beli</div></div>
+                        <div className="text-center bg-gray-50 rounded-xl p-2"><div className={`text-sm font-black ${m >= 40 ? "text-green-600" : "text-amber-500"}`}>{m}%</div><div className="text-gray-400 text-xs">Margin</div></div>
                       </div>
                       <div className="mt-2 text-gray-500 text-xs">Stok: <strong className={p.stok <= 5 ? "text-red-500" : "text-gray-900"}>{p.stok} unit</strong></div>
                     </div>
@@ -284,11 +209,11 @@ export default function OwnerDashboardPage() {
           <div>
             <h2 className="text-gray-900 font-bold text-lg mb-4">Laporan</h2>
             <div className="bg-gray-900 rounded-2xl p-5 mb-4 grid grid-cols-2 gap-4">
-  <div><div className="text-gray-400 text-xs">Jualan Bulan</div><div className="text-white text-xl font-black mt-1">RM {salesData.bulananTotal.toFixed(2)}</div></div>
-  <div><div className="text-gray-400 text-xs">COGS</div><div className="text-red-400 text-xl font-black mt-1">RM {salesData.bulananCOGS.toFixed(2)}</div></div>
-  <div><div className="text-gray-400 text-xs">Untung Kasar</div><div className="text-green-400 text-xl font-black mt-1">RM {salesData.bulananUntung.toFixed(2)}</div></div>
-  <div><div className="text-gray-400 text-xs">Margin</div><div className="text-green-400 text-xl font-black mt-1">{salesData.bulananMargin}%</div></div>
-</div>
+              <div><div className="text-gray-400 text-xs">Jualan Bulan</div><div className="text-white text-xl font-black mt-1">RM {salesData.bulananTotal.toFixed(2)}</div></div>
+              <div><div className="text-gray-400 text-xs">COGS</div><div className="text-red-400 text-xl font-black mt-1">RM {salesData.bulananCOGS.toFixed(2)}</div></div>
+              <div><div className="text-gray-400 text-xs">Untung Kasar</div><div className="text-green-400 text-xl font-black mt-1">RM {salesData.bulananUntung.toFixed(2)}</div></div>
+              <div><div className="text-gray-400 text-xs">Margin</div><div className="text-green-400 text-xl font-black mt-1">{salesData.bulananMargin}%</div></div>
+            </div>
             <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
               <div className="text-4xl mb-3">📊</div>
               <div className="text-gray-400 text-sm">Data akan keluar bila ada jualan</div>
@@ -301,9 +226,7 @@ export default function OwnerDashboardPage() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-gray-900 font-bold text-lg">Staff ({staff.length})</h2>
-              <button onClick={() => setShowAddStaff(true)} className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full">
-                + Tambah Staff
-              </button>
+              <button onClick={() => setShowAddStaff(true)} className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Tambah Staff</button>
             </div>
             <div className="flex flex-col gap-3">
               {staff.map((s) => (
@@ -314,29 +237,18 @@ export default function OwnerDashboardPage() {
                   <div className="flex-1">
                     <div className="text-gray-900 font-bold text-sm">{s.nama}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                        s.role === "kitchen" ? "bg-orange-100 text-orange-600" :
-                        s.role === "manager" ? "bg-amber-100 text-amber-600" :
-                        "bg-blue-100 text-blue-600"
-                      }`}>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}>
                         {s.role === "kitchen" ? "Dapur" : s.role === "manager" ? "Manager" : "Cashier"}
                       </span>
                       <span className="text-gray-300 text-xs">@{s.username}</span>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1 flex-shrink-0">
-  <button
-    onClick={() => toggleStaff(s.id, s.is_active)}
-    className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${
-      s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-green-50 text-green-600 border-green-200"
-    }`}
-  >
-    {s.is_active ? "Nyahaktif" : "Aktifkan"}
-  </button>
-  <button onClick={() => removeStaff(s.id)} className="text-xs font-bold px-2 py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200">
-    🗑 Buang
-  </button>
-</div>
+                    <button onClick={() => toggleStaff(s.id, s.is_active)} className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-green-50 text-green-600 border-green-200"}`}>
+                      {s.is_active ? "Nyahaktif" : "Aktifkan"}
+                    </button>
+                    <button onClick={() => removeStaff(s.id)} className="text-xs font-bold px-2 py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200">🗑 Buang</button>
+                  </div>
                 </div>
               ))}
               {staff.length === 0 && (
@@ -358,13 +270,7 @@ export default function OwnerDashboardPage() {
           { id: "laporan", icon: "📊", label: "Laporan" },
           { id: "staff", icon: "👥", label: "Staff" },
         ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all ${
-              activeTab === tab.id ? "text-green-600" : "text-gray-400"
-            }`}
-          >
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-all ${activeTab === tab.id ? "text-green-600" : "text-gray-400"}`}>
             <span className="text-xl">{tab.icon}</span>
             <span className="text-xs font-bold">{tab.label}</span>
           </button>
@@ -388,9 +294,7 @@ export default function OwnerDashboardPage() {
               <label className="text-gray-500 text-xs font-bold mb-2 block">ROLE</label>
               <div className="grid grid-cols-3 gap-2">
                 {[{id:"staff",label:"🧑‍💼 Cashier"},{id:"kitchen",label:"👨‍🍳 Dapur"},{id:"manager",label:"👔 Manager"}].map((r) => (
-                  <button key={r.id} onClick={() => setNewStaffRole(r.id)} className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}>
-                    {r.label}
-                  </button>
+                  <button key={r.id} onClick={() => setNewStaffRole(r.id)} className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}>{r.label}</button>
                 ))}
               </div>
             </div>
@@ -444,6 +348,25 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Tambah Stok Modal */}
+      {tambahStokId && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-gray-900 font-bold text-lg mb-2">📦 Tambah Stok</h3>
+            <p className="text-gray-400 text-sm mb-6">{tambahStokNama}</p>
+            <div className="mb-6">
+              <label className="text-gray-500 text-xs font-bold mb-2 block">UNIT NAK DITAMBAH</label>
+              <input type="number" value={tambahStokQty} onChange={(e) => setTambahStokQty(e.target.value)} placeholder="cth: 50" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 text-center text-2xl font-black" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setTambahStokId(null)} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
+              <button onClick={tambahStok} disabled={saving || !tambahStokQty} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">{saving ? "Menyimpan..." : "Tambah"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
