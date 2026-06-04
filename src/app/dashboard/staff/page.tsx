@@ -75,11 +75,24 @@ export default function StaffDashboardPage() {
 
   async function fetchRekod() {
     setLoadingRekod(true);
-    const { data } = await supabase
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    let kId = null;
+    if (sessionValue) {
+      const session = JSON.parse(decodeURIComponent(sessionValue));
+      kId = session.kedai_id;
+    }
+  
+    const query = supabase
       .from("orders")
       .select("*, order_items(*)")
       .order("created_at", { ascending: false })
-      .limit(50) as any;
+      .limit(50);
+  
+    if (kId) query.eq("kedai_id", kId);
+  
+    const { data } = await query as any;
     setRekod(data || []);
     setLoadingRekod(false);
   }

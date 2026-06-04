@@ -31,6 +31,10 @@ export default function SuperadminDashboardPage() {
   const [newKedaiTelefon, setNewKedaiTelefon] = useState("");
   const [generatedCreds, setGeneratedCreds] = useState<{username: string, password: string, kedaiNama: string} | null>(null);
   const [activeTab, setActiveTab] = useState("dash");
+  const [showCredentials, setShowCredentials] = useState<string | null>(null);
+  const [credentialsList, setCredentialsList] = useState<any[]>([]);
+  const [loadingCreds, setLoadingCreds] = useState(false);
+  const [viewCreds, setViewCreds] = useState<{nama: string, username: string, password: string, kedaiNama: string} | null>(null);
 
   useEffect(() => { fetchKedai(); }, []);
 
@@ -59,27 +63,15 @@ export default function SuperadminDashboardPage() {
   }
 
   async function deleteKedai(id: string) {
-    // Delete order items dulu
-    const { data: orders } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("kedai_id", id) as any;
-  
+    const { data: orders } = await supabase.from("orders").select("id").eq("kedai_id", id) as any;
     if (orders && orders.length > 0) {
       const orderIds = orders.map((o: any) => o.id);
       await supabase.from("order_items").delete().in("order_id", orderIds);
       await supabase.from("orders").delete().eq("kedai_id", id);
     }
-  
-    // Delete users
     await supabase.from("users").delete().eq("kedai_id", id);
-  
-    // Delete produk
     await supabase.from("produk").delete().eq("kedai_id", id);
-  
-    // Baru delete kedai
     await supabase.from("kedai").delete().eq("id", id);
-  
     setConfirmDelete(null);
     fetchKedai();
   }
@@ -91,23 +83,28 @@ export default function SuperadminDashboardPage() {
     const password = Math.random().toString(36).slice(-8).toUpperCase();
     const { data: kedai } = await supabase.from("kedai").insert({ nama: newKedaiNama, status: newKedaiPlan, tema_warna: "#16a34a" } as any).select().single() as any;
     if (kedai) {
-      await supabase.from("users").insert({
-        nama: newKedaiOwnerNama,
-        username: username,
-        role: "owner",
-        is_active: true,
-        kedai_id: kedai.id,
-        password: password,
-      } as any);
+      await supabase.from("users").insert({ nama: newKedaiOwnerNama, username, role: "owner", is_active: true, kedai_id: kedai.id, password } as any);
       setGeneratedCreds({ username, password, kedaiNama: newKedaiNama });
     }
-    setNewKedaiNama("");
-    setNewKedaiOwnerNama("");
-    setNewKedaiTelefon("");
-    setNewKedaiPlan("beta");
-    setShowAddKedai(false);
-    setSaving(false);
-    fetchKedai();
+    setNewKedaiNama(""); setNewKedaiOwnerNama(""); setNewKedaiTelefon(""); setNewKedaiPlan("beta");
+    setShowAddKedai(false); setSaving(false); fetchKedai();
+  }
+
+  async function fetchCredentials(kedaiId: string) {
+    setLoadingCreds(true);
+    setShowCredentials(kedaiId);
+    const { data } = await supabase
+      .from("users")
+      .select("nama, username, password, role, is_active")
+      .eq("kedai_id", kedaiId)
+      .order("role") as any;
+    setCredentialsList(data || []);
+    setLoadingCreds(false);
+  }
+
+  async function viewKedaiCreds(kedaiId: string, kedaiNama: string) {
+    const { data } = await supabase.from("users").select("nama, username, password").eq("kedai_id", kedaiId).eq("role", "owner").single() as any;
+    if (data) setViewCreds({ nama: data.nama, username: data.username, password: data.password || "abc123", kedaiNama });
   }
 
   const totalJualan = Object.values(kedaiStats).reduce((s, k) => s + k.jualan, 0);
@@ -185,14 +182,15 @@ export default function SuperadminDashboardPage() {
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 py-3 border-t border-purple-900/30 mb-3">
-                        <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(2) || "0"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
-                        <div className="text-center"><div className="text-purple-300 text-sm font-black">RM {s?.fee.toFixed(2) || "0"}</div><div className="text-purple-400 text-xs">Fee (2%)</div></div>
+                        <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(2) || "0.00"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
+                        <div className="text-center"><div className="text-purple-300 text-sm font-black">RM {s?.fee.toFixed(2) || "0.00"}</div><div className="text-purple-400 text-xs">Fee (2%)</div></div>
                         <div className="text-center"><div className="text-green-300 text-sm font-black">{s?.staff || 0}</div><div className="text-purple-400 text-xs">Staff</div></div>
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {kedai.status !== "active" && <button onClick={() => updateStatus(kedai.id, "active")} className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-2 rounded-xl border border-green-500/30">✓ Aktifkan</button>}
                         {kedai.status !== "beta" && <button onClick={() => updateStatus(kedai.id, "beta")} className="bg-yellow-500/20 text-yellow-300 text-xs font-bold px-3 py-2 rounded-xl border border-yellow-500/30">⏳ Beta</button>}
                         {kedai.status !== "suspended" && <button onClick={() => updateStatus(kedai.id, "suspended")} className="bg-orange-500/20 text-orange-300 text-xs font-bold px-3 py-2 rounded-xl border border-orange-500/30">⊘ Suspend</button>}
+                        <button onClick={() => fetchCredentials(kedai.id)} className="bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-2 rounded-xl border border-blue-500/30">🔑 Credentials</button>
                         <button onClick={() => setConfirmDelete(kedai.id)} className="bg-red-500/20 text-red-300 text-xs font-bold px-3 py-2 rounded-xl border border-red-500/30 ml-auto">🗑 Buang</button>
                       </div>
                     </div>
@@ -218,11 +216,11 @@ export default function SuperadminDashboardPage() {
                     <div className="flex justify-between items-center">
                       <div>
                         <div className="text-white font-bold text-sm">{kedai.nama}</div>
-                        <div className="text-purple-400 text-xs mt-1">{kedai.status === "beta" ? "Beta — Free" : `Jualan RM ${s?.jualan.toFixed(2) || "0"}`}</div>
+                        <div className="text-purple-400 text-xs mt-1">{kedai.status === "beta" ? "Beta — Free" : `Jualan RM ${s?.jualan.toFixed(2) || "0.00"}`}</div>
                       </div>
                       <div className="text-right">
                         <div className={`text-sm font-black ${kedai.status === "suspended" ? "text-red-400" : kedai.status === "beta" ? "text-yellow-400" : "text-green-400"}`}>
-                          {kedai.status === "beta" ? "RM 0" : `RM ${s?.fee.toFixed(2) || "0"}`}
+                          {kedai.status === "beta" ? "RM 0" : `RM ${s?.fee.toFixed(2) || "0.00"}`}
                         </div>
                         <div className={`text-xs font-bold mt-1 ${kedai.status === "suspended" ? "text-red-400" : kedai.status === "beta" ? "text-yellow-400" : "text-green-400"}`}>
                           {kedai.status === "active" ? "✓ Aktif" : kedai.status === "beta" ? "⏳ Beta" : "⊘ Suspended"}
@@ -237,6 +235,7 @@ export default function SuperadminDashboardPage() {
         )}
       </div>
 
+      {/* Confirm Delete */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-red-500/30">
@@ -251,6 +250,7 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
+      {/* Add Kedai */}
       {showAddKedai && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30" style={{maxHeight:'85vh', overflowY:'auto'}}>
@@ -295,6 +295,7 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
+      {/* Generated Creds */}
       {generatedCreds && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-green-500/30">
@@ -302,38 +303,57 @@ export default function SuperadminDashboardPage() {
             <h3 className="text-white font-bold text-lg text-center mb-2">Kedai Berjaya Dicipta!</h3>
             <p className="text-purple-400 text-sm text-center mb-6">Hantar credentials ni kepada owner</p>
             <div className="bg-[#0f0a1e] border border-purple-700/50 rounded-xl p-4 mb-4">
-              <div className="flex justify-between items-center py-2 border-b border-purple-900/50">
-                <span className="text-purple-400 text-xs">Nama Kedai</span>
-                <span className="text-white text-sm font-bold">{generatedCreds.kedaiNama}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-purple-900/50">
-                <span className="text-purple-400 text-xs">Username</span>
-                <span className="text-white text-sm font-mono font-bold">{generatedCreds.username}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-purple-400 text-xs">Password</span>
-                <span className="text-white text-sm font-mono font-bold">{generatedCreds.password}</span>
-              </div>
+              <div className="flex justify-between items-center py-2 border-b border-purple-900/50"><span className="text-purple-400 text-xs">Nama Kedai</span><span className="text-white text-sm font-bold">{generatedCreds.kedaiNama}</span></div>
+              <div className="flex justify-between items-center py-2 border-b border-purple-900/50"><span className="text-purple-400 text-xs">Username</span><span className="text-white text-sm font-mono font-bold">{generatedCreds.username}</span></div>
+              <div className="flex justify-between items-center py-2"><span className="text-purple-400 text-xs">Password</span><span className="text-white text-sm font-mono font-bold">{generatedCreds.password}</span></div>
             </div>
             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4">
               <div className="text-green-400 text-xs font-bold mb-1">📋 Mesej untuk Owner</div>
-              <div className="text-green-300 text-xs leading-relaxed">
-                Selamat datang ke UrusPOS! 🎉{"\n"}
-                Kedai: {generatedCreds.kedaiNama}{"\n"}
-                Username: {generatedCreds.username}{"\n"}
-                Password: {generatedCreds.password}{"\n"}
-                Login: uruspos.vercel.app
-              </div>
+              <div className="text-green-300 text-xs leading-relaxed">Selamat datang ke UrusPOS! 🎉{"\n"}Kedai: {generatedCreds.kedaiNama}{"\n"}Username: {generatedCreds.username}{"\n"}Password: {generatedCreds.password}{"\n"}Login: uruspos.vercel.app</div>
             </div>
-            <button onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS! 🎉\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)} className="w-full bg-purple-700 text-white font-bold py-3 rounded-xl mb-3 text-sm">
-              📋 Copy Mesej WhatsApp
-            </button>
-            <button onClick={() => setGeneratedCreds(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 text-sm">
-              Tutup
-            </button>
+            <button onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS! 🎉\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)} className="w-full bg-purple-700 text-white font-bold py-3 rounded-xl mb-3 text-sm">📋 Copy Mesej WhatsApp</button>
+            <button onClick={() => setGeneratedCreds(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 text-sm">Tutup</button>
           </div>
         </div>
       )}
+
+      {/* View Credentials */}
+      {showCredentials && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-blue-500/30" style={{maxHeight:'85vh', overflowY:'auto'}}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-white font-bold text-lg">🔑 Credentials</h3>
+              <button onClick={() => setShowCredentials(null)} className="text-purple-400 text-xl">✕</button>
+            </div>
+            {loadingCreds ? (
+              <div className="text-center text-purple-400 py-6">Loading...</div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {credentialsList.map((user, i) => (
+                  <div key={i} className="bg-[#0f0a1e] border border-purple-900/50 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-white text-sm font-bold">{user.nama}</span>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${user.role === "owner" ? "bg-purple-500/20 text-purple-300" : user.role === "staff" ? "bg-blue-500/20 text-blue-300" : "bg-orange-500/20 text-orange-300"}`}>
+                        {user.role}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Username</span><span className="text-white text-xs font-mono font-bold">{user.username}</span></div>
+                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Password</span><span className="text-white text-xs font-mono font-bold">{user.password || "abc123"}</span></div>
+                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Status</span><span className={`text-xs font-bold ${user.is_active ? "text-green-400" : "text-red-400"}`}>{user.is_active ? "✓ Aktif" : "✗ Tidak Aktif"}</span></div>
+                    </div>
+                  </div>
+                ))}
+                {credentialsList.length === 0 && (
+                  <div className="text-center text-purple-400 py-6 text-sm">Tiada user untuk kedai ini.</div>
+                )}
+              </div>
+            )}
+            <button onClick={() => setShowCredentials(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 mt-5 text-sm">Tutup</button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
