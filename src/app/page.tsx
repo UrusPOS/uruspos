@@ -40,15 +40,10 @@ export default function LoginPage() {
       return;
     }
 
-    if (password !== "abc123") {
-  setError("Nama pengguna atau kata laluan tidak sah.");
-  setLoading(false);
-  return;
-}
 
     const { data: user, error: queryError } = await supabase
       .from("users")
-      .select("id, kedai_id, nama, username, role, is_active")
+      .select("id, kedai_id, nama, username, role, is_active, password")
       .eq("username", trimmedUsername)
       .eq("is_active", true)
       .single<AppUser>();
@@ -57,6 +52,14 @@ console.log("User data:", user);
 console.log("Query error:", queryError);
 
 if (queryError || !user) {
+  setError("Nama pengguna atau kata laluan tidak sah.");
+  setLoading(false);
+  return;
+}
+
+// Check password
+const correctPassword = (user as any)?.password || "abc123";
+if (password !== correctPassword) {
   setError("Nama pengguna atau kata laluan tidak sah.");
   setLoading(false);
   return;
@@ -78,6 +81,9 @@ if (user.role !== "superadmin" && user.kedai_id) {
 }
 
     const role = user.role as UserRole;
+    console.log("Role:", role);
+    console.log("Paths:", ROLE_DASHBOARD_PATHS);
+    console.log("RedirectPath:", ROLE_DASHBOARD_PATHS[role]);
     const redirectPath = ROLE_DASHBOARD_PATHS[role];
 
     if (!redirectPath) {

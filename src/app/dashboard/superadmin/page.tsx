@@ -71,11 +71,23 @@ export default function SuperadminDashboardPage() {
     const password = Math.random().toString(36).slice(-8).toUpperCase();
     const { data: kedai } = await supabase.from("kedai").insert({ nama: newKedaiNama, status: newKedaiPlan, tema_warna: "#16a34a" } as any).select().single() as any;
     if (kedai) {
-      await supabase.from("users").insert({ nama: newKedaiOwnerNama, username, role: "owner", is_active: true, kedai_id: kedai.id } as any);
+      await supabase.from("users").insert({
+        nama: newKedaiOwnerNama,
+        username: username,
+        role: "owner",
+        is_active: true,
+        kedai_id: kedai.id,
+        password: password,
+      } as any);
       setGeneratedCreds({ username, password, kedaiNama: newKedaiNama });
     }
-    setNewKedaiNama(""); setNewKedaiOwnerNama(""); setNewKedaiTelefon(""); setNewKedaiPlan("beta");
-    setShowAddKedai(false); setSaving(false); fetchKedai();
+    setNewKedaiNama("");
+    setNewKedaiOwnerNama("");
+    setNewKedaiTelefon("");
+    setNewKedaiPlan("beta");
+    setShowAddKedai(false);
+    setSaving(false);
+    fetchKedai();
   }
 
   const totalJualan = Object.values(kedaiStats).reduce((s, k) => s + k.jualan, 0);
@@ -89,7 +101,6 @@ export default function SuperadminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0f0a1e]">
-      {/* Header */}
       <div className="bg-[#1a0e35] border-b border-purple-900/30 px-6 py-4 flex items-center justify-between">
         <div>
           <span className="text-white font-bold text-xl">Urus<span className="text-purple-400">POS</span></span>
@@ -98,7 +109,6 @@ export default function SuperadminDashboardPage() {
         <a href="/auth/logout" className="text-purple-400 text-sm font-semibold hover:text-white">Log Keluar</a>
       </div>
 
-      {/* Nav Tabs */}
       <div className="bg-[#1a0e35] border-b border-purple-900/20 flex">
         {[
           { id: "dash", label: "📊 Dashboard" },
@@ -112,8 +122,6 @@ export default function SuperadminDashboardPage() {
       </div>
 
       <div className="p-4 max-w-2xl mx-auto">
-
-        {/* DASHBOARD TAB */}
         {activeTab === "dash" && (
           <div>
             <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4 mt-4">
@@ -133,7 +141,6 @@ export default function SuperadminDashboardPage() {
           </div>
         )}
 
-        {/* KEDAI TAB */}
         {activeTab === "kedai" && (
           <div className="mt-4">
             <div className="flex justify-between items-center mb-4">
@@ -176,7 +183,6 @@ export default function SuperadminDashboardPage() {
           </div>
         )}
 
-        {/* BILLING TAB */}
         {activeTab === "billing" && (
           <div className="mt-4">
             <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4">
@@ -211,7 +217,6 @@ export default function SuperadminDashboardPage() {
         )}
       </div>
 
-      {/* Confirm Delete Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-red-500/30">
@@ -226,7 +231,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Add Kedai Modal */}
       {showAddKedai && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30" style={{maxHeight:'85vh', overflowY:'auto'}}>
@@ -271,7 +275,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Generated Credentials Modal */}
       {generatedCreds && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-green-500/30">
@@ -302,10 +305,7 @@ export default function SuperadminDashboardPage() {
                 Login: uruspos.vercel.app
               </div>
             </div>
-            <button
-              onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS! 🎉\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)}
-              className="w-full bg-purple-700 text-white font-bold py-3 rounded-xl mb-3 text-sm"
-            >
+            <button onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS! 🎉\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)} className="w-full bg-purple-700 text-white font-bold py-3 rounded-xl mb-3 text-sm">
               📋 Copy Mesej WhatsApp
             </button>
             <button onClick={() => setGeneratedCreds(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 text-sm">
@@ -314,7 +314,6 @@ export default function SuperadminDashboardPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

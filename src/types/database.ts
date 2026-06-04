@@ -15,6 +15,7 @@ export interface AppUser {
   username: string;
   role: UserRole;
   is_active: boolean;
+  password: string | null;
 }
 
 export interface Database {
