@@ -135,7 +135,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2.5 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30"
-                placeholder="contoh: superadmin"
+                placeholder=""
               />
             </div>
 
@@ -153,7 +153,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2.5 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30"
-                placeholder="••••••"
+                placeholder=""
               />
             </div>
 
@@ -175,21 +175,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
             </button>
           </form>
 
-          <div className="mt-6 rounded-lg border border-emerald-800/30 bg-emerald-950/20 px-4 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-emerald-400/80">
-              Akaun demo
-            </p>
-            <p className="mt-1.5 text-sm text-emerald-100/70">
-              Pengguna:{" "}
-              <span className="font-mono text-emerald-300">
-                {DEMO_USERNAMES.join(", ")}
-              </span>
-            </p>
-            <p className="mt-1 text-sm text-emerald-100/70">
-              Kata laluan:{" "}
-              <span className="font-mono text-[#22c55e]">{DEMO_PASSWORD}</span>
-            </p>
-          </div>
+          
         </div>
       </div>
     </div>
