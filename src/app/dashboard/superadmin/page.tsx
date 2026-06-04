@@ -59,7 +59,27 @@ export default function SuperadminDashboardPage() {
   }
 
   async function deleteKedai(id: string) {
+    // Delete order items dulu
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("kedai_id", id) as any;
+  
+    if (orders && orders.length > 0) {
+      const orderIds = orders.map((o: any) => o.id);
+      await supabase.from("order_items").delete().in("order_id", orderIds);
+      await supabase.from("orders").delete().eq("kedai_id", id);
+    }
+  
+    // Delete users
+    await supabase.from("users").delete().eq("kedai_id", id);
+  
+    // Delete produk
+    await supabase.from("produk").delete().eq("kedai_id", id);
+  
+    // Baru delete kedai
     await supabase.from("kedai").delete().eq("id", id);
+  
     setConfirmDelete(null);
     fetchKedai();
   }
@@ -165,8 +185,8 @@ export default function SuperadminDashboardPage() {
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 py-3 border-t border-purple-900/30 mb-3">
-                        <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(0) || "0"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
-                        <div className="text-center"><div className="text-purple-300 text-sm font-black">RM {s?.fee.toFixed(0) || "0"}</div><div className="text-purple-400 text-xs">Fee (2%)</div></div>
+                        <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(2) || "0"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
+                        <div className="text-center"><div className="text-purple-300 text-sm font-black">RM {s?.fee.toFixed(2) || "0"}</div><div className="text-purple-400 text-xs">Fee (2%)</div></div>
                         <div className="text-center"><div className="text-green-300 text-sm font-black">{s?.staff || 0}</div><div className="text-purple-400 text-xs">Staff</div></div>
                       </div>
                       <div className="flex gap-2 flex-wrap">

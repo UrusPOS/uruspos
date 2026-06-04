@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { parseSessionCookie } from "@/lib/auth/session";
 
 type StaffMember = {
   id: string;
@@ -46,45 +47,119 @@ export default function OwnerDashboardPage() {
     bulananMargin: 0,
     stokKritikal: 0,
   });
+  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [kedaiInfo, setKedaiInfo] = useState<{nama: string} | null>(null);
 
   useEffect(() => {
-    if (activeTab === "staff") fetchStaff();
-    if (activeTab === "inventory") fetchProduk();
-    if (activeTab === "dashboard") fetchSalesData();
+    fetchSessionAndKedai();
   }, [activeTab]);
 
-  async function fetchStaff() {
-    const { data } = await supabase.from("users").select("*").neq("role", "superadmin").order("created_at", { ascending: false });
+  async function fetchStaff(kedaiId?: string | null) {
+    const id = kedaiId || sessionUser?.kedai_id;
+    if (!id) return;
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("kedai_id", id)
+      .neq("role", "superadmin")
+      .order("created_at", { ascending: false });
     setStaff(data || []);
   }
 
-  async function fetchProduk() {
-    const { data } = await supabase.from("produk").select("*").order("created_at", { ascending: false });
+  async function fetchProduk(kedaiId?: string | null) {
+    const id = kedaiId || sessionUser?.kedai_id;
+    if (!id) return;
+    const { data } = await supabase
+      .from("produk")
+      .select("*")
+      .eq("kedai_id", id)
+      .order("created_at", { ascending: false });
     setProduk(data || []);
   }
 
-  async function fetchSalesData() {
+  async function fetchSalesData(kedaiId: string | null) {
+    if (!kedaiId) {
+      setSalesData({
+        harianTotal: 0,
+        harianTransaksi: 0,
+        bulananTotal: 0,
+        bulananCOGS: 0,
+        bulananUntung: 0,
+        bulananMargin: 0,
+        stokKritikal: 0,
+      });
+      return;
+    }
+  
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayISO = today.toISOString();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-    const { data: harianOrders } = await supabase.from("orders").select("total").eq("status", "paid").gte("created_at", todayISO) as any;
-    const { data: bulananOrders } = await supabase.from("orders").select("*, order_items(qty, harga, kos)").eq("status", "paid").gte("created_at", firstDay) as any;
-    const { data: stokRendah } = await supabase.from("produk").select("id").lte("stok", 5).eq("is_active", true) as any;
+  
+    const { data: harianOrders } = await supabase
+      .from("orders")
+      .select("total")
+      .eq("status", "paid")
+      .eq("kedai_id", kedaiId)
+      .gte("created_at", todayISO) as any;
+  
+    const { data: bulananOrders } = await supabase
+      .from("orders")
+      .select("*, order_items(qty, harga, kos)")
+      .eq("status", "paid")
+      .eq("kedai_id", kedaiId)
+      .gte("created_at", firstDay) as any;
+  
+    const { data: stokRendah } = await supabase
+      .from("produk")
+      .select("id")
+      .eq("kedai_id", kedaiId)
+      .lte("stok", 5)
+      .eq("is_active", true) as any;
+  
     const harianTotal = harianOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
     const harianTransaksi = harianOrders?.length || 0;
     const bulananTotal = bulananOrders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
+  
     let bulananCOGS = 0;
-    bulananOrders?.forEach((order: any) => { order.order_items?.forEach((item: any) => { bulananCOGS += Number(item.kos) * Number(item.qty); }); });
+    bulananOrders?.forEach((order: any) => {
+      order.order_items?.forEach((item: any) => {
+        bulananCOGS += Number(item.kos) * Number(item.qty);
+      });
+    });
+  
     const bulananUntung = bulananTotal - bulananCOGS;
     const bulananMargin = bulananTotal > 0 ? Math.round((bulananUntung / bulananTotal) * 100) : 0;
+  
     setSalesData({ harianTotal, harianTransaksi, bulananTotal, bulananCOGS, bulananUntung, bulananMargin, stokKritikal: stokRendah?.length || 0 });
+  }
+
+  async function fetchSessionAndKedai() {
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    const session = parseSessionCookie(sessionValue);
+    setSessionUser(session);
+  
+    if (session?.kedai_id) {
+      const { data } = await supabase
+        .from("kedai")
+        .select("nama")
+        .eq("id", session.kedai_id)
+        .single() as any;
+      setKedaiInfo(data);
+      fetchSalesData(session.kedai_id);
+      fetchStaff(session.kedai_id);
+      fetchProduk(session.kedai_id);
+    } else {
+      fetchSalesData(null);
+    }
   }
 
   async function addStaff() {
     if (!newStaffNama.trim() || !newStaffUsername.trim()) return;
     setSaving(true);
-    await supabase.from("users").insert({ nama: newStaffNama, username: newStaffUsername.toLowerCase(), role: newStaffRole, is_active: true } as any);
+    await supabase.from("users").insert({ nama: newStaffNama, username: newStaffUsername.toLowerCase(), role: newStaffRole, is_active: true, kedai_id: sessionUser?.kedai_id, } as any);
     setNewStaffNama(""); setNewStaffUsername(""); setNewStaffRole("staff"); setShowAddStaff(false); setSaving(false); fetchStaff();
   }
 
@@ -101,7 +176,7 @@ export default function OwnerDashboardPage() {
   async function addProduk() {
     if (!produkNama.trim()) return;
     setSaving(true);
-    await supabase.from("produk").insert({ nama: produkNama, harga_jual: parseFloat(produkHarga) || 0, kos_beli: parseFloat(produkKos) || 0, stok: parseInt(produkStok) || 0 } as any);
+    await supabase.from("produk").insert({ nama: produkNama, harga_jual: parseFloat(produkHarga) || 0, kos_beli: parseFloat(produkKos) || 0, stok: parseInt(produkStok) || 0, kedai_id: sessionUser?.kedai_id, } as any);
     setProdukNama(""); setProdukHarga(""); setProdukKos(""); setProdukStok(""); setShowAddProduk(false); setSaving(false); fetchProduk();
   }
 
@@ -128,8 +203,8 @@ export default function OwnerDashboardPage() {
         <span className="text-gray-900 font-bold text-xl">Urus<span className="text-green-600">POS</span></span>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-gray-900 font-bold text-sm">Mak Jah</div>
-            <div className="text-green-600 text-xs font-semibold">👑 Owner</div>
+          <div className="text-gray-900 font-bold text-sm">{sessionUser?.nama || "Owner"}</div>
+          <div className="text-green-600 text-xs font-semibold">👑 Owner</div>
           </div>
           <a href="/auth/logout" className="text-gray-400 text-sm hover:text-gray-600">Log Keluar</a>
         </div>
@@ -141,8 +216,8 @@ export default function OwnerDashboardPage() {
         {activeTab === "dashboard" && (
           <div>
             <div className="mb-4">
-              <div className="text-gray-400 text-sm">Selamat datang 👋</div>
-              <div className="text-gray-900 text-xl font-black">Kedai Mak Jah</div>
+            <div className="text-gray-400 text-sm">Selamat datang 👋</div>
+            <div className="text-gray-900 text-xl font-black">{kedaiInfo?.nama || "Kedai Saya"}</div>
             </div>
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">Jualan Hari Ini</div>
