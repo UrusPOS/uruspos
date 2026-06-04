@@ -55,14 +55,28 @@ export default function KitchenDashboardPage() {
   }, []);
 
   async function fetchOrders() {
-    const { data } = await supabase
-      .from("orders")
-      .select("*, order_items(*)")
-      .in("status", ["pending", "preparing", "paid", "done"])
-      .order("created_at", { ascending: true }) as any;
-    setOrders(data || []);
-    setLoading(false);
+  // Get session
+  const cookies = document.cookie.split(";");
+  const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+  const sessionValue = sessionCookie?.split("=")?.[1];
+  let kId = null;
+  if (sessionValue) {
+    const session = JSON.parse(decodeURIComponent(sessionValue));
+    kId = session.kedai_id;
   }
+
+  const query = supabase
+    .from("orders")
+    .select("*, order_items(*)")
+    .in("status", ["pending", "preparing", "paid", "done"])
+    .order("created_at", { ascending: true });
+
+  if (kId) query.eq("kedai_id", kId);
+
+  const { data } = await query as any;
+  setOrders(data || []);
+  setLoading(false);
+}
 
   async function markDone(id: string) {
     await supabase.from("orders").update({
