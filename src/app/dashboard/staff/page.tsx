@@ -243,7 +243,46 @@ export default function StaffDashboardPage() {
     });
   }
 
-  function clearCart() { setCart({}); setOrderSent(false); setCurrentOrderId(null); }
+  function clearCart() {
+    setCart({});
+    setOrderSent(false);
+    setCurrentOrderId(null);
+  }
+
+  async function cancelCurrentOrder() {
+    if (!currentOrderId) {
+      clearCart();
+      return;
+    }
+
+    const confirmCancel = window.confirm(
+      "Batalkan order meja ini? Order akan dibuang dari POS dan dapur."
+    );
+    if (!confirmCancel) return;
+
+    setSaving(true);
+
+    await supabase.from("order_items").delete().eq("order_id", currentOrderId);
+
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "cancelled" } as any)
+      .eq("id", currentOrderId);
+
+    if (error) {
+      console.error("Cancel order error:", error);
+      setSaving(false);
+      alert("Gagal batalkan order. Cuba refresh dan cuba sekali lagi.");
+      return;
+    }
+
+    setCart({});
+    setCurrentOrderId(null);
+    setOrderSent(false);
+    setShowCheckout(false);
+    resetPaymentState();
+    setSaving(false);
+  }
 
   const cartItems = Object.values(cart);
   const total = cartItems.reduce((s, i) => s + i.harga_jual * i.qty, 0);
@@ -709,9 +748,22 @@ export default function StaffDashboardPage() {
                     {saving ? "Menghantar..." : cartItems.length === 0 ? "Hantar ke Dapur" : currentOrderId ? `Update Pesanan • RM ${total.toFixed(2)} 🍳` : `Hantar ke Dapur • RM ${total.toFixed(2)} 🍳`}
                   </button>
                 ) : (
-                  <button onClick={openCheckout} disabled={saving} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm active:scale-95 transition-all">
-                    Checkout & Bayar • RM {total.toFixed(2)} 💳
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={cancelCurrentOrder}
+                      disabled={saving}
+                      className="w-full bg-red-50 border border-red-100 text-red-500 font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                      {saving ? "Loading..." : "Batalkan"}
+                    </button>
+                    <button
+                      onClick={openCheckout}
+                      disabled={saving}
+                      className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                      Bayar • RM {total.toFixed(2)}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
