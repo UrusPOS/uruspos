@@ -16,7 +16,7 @@ type Produk = {
   id: string;
   nama: string;
   harga_jual: number;
-  kos_beli: number;
+  kos_produk: number;
   stok: number;
   is_active: boolean;
 };
@@ -35,9 +35,18 @@ export default function OwnerDashboardPage() {
   const [produkKos, setProdukKos] = useState("");
   const [produkStok, setProdukStok] = useState("");
   const [saving, setSaving] = useState(false);
-  const [tambahStokId, setTambahStokId] = useState<string | null>(null);
-  const [tambahStokNama, setTambahStokNama] = useState("");
-  const [tambahStokQty, setTambahStokQty] = useState("");
+
+  // Edit Produk states
+  const [editProdukId, setEditProdukId] = useState<string | null>(null);
+  const [editProdukNama, setEditProdukNama] = useState("");
+  const [editProdukHarga, setEditProdukHarga] = useState("");
+  const [editProdukKos, setEditProdukKos] = useState("");
+  const [editStokSemasa, setEditStokSemasa] = useState(0);
+  const [editStokMode, setEditStokMode] = useState<"tambah" | "tolak">("tambah");
+  const [editStokQty, setEditStokQty] = useState("");
+  const [editStokReason, setEditStokReason] = useState("");
+  const [editStokError, setEditStokError] = useState("");
+
   const [staffError, setStaffError] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [kedaiInfo, setKedaiInfo] = useState<{nama: string} | null>(null);
@@ -148,7 +157,7 @@ export default function OwnerDashboardPage() {
   async function addProduk() {
     if (!produkNama.trim()) return;
     setSaving(true);
-    await supabase.from("produk").insert({ nama: produkNama, harga_jual: parseFloat(produkHarga) || 0, kos_beli: parseFloat(produkKos) || 0, stok: parseInt(produkStok) || 0, kedai_id: sessionUser?.kedai_id } as any);
+    await supabase.from("produk").insert({ nama: produkNama, harga_jual: parseFloat(produkHarga) || 0, kos_produk: parseFloat(produkKos) || 0, stok: parseInt(produkStok) || 0, kedai_id: sessionUser?.kedai_id } as any);
     setProdukNama(""); setProdukHarga(""); setProdukKos(""); setProdukStok("");
     setShowAddProduk(false); setSaving(false);
     fetchProduk(sessionUser?.kedai_id);
@@ -159,13 +168,65 @@ export default function OwnerDashboardPage() {
     fetchProduk(sessionUser?.kedai_id);
   }
 
-  async function tambahStok() {
-    if (!tambahStokId || !tambahStokQty) return;
+  function openEditProduk(p: Produk) {
+    setEditProdukId(p.id);
+    setEditProdukNama(p.nama);
+    setEditProdukHarga(p.harga_jual.toString());
+    setEditProdukKos(p.kos_produk.toString());
+    setEditStokSemasa(p.stok);
+    setEditStokMode("tambah");
+    setEditStokQty("");
+    setEditStokReason("");
+    setEditStokError("");
+  }
+
+  function closeEditProduk() {
+    setEditProdukId(null);
+    setEditProdukNama("");
+    setEditProdukHarga("");
+    setEditProdukKos("");
+    setEditStokSemasa(0);
+    setEditStokQty("");
+    setEditStokReason("");
+    setEditStokError("");
+  }
+
+  async function submitEditProduk() {
+    if (!editProdukId) return;
+    setEditStokError("");
     setSaving(true);
-    const { data: current } = await supabase.from("produk").select("stok").eq("id", tambahStokId).single() as any;
-    const newStok = (current?.stok || 0) + parseInt(tambahStokQty);
-    await supabase.from("produk").update({ stok: newStok } as any).eq("id", tambahStokId);
-    setTambahStokId(null); setTambahStokNama(""); setTambahStokQty(""); setSaving(false);
+
+    // Kira stok baru kalau ada qty diisi
+    let stokBaru = editStokSemasa;
+    if (editStokQty) {
+      const qty = parseInt(editStokQty);
+      if (isNaN(qty) || qty <= 0) {
+        setEditStokError("Jumlah stok tidak sah.");
+        setSaving(false);
+        return;
+      }
+      if (!editStokReason.trim()) {
+        setEditStokError("Sila isi sebab perubahan stok.");
+        setSaving(false);
+        return;
+      }
+      stokBaru = editStokMode === "tambah" ? editStokSemasa + qty : editStokSemasa - qty;
+      if (stokBaru < 0) {
+        setEditStokError(`Stok tidak mencukupi. Stok semasa: ${editStokSemasa} unit.`);
+        setSaving(false);
+        return;
+      }
+    }
+
+    await supabase.from("produk").update({
+      nama: editProdukNama,
+      harga_jual: parseFloat(editProdukHarga) || 0,
+      kos_produk: parseFloat(editProdukKos) || 0,
+      stok: stokBaru,
+    } as any).eq("id", editProdukId);
+
+    closeEditProduk();
+    setSaving(false);
     fetchProduk(sessionUser?.kedai_id);
   }
 
@@ -189,7 +250,14 @@ export default function OwnerDashboardPage() {
     setTimeout(() => setResetMsg(""), 3000);
   }
 
-  const margin = produkHarga && produkKos ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100) : 0;
+  const marginTambah = produkHarga && produkKos ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100) : 0;
+  const marginEdit = editProdukHarga && editProdukKos ? Math.round((parseFloat(editProdukHarga) - parseFloat(editProdukKos)) / parseFloat(editProdukHarga) * 100) : 0;
+
+  const previewStokBaru = editStokQty && !isNaN(parseInt(editStokQty))
+    ? editStokMode === "tambah"
+      ? editStokSemasa + parseInt(editStokQty)
+      : editStokSemasa - parseInt(editStokQty)
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
@@ -247,19 +315,19 @@ export default function OwnerDashboardPage() {
             ) : (
               <div className="flex flex-col gap-3">
                 {produk.map((p) => {
-                  const m = p.harga_jual > 0 ? Math.round((p.harga_jual - p.kos_beli) / p.harga_jual * 100) : 0;
+                  const m = p.harga_jual > 0 ? Math.round((p.harga_jual - p.kos_produk) / p.harga_jual * 100) : 0;
                   return (
                     <div key={p.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-gray-900 font-bold">{p.nama}</div>
                         <div className="flex gap-2">
-                          <button onClick={() => { setTambahStokId(p.id); setTambahStokNama(p.nama); setTambahStokQty(""); }} className="text-green-600 text-xs font-bold px-2 py-1 rounded-lg bg-green-50">+ Stok</button>
+                          <button onClick={() => openEditProduk(p)} className="text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">✏️ Edit</button>
                           <button onClick={() => removeProduk(p.id)} className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50">🗑</button>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="text-center bg-gray-50 rounded-xl p-2"><div className="text-gray-900 text-sm font-black">RM {p.harga_jual}</div><div className="text-gray-400 text-xs">Harga Jual</div></div>
-                        <div className="text-center bg-gray-50 rounded-xl p-2"><div className="text-gray-900 text-sm font-black">RM {p.kos_beli}</div><div className="text-gray-400 text-xs">Kos Beli</div></div>
+                        <div className="text-center bg-gray-50 rounded-xl p-2"><div className="text-gray-900 text-sm font-black">RM {p.kos_produk}</div><div className="text-gray-400 text-xs">Kos Produk</div></div>
                         <div className="text-center bg-gray-50 rounded-xl p-2"><div className={`text-sm font-black ${m >= 40 ? "text-green-600" : "text-amber-500"}`}>{m}%</div><div className="text-gray-400 text-xs">Margin</div></div>
                       </div>
                       <div className="mt-2 text-gray-500 text-xs">Stok: <strong className={p.stok <= 5 ? "text-red-500" : "text-gray-900"}>{p.stok} unit</strong></div>
@@ -329,8 +397,6 @@ export default function OwnerDashboardPage() {
         {activeTab === "settings" && (
           <div>
             <h2 className="text-gray-900 font-bold text-lg mb-4">⚙️ Tetapan</h2>
-
-            {/* Tukar Password Owner */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
               <h3 className="text-gray-900 font-bold text-sm mb-4">🔐 Tukar Password Saya</h3>
               <div className="mb-3">
@@ -352,8 +418,6 @@ export default function OwnerDashboardPage() {
                 Tukar Password
               </button>
             </div>
-
-            {/* Reset Password Staff */}
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
               <h3 className="text-gray-900 font-bold text-sm mb-4">👥 Reset Password Staff</h3>
               {resetMsg && (
@@ -448,7 +512,7 @@ export default function OwnerDashboardPage() {
                 <input type="number" value={produkHarga} onChange={(e) => setProdukHarga(e.target.value)} placeholder="0.00" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
               </div>
               <div>
-                <label className="text-gray-500 text-xs font-bold mb-2 block">KOS BELI (RM)</label>
+                <label className="text-gray-500 text-xs font-bold mb-2 block">KOS PRODUK (RM)</label>
                 <input type="number" value={produkKos} onChange={(e) => setProdukKos(e.target.value)} placeholder="0.00" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
               </div>
             </div>
@@ -457,9 +521,9 @@ export default function OwnerDashboardPage() {
               <input type="number" value={produkStok} onChange={(e) => setProdukStok(e.target.value)} placeholder="0" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
             </div>
             {produkHarga && produkKos && (
-              <div className={`rounded-xl p-3 mb-4 ${margin >= 40 ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
-                <div className={`text-xs font-bold ${margin >= 40 ? "text-green-700" : "text-amber-700"}`}>
-                  💡 Margin: <strong>{margin}%</strong> {margin >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
+              <div className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
+                <div className={`text-xs font-bold ${marginTambah >= 40 ? "text-green-700" : "text-amber-700"}`}>
+                  💡 Margin: <strong>{marginTambah}%</strong> {marginTambah >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
                 </div>
               </div>
             )}
@@ -471,19 +535,107 @@ export default function OwnerDashboardPage() {
         </div>
       )}
 
-      {/* Tambah Stok Modal */}
-      {tambahStokId && (
+      {/* Edit Produk Modal */}
+      {editProdukId && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-gray-900 font-bold text-lg mb-2">📦 Tambah Stok</h3>
-            <p className="text-gray-400 text-sm mb-6">{tambahStokNama}</p>
-            <div className="mb-6">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">UNIT NAK DITAMBAH</label>
-              <input type="number" value={tambahStokQty} onChange={(e) => setTambahStokQty(e.target.value)} placeholder="0" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 text-center text-2xl font-black" />
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm" style={{maxHeight:'90vh', overflowY:'auto'}}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-gray-900 font-bold text-lg">✏️ Edit Produk</h3>
+              <button onClick={closeEditProduk} className="text-gray-400 text-xl">✕</button>
             </div>
+
+            {/* Bahagian 1: Details Produk */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+              <div className="text-gray-500 text-xs font-bold mb-3">MAKLUMAT PRODUK</div>
+              <div className="mb-3">
+                <label className="text-gray-500 text-xs font-bold mb-1 block">NAMA PRODUK</label>
+                <input type="text" value={editProdukNama} onChange={(e) => setEditProdukNama(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-gray-500 text-xs font-bold mb-1 block">HARGA JUAL (RM)</label>
+                  <input type="number" value={editProdukHarga} onChange={(e) => setEditProdukHarga(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs font-bold mb-1 block">KOS PRODUK (RM)</label>
+                  <input type="number" value={editProdukKos} onChange={(e) => setEditProdukKos(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white" />
+                </div>
+              </div>
+              {editProdukHarga && editProdukKos && (
+                <div className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-green-100" : "bg-amber-100"}`}>
+                  <div className={`text-xs font-bold ${marginEdit >= 40 ? "text-green-700" : "text-amber-700"}`}>
+                    💡 Margin: <strong>{marginEdit}%</strong> {marginEdit >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bahagian 2: Edit Stok */}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+              <div className="text-gray-500 text-xs font-bold mb-3">KEMASKINI STOK</div>
+
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-gray-500 text-xs font-bold">STOK SEMASA</span>
+                <span className={`text-lg font-black ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}>{editStokSemasa} unit</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button onClick={() => { setEditStokMode("tambah"); setEditStokQty(""); setEditStokError(""); }} className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}>
+                  ➕ Tambah Stok
+                </button>
+                <button onClick={() => { setEditStokMode("tolak"); setEditStokQty(""); setEditStokError(""); }} className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tolak" ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-gray-200 text-gray-400"}`}>
+                  ➖ Tolak Stok
+                </button>
+              </div>
+
+              <div className="mb-3">
+                <label className="text-gray-500 text-xs font-bold mb-1 block">JUMLAH UNIT <span className="text-gray-400 font-normal">(kosongkan kalau tak nak ubah stok)</span></label>
+                <input type="number" value={editStokQty} onChange={(e) => { setEditStokQty(e.target.value); setEditStokError(""); }} placeholder="0" min="1" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white text-center text-xl font-black" />
+              </div>
+
+              {editStokQty && (
+                <>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-2 block">SEBAB / REASON</label>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      {(editStokMode === "tambah"
+                        ? ["Restock", "Pembelian Baru", "Pindahan", "Lain-lain"]
+                        : ["Rosak / Luput", "Hilang", "Guna Sendiri", "Lain-lain"]
+                      ).map((r) => (
+                        <button key={r} onClick={() => setEditStokReason(r)} className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all text-left ${editStokReason === r ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-gray-200 text-gray-400"}`}>
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                    <input type="text" value={editStokReason} onChange={(e) => setEditStokReason(e.target.value)} placeholder="Atau taip reason sendiri..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-green-500 bg-white" />
+                  </div>
+
+                  {previewStokBaru !== null && (
+                    <div className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-green-50 border border-green-200"}`}>
+                      <div className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-green-700"}`}>
+                        {previewStokBaru < 0
+                          ? `⚠️ Stok tidak cukup! Akan jadi ${previewStokBaru} unit.`
+                          : previewStokBaru <= 5
+                          ? `⚠️ Stok selepas: ${previewStokBaru} unit (kritikal)`
+                          : `✓ Stok selepas: ${previewStokBaru} unit`}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {editStokError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                <div className="text-red-600 text-xs font-bold">⚠️ {editStokError}</div>
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <button onClick={() => setTambahStokId(null)} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
-              <button onClick={tambahStok} disabled={saving || !tambahStokQty} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">{saving ? "Menyimpan..." : "Tambah"}</button>
+              <button onClick={closeEditProduk} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
+              <button onClick={submitEditProduk} disabled={saving || !editProdukNama.trim()} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
             </div>
           </div>
         </div>
