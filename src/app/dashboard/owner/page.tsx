@@ -27,6 +27,8 @@ export default function OwnerDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [showAddProduk, setShowAddProduk] = useState(false);
+  const [confirmDeleteProdukId, setConfirmDeleteProdukId] = useState<string | null>(null);
+  const [confirmDeleteProdukNama, setConfirmDeleteProdukNama] = useState("");
   const [newStaffNama, setNewStaffNama] = useState("");
   const [newStaffUsername, setNewStaffUsername] = useState("");
   const [newStaffRole, setNewStaffRole] = useState("staff");
@@ -101,7 +103,7 @@ export default function OwnerDashboardPage() {
   async function fetchProduk(kedaiId?: string | null) {
     const id = kedaiId || sessionUser?.kedai_id;
     if (!id) return;
-    const { data } = await supabase.from("produk").select("*").eq("kedai_id", id).order("created_at", { ascending: false });
+    const { data } = await supabase.from("produk").select("*").eq("kedai_id", id).eq("is_active", true).order("created_at", { ascending: false });
     setProduk(data || []);
   }
 
@@ -165,7 +167,7 @@ export default function OwnerDashboardPage() {
   }
 
   async function removeProduk(id: string) {
-    await supabase.from("produk").delete().eq("id", id);
+    await supabase.from("produk").update({ is_active: false } as any).eq("id", id);
     fetchProduk(sessionUser?.kedai_id);
   }
 
@@ -350,7 +352,7 @@ export default function OwnerDashboardPage() {
                         <div className="text-gray-900 font-bold">{p.nama}</div>
                         <div className="flex gap-2">
                           <button onClick={() => openEditProduk(p)} className="text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100">✏️ Edit</button>
-                          <button onClick={() => removeProduk(p.id)} className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50">🗑</button>
+                          <button onClick={() => { setConfirmDeleteProdukId(p.id); setConfirmDeleteProdukNama(p.nama); }} className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50">🗑</button>
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -657,6 +659,22 @@ export default function OwnerDashboardPage() {
               <button onClick={submitEditProduk} disabled={saving || !editProdukNama.trim()} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Delete Produk Modal */}
+      {confirmDeleteProdukId && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-red-100">
+            <div className="text-3xl text-center mb-3">🗑️</div>
+            <h3 className="text-gray-900 font-bold text-lg text-center mb-1">Buang Produk?</h3>
+            <p className="text-gray-400 text-sm text-center mb-1"><strong className="text-gray-700">{confirmDeleteProdukNama}</strong></p>
+            <p className="text-gray-400 text-xs text-center mb-6">Produk akan disembunyikan dari POS. Rekod jualan lama tidak terjejas.</p>
+            <div className="flex gap-3">
+              <button onClick={() => { setConfirmDeleteProdukId(null); setConfirmDeleteProdukNama(""); }} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
+              <button onClick={() => { removeProduk(confirmDeleteProdukId); setConfirmDeleteProdukId(null); setConfirmDeleteProdukNama(""); }} className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl">Ya, Buang</button>
             </div>
           </div>
         </div>
