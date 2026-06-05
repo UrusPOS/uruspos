@@ -51,6 +51,175 @@ function getCurrentBulan() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+const SALES_STATUSES = new Set([
+  "paid",
+  "done",
+  "completed",
+  "complete",
+  "selesai",
+  "closed",
+  "settled",
+]);
+
+const PAID_PAYMENT_STATUSES = new Set([
+  "paid",
+  "completed",
+  "complete",
+  "success",
+  "successful",
+  "settled",
+  "received",
+  "diterima",
+  "selesai",
+]);
+
+const NON_SALES_STATUSES = new Set([
+  "cancelled",
+  "canceled",
+  "void",
+  "refund",
+  "refunded",
+  "unpaid",
+  "pending",
+  "draft",
+]);
+
+const VALID_PAYMENT_METHODS = new Set([
+  "cash",
+  "tunai",
+  "duitnow",
+  "qr",
+  "qrpay",
+  "qr pay",
+  "transfer",
+  "bank_transfer",
+  "bank transfer",
+  "card",
+  "kad",
+]);
+
+function normalizeText(value: any) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function getOrderTotal(order: any) {
+  const possibleTotals = [
+    order?.total,
+    order?.jumlah,
+    order?.jumlah_bayaran,
+    order?.grand_total,
+    order?.total_amount,
+    order?.amount,
+    order?.subtotal,
+  ];
+
+  for (const value of possibleTotals) {
+    const numberValue = Number(value);
+    if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
+  }
+
+  return (order?.order_items || []).reduce((sum: number, item: any) => {
+    const qty = Number(item?.qty || item?.quantity || 0);
+    const harga = Number(
+      item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0,
+    );
+    return sum + qty * harga;
+  }, 0);
+}
+
+function getPaymentMethod(order: any) {
+  return (
+    order?.payment_method ||
+    order?.paymentMethod ||
+    order?.payment ||
+    order?.bayaran ||
+    order?.kaedah_bayaran ||
+    order?.method ||
+    null
+  );
+}
+
+function isPaidSalesOrder(order: any) {
+  const status = normalizeText(order?.status);
+  const paymentStatus = normalizeText(
+    order?.payment_status || order?.paymentStatus || order?.status_bayaran,
+  );
+  const paymentMethod = normalizeText(getPaymentMethod(order));
+  const total = getOrderTotal(order);
+
+  if (total <= 0) return false;
+  if (SALES_STATUSES.has(status)) return true;
+  if (PAID_PAYMENT_STATUSES.has(paymentStatus)) return true;
+  if (VALID_PAYMENT_METHODS.has(paymentMethod) && !NON_SALES_STATUSES.has(status)) return true;
+
+  return false;
+}
+
+function getOrderSalesDate(order: any) {
+  return (
+    order?.paid_at ||
+    order?.paidAt ||
+    order?.completed_at ||
+    order?.completedAt ||
+    order?.updated_at ||
+    order?.updatedAt ||
+    order?.created_at ||
+    order?.createdAt ||
+    null
+  );
+}
+
+function isOrderInDateRange(order: any, from: string, to: string) {
+  const rawDate = getOrderSalesDate(order);
+  if (!rawDate) return true;
+  const time = new Date(rawDate).getTime();
+  if (Number.isNaN(time)) return true;
+  return time >= new Date(from).getTime() && time <= new Date(to).getTime();
+}
+
+async function attachOrderItemsToOrders(rawOrders: any[]) {
+  const orders = rawOrders || [];
+  if (orders.length === 0) return [];
+
+  const orderIds = orders.map((order: any) => order.id).filter(Boolean);
+  if (orderIds.length === 0) {
+    return orders.map((order: any) => ({
+      ...order,
+      order_items: order.order_items || [],
+    }));
+  }
+
+  const itemQueries = [
+    supabase.from("order_items").select("*").in("order_id", orderIds),
+    supabase.from("order_items").select("*").in("orderId", orderIds),
+    supabase.from("order_items").select("*").in("orders_id", orderIds),
+  ];
+
+  let itemsData: any[] = [];
+  for (const query of itemQueries) {
+    const { data, error } = (await query) as any;
+    if (!error && data) {
+      itemsData = data;
+      break;
+    }
+  }
+
+  const itemMap: Record<string, any[]> = {};
+  (itemsData || []).forEach((item: any) => {
+    const orderId = item.order_id || item.orderId || item.orders_id;
+    if (!orderId) return;
+    if (!itemMap[orderId]) itemMap[orderId] = [];
+    itemMap[orderId].push(item);
+  });
+
+  return orders.map((order: any) => ({
+    ...order,
+    order_items: order.order_items || itemMap[order.id] || [],
+  }));
+}
+
 export default function SuperadminDashboardPage() {
   const [kedaiList, setKedaiList] = useState<Kedai[]>([]);
   const [kedaiStats, setKedaiStats] = useState<{ [id: string]: KedaiStats }>({});
@@ -96,12 +265,68 @@ export default function SuperadminDashboardPage() {
   async function fetchAllStats(kedais: Kedai[]) {
     const { from, to } = getDateRange(filter, customFrom, customTo);
     const statsMap: { [id: string]: KedaiStats } = {};
-    for (const kedai of kedais) {
-      const { data: orders } = await supabase.from("orders").select("total").in("status", ["paid", "done"]).eq("kedai_id", kedai.id).gte("created_at", from).lte("created_at", to) as any;
-      const { data: staffData } = await supabase.from("users").select("id").eq("kedai_id", kedai.id).neq("role", "superadmin") as any;
-      const jualan = orders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
-      statsMap[kedai.id] = { kedai_id: kedai.id, jualan, fee: kedai.status === "beta" ? 0 : jualan * 0.02, staff: staffData?.length || 0 };
+
+    kedais.forEach((kedai) => {
+      statsMap[kedai.id] = {
+        kedai_id: kedai.id,
+        jualan: 0,
+        fee: 0,
+        staff: 0,
+      };
+    });
+
+    try {
+      // Superadmin perlu baca order dengan cara yang sama macam owner dashboard.
+      // Jangan filter status/date terus di Supabase sebab field sales dalam staff flow mungkin berbeza
+      // seperti payment_status, completed_at, paid_at, atau payment_method.
+      const { data: rawOrders, error: ordersError } = (await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5000)) as any;
+
+      if (ordersError) {
+        console.error("Superadmin orders query error:", ordersError);
+      }
+
+      const ordersWithItems = await attachOrderItemsToOrders(rawOrders || []);
+      const paidOrders = (ordersWithItems || [])
+        .filter(isPaidSalesOrder)
+        .filter((order: any) => isOrderInDateRange(order, from, to));
+
+      paidOrders.forEach((order: any) => {
+        const kedaiId = order.kedai_id || order.kedaiId || order.store_id || order.storeId;
+        if (!kedaiId || !statsMap[kedaiId]) return;
+        statsMap[kedaiId].jualan += getOrderTotal(order);
+      });
+
+      const { data: staffData, error: staffError } = (await supabase
+        .from("users")
+        .select("id, kedai_id, role")
+        .neq("role", "superadmin")) as any;
+
+      if (staffError) {
+        console.error("Superadmin staff query error:", staffError);
+      }
+
+      (staffData || []).forEach((user: any) => {
+        const kedaiId = user.kedai_id || user.kedaiId;
+        if (!kedaiId || !statsMap[kedaiId]) return;
+        statsMap[kedaiId].staff += 1;
+      });
+
+      kedais.forEach((kedai) => {
+        const jualan = statsMap[kedai.id]?.jualan || 0;
+        statsMap[kedai.id] = {
+          ...statsMap[kedai.id],
+          jualan,
+          fee: kedai.status === "beta" ? 0 : jualan * 0.02,
+        };
+      });
+    } catch (error) {
+      console.error("Superadmin fetchAllStats error:", error);
     }
+
     setKedaiStats(statsMap);
   }
 
