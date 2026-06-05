@@ -16,7 +16,7 @@ type CartItem = Produk & { qty: number };
 export default function StaffDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
   const [cart, setCart] = useState<{ [id: string]: CartItem }>({});
-  const [currentMeja, setCurrentMeja] = useState("T1");
+  const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [staffNama, setStaffNama] = useState("Staff");
   const [showCheckout, setShowCheckout] = useState(false);
@@ -35,7 +35,21 @@ export default function StaffDashboardPage() {
   const [confirmPasswordStaff, setConfirmPasswordStaff] = useState("");
   const [passwordMsgStaff, setPasswordMsgStaff] = useState("");
 
-  const mejaList = ["T1", "T2", "T3", "T4", "T5", "T6", "Bungkus"];
+  const [tableCount, setTableCount] = useState(6);
+
+  const normalizedTableCount = Math.min(20, Math.max(1, Number(tableCount) || 6));
+  const mejaList = [
+    ...Array.from({ length: normalizedTableCount }, (_, index) => `Meja ${index + 1}`),
+    "Bungkus",
+  ];
+
+  function displayMejaLabel(meja?: string | null) {
+    if (!meja) return "-";
+    if (meja === "Bungkus") return "Bungkus";
+    if (meja.startsWith("Meja")) return meja;
+    if (meja.startsWith("T")) return `Meja ${meja.replace("T", "")}`;
+    return meja;
+  }
 
   useEffect(() => {
     fetchProduk();
@@ -53,6 +67,25 @@ export default function StaffDashboardPage() {
       setStaffNama(session.nama);
     }
     if (!kId) { setLoading(false); return; }
+
+    const { data: kedaiData } = await supabase
+      .from("kedai")
+      .select("table_count")
+      .eq("id", kId)
+      .single() as any;
+
+    const savedTableCount = Math.min(20, Math.max(1, Number(kedaiData?.table_count) || 6));
+    setTableCount(savedTableCount);
+
+    setCurrentMeja((prev) => {
+      if (prev === "Bungkus") return prev;
+      const tableNumber = Number(prev.replace("Meja ", "").replace("T", ""));
+      if (tableNumber >= 1 && tableNumber <= savedTableCount) {
+        return `Meja ${tableNumber}`;
+      }
+      return "Meja 1";
+    });
+
     const { data } = await supabase.from("produk").select("*").eq("is_active", true).eq("kedai_id", kId).order("nama");
     setProduk(data || []);
     setLoading(false);
@@ -215,7 +248,7 @@ export default function StaffDashboardPage() {
           <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
             <div className="flex justify-between items-center mb-3">
               <span className="text-gray-900 font-bold text-sm">
-                Pesanan — {currentMeja}
+                Pesanan — {displayMejaLabel(currentMeja)}
                 {cartCount > 0 && <span className="ml-2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{cartCount} item</span>}
               </span>
               {cartCount > 0 && <button onClick={clearCart} className="text-red-400 text-xs font-bold bg-red-50 px-3 py-1 rounded-full">Kosong</button>}
@@ -274,7 +307,7 @@ export default function StaffDashboardPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div>
                       <div className="text-gray-900 font-black text-sm">{order.order_number || "ORD-LAMA"}</div>
-                      <div className="text-gray-400 text-xs mt-0.5">Meja {order.meja} · {new Date(order.created_at).toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}</div>
+                      <div className="text-gray-400 text-xs mt-0.5">{displayMejaLabel(order.meja)} · {new Date(order.created_at).toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-gray-900 font-black">RM {Number(order.total).toFixed(2)}</div>
@@ -304,7 +337,7 @@ export default function StaffDashboardPage() {
           <div className="bg-white rounded-t-3xl p-6 w-full max-w-sm">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <h3 className="text-gray-900 font-bold text-lg mb-2">Bayaran</h3>
-            <p className="text-gray-400 text-sm mb-4">Meja {currentMeja} · {cartItems.length} produk</p>
+            <p className="text-gray-400 text-sm mb-4">{displayMejaLabel(currentMeja)} · {cartItems.length} produk</p>
             <div className="bg-gray-50 rounded-2xl p-4 mb-4">
               {cartItems.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm py-1">
