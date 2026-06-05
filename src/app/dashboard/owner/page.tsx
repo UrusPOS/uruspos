@@ -49,7 +49,7 @@ export default function OwnerDashboardPage() {
 
   const [staffError, setStaffError] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
-  const [kedaiInfo, setKedaiInfo] = useState<{nama: string} | null>(null);
+  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; status: string } | null>(null);
   const [salesData, setSalesData] = useState({
     harianTotal: 0,
     harianTransaksi: 0,
@@ -80,7 +80,8 @@ export default function OwnerDashboardPage() {
     setSessionUser(session);
 
     if (session?.kedai_id) {
-      const { data } = await supabase.from("kedai").select("nama").eq("id", session.kedai_id).single() as any;
+      // FIX: tambah status dalam select
+      const { data } = await supabase.from("kedai").select("nama, status").eq("id", session.kedai_id).single() as any;
       setKedaiInfo(data);
       fetchSalesData(session.kedai_id);
       if (activeTab === "staff" || activeTab === "settings") fetchStaff(session.kedai_id);
@@ -196,7 +197,6 @@ export default function OwnerDashboardPage() {
     setEditStokError("");
     setSaving(true);
 
-    // Kira stok baru kalau ada qty diisi
     let stokBaru = editStokSemasa;
     if (editStokQty) {
       const qty = parseInt(editStokQty);
@@ -259,6 +259,8 @@ export default function OwnerDashboardPage() {
       : editStokSemasa - parseInt(editStokQty)
     : null;
 
+  const isBeta = kedaiInfo?.status === "beta";
+
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
@@ -295,11 +297,37 @@ export default function OwnerDashboardPage() {
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">⚠️</div><div className="text-amber-500 text-lg font-black">{salesData.stokKritikal} item</div><div className="text-gray-400 text-xs mt-1">Stok Kritikal</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">👥</div><div className="text-gray-900 text-lg font-black">{staff.length} orang</div><div className="text-gray-400 text-xs mt-1">Jumlah Staff</div></div>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-              <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
-              <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
-              <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+
+            {/* Plan Badge */}
+            <div className={`rounded-2xl p-4 mb-3 border flex items-center justify-between ${isBeta ? "bg-yellow-50 border-yellow-200" : "bg-green-50 border-green-200"}`}>
+              <div>
+                <div className={`text-xs font-bold mb-0.5 ${isBeta ? "text-yellow-700" : "text-green-700"}`}>PLAN SEMASA</div>
+                <div className={`text-sm font-black ${isBeta ? "text-yellow-800" : "text-green-800"}`}>
+                  {isBeta ? "⏳ Beta — Cuba Percuma" : "✅ Aktif — 2% Jualan"}
+                </div>
+              </div>
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isBeta ? "bg-yellow-200 text-yellow-800" : "bg-green-200 text-green-800"}`}>
+                {isBeta ? "BETA" : "AKTIF"}
+              </span>
             </div>
+
+            {/* Fee UrusPOS */}
+            {isBeta ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
+                <div className="text-yellow-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+                <div className="flex items-center gap-3">
+                  <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
+                  <span className="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full">🎉 Free semasa Beta</span>
+                </div>
+                <div className="text-yellow-600 text-xs mt-1">Jualan bulan ini RM {salesData.bulananTotal.toFixed(2)} — tiada caj semasa beta</div>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+                <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
+                <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+              </div>
+            )}
           </div>
         )}
 
@@ -544,7 +572,6 @@ export default function OwnerDashboardPage() {
               <button onClick={closeEditProduk} className="text-gray-400 text-xl">✕</button>
             </div>
 
-            {/* Bahagian 1: Details Produk */}
             <div className="bg-gray-50 rounded-2xl p-4 mb-5">
               <div className="text-gray-500 text-xs font-bold mb-3">MAKLUMAT PRODUK</div>
               <div className="mb-3">
@@ -570,15 +597,12 @@ export default function OwnerDashboardPage() {
               )}
             </div>
 
-            {/* Bahagian 2: Edit Stok */}
             <div className="bg-gray-50 rounded-2xl p-4 mb-5">
               <div className="text-gray-500 text-xs font-bold mb-3">KEMASKINI STOK</div>
-
               <div className="flex items-center justify-between mb-3">
                 <span className="text-gray-500 text-xs font-bold">STOK SEMASA</span>
                 <span className={`text-lg font-black ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}>{editStokSemasa} unit</span>
               </div>
-
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <button onClick={() => { setEditStokMode("tambah"); setEditStokQty(""); setEditStokError(""); }} className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}>
                   ➕ Tambah Stok
@@ -587,12 +611,10 @@ export default function OwnerDashboardPage() {
                   ➖ Tolak Stok
                 </button>
               </div>
-
               <div className="mb-3">
                 <label className="text-gray-500 text-xs font-bold mb-1 block">JUMLAH UNIT <span className="text-gray-400 font-normal">(kosongkan kalau tak nak ubah stok)</span></label>
                 <input type="number" value={editStokQty} onChange={(e) => { setEditStokQty(e.target.value); setEditStokError(""); }} placeholder="0" min="1" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white text-center text-xl font-black" />
               </div>
-
               {editStokQty && (
                 <>
                   <div className="mb-3">
@@ -609,7 +631,6 @@ export default function OwnerDashboardPage() {
                     </div>
                     <input type="text" value={editStokReason} onChange={(e) => setEditStokReason(e.target.value)} placeholder="Atau taip reason sendiri..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-green-500 bg-white" />
                   </div>
-
                   {previewStokBaru !== null && (
                     <div className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-green-50 border border-green-200"}`}>
                       <div className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-green-700"}`}>
