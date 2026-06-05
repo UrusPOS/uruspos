@@ -236,7 +236,7 @@ export default function OwnerDashboardPage() {
       // UNIFIED fetch — satu call je untuk semua stats
       fetchAllData(resolvedKedaiId);
 
-      if (activeTab === "staff" || activeTab === "settings") fetchStaff(resolvedKedaiId);
+      fetchStaff(resolvedKedaiId);
       if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
     } else {
       setKedaiInfo(null);
@@ -363,7 +363,12 @@ export default function OwnerDashboardPage() {
   async function fetchStaff(kedaiId?: string | null) {
     const id = kedaiId || sessionUser?.kedai_id;
     if (!id) return;
-    const { data } = await supabase.from("users").select("*").eq("kedai_id", id).neq("role", "superadmin").order("created_at", { ascending: false });
+    const { data } = await supabase
+      .from("users")
+      .select("*")
+      .eq("kedai_id", id)
+      .in("role", ["staff", "kitchen", "manager"])
+      .order("created_at", { ascending: false });
     setStaff(data || []);
   }
 
