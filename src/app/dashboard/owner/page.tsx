@@ -2326,12 +2326,6 @@ export default function OwnerDashboardPage() {
                 );
               })}
             </div>
-            <a
-              href="/auth/logout"
-              className="mt-5 w-full bg-red-50 border border-red-100 text-red-500 font-black text-sm py-4 rounded-2xl text-center"
-            >
-              Log Keluar
-            </a>
           </div>
           <style jsx>{`
             @keyframes slideInLeft {
