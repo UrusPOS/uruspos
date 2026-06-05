@@ -7,7 +7,7 @@ type Produk = {
   id: string;
   nama: string;
   harga_jual: number;
-  kos_beli: number;
+  kos_produk: number;
   stok: number;
 };
 
@@ -101,7 +101,16 @@ export default function StaffDashboardPage() {
     setSaving(true);
     const { data: order } = await supabase.from("orders").insert({ meja: currentMeja, status: "pending", total, kedai_id: kedaiId }).select().single() as any;
     if (!order) { setSaving(false); return; }
-    const items = cartItems.map((item) => ({ order_id: order.id, produk_id: item.id, nama: item.nama, qty: item.qty, harga: item.harga_jual, kos: item.kos_beli, nota: "" }));
+    // FIX: guna kos_produk (bukan kos_beli)
+    const items = cartItems.map((item) => ({
+      order_id: order.id,
+      produk_id: item.id,
+      nama: item.nama,
+      qty: item.qty,
+      harga: item.harga_jual,
+      kos: item.kos_produk,
+      nota: ""
+    }));
     await supabase.from("order_items").insert(items);
     await supabase.from("orders").update({ status: "preparing" } as any).eq("id", order.id);
     setCurrentOrderId(order.id);
