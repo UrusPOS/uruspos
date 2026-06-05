@@ -445,9 +445,8 @@ export default function OwnerDashboardPage() {
 
       fetchAllData(resolvedKedaiId);
       fetchBillingStatus(resolvedKedaiId);
+      fetchStaff(resolvedKedaiId);
 
-      if (activeTab === "staff" || activeTab === "settings")
-        fetchStaff(resolvedKedaiId);
       if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
     } else {
       setKedaiInfo(null);
@@ -704,7 +703,7 @@ export default function OwnerDashboardPage() {
       .from("users")
       .select("*")
       .eq("kedai_id", id)
-      .in("role", ["staff", "kitchen", "manager"])
+      .in("role", ["staff", "kitchen"])
       .order("created_at", { ascending: false });
     setStaff(data || []);
   }
@@ -2375,11 +2374,10 @@ export default function OwnerDashboardPage() {
               <label className="text-gray-500 text-xs font-bold mb-2 block">
                 ROLE
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: "staff", label: "🧑‍💼 Cashier" },
                   { id: "kitchen", label: "👨‍🍳 Dapur" },
-                  { id: "manager", label: "👔 Manager" },
                 ].map((r) => (
                   <button
                     key={r.id}
