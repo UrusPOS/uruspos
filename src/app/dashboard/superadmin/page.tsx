@@ -18,6 +18,42 @@ type KedaiStats = {
   staff: number;
 };
 
+type FilterType = "daily" | "weekly" | "monthly" | "custom";
+
+function getDateRange(filter: FilterType, customFrom?: string, customTo?: string): { from: string; to: string } {
+  const now = new Date();
+  const to = new Date(now);
+  to.setHours(23, 59, 59, 999);
+
+  if (filter === "daily") {
+    const from = new Date(now);
+    from.setHours(0, 0, 0, 0);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+  if (filter === "weekly") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 6);
+    from.setHours(0, 0, 0, 0);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+  if (filter === "monthly") {
+    const from = new Date(now.getFullYear(), now.getMonth(), 1);
+    from.setHours(0, 0, 0, 0);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+  if (filter === "custom" && customFrom && customTo) {
+    const from = new Date(customFrom);
+    from.setHours(0, 0, 0, 0);
+    const toCustom = new Date(customTo);
+    toCustom.setHours(23, 59, 59, 999);
+    return { from: from.toISOString(), to: toCustom.toISOString() };
+  }
+  // fallback daily
+  const from = new Date(now);
+  from.setHours(0, 0, 0, 0);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 export default function SuperadminDashboardPage() {
   const [kedaiList, setKedaiList] = useState<Kedai[]>([]);
   const [kedaiStats, setKedaiStats] = useState<{ [id: string]: KedaiStats }>({});
@@ -36,7 +72,14 @@ export default function SuperadminDashboardPage() {
   const [loadingCreds, setLoadingCreds] = useState(false);
   const [viewCreds, setViewCreds] = useState<{nama: string, username: string, password: string, kedaiNama: string} | null>(null);
 
-  useEffect(() => { fetchKedai(); }, []);
+  // Filter states
+  const [filter, setFilter] = useState<FilterType>("daily");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  useEffect(() => { fetchKedai(); }, [filter, customFrom, customTo]);
 
   async function fetchKedai() {
     const { data } = await supabase.from("kedai").select("*").order("created_at", { ascending: false });
@@ -46,13 +89,12 @@ export default function SuperadminDashboardPage() {
   }
 
   async function fetchAllStats(kedais: Kedai[]) {
+    const { from, to } = getDateRange(filter, customFrom, customTo);
     const statsMap: { [id: string]: KedaiStats } = {};
     for (const kedai of kedais) {
-      const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      const { data: orders } = await supabase.from("orders").select("total").in("status", ["paid", "done"]).eq("kedai_id", kedai.id).gte("created_at", firstDay) as any;
+      const { data: orders } = await supabase.from("orders").select("total").in("status", ["paid", "done"]).eq("kedai_id", kedai.id).gte("created_at", from).lte("created_at", to) as any;
       const { data: staffData } = await supabase.from("users").select("id").eq("kedai_id", kedai.id).neq("role", "superadmin") as any;
       const jualan = orders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
-      // FIX: beta kedai fee = 0, only active kedai kena 2%
       statsMap[kedai.id] = {
         kedai_id: kedai.id,
         jualan,
@@ -99,28 +141,111 @@ export default function SuperadminDashboardPage() {
   async function fetchCredentials(kedaiId: string) {
     setLoadingCreds(true);
     setShowCredentials(kedaiId);
-    const { data } = await supabase
-      .from("users")
-      .select("nama, username, password, role, is_active")
-      .eq("kedai_id", kedaiId)
-      .order("role") as any;
+    const { data } = await supabase.from("users").select("nama, username, password, role, is_active").eq("kedai_id", kedaiId).order("role") as any;
     setCredentialsList(data || []);
     setLoadingCreds(false);
   }
 
-  async function viewKedaiCreds(kedaiId: string, kedaiNama: string) {
-    const { data } = await supabase.from("users").select("nama, username, password").eq("kedai_id", kedaiId).eq("role", "owner").single() as any;
-    if (data) setViewCreds({ nama: data.nama, username: data.username, password: data.password || "abc123", kedaiNama });
+  function applyCustomFilter() {
+    if (!customFrom || !customTo) return;
+    setFilter("custom");
+    setShowCustomPicker(false);
+  }
+
+  function formatDateLabel(date: string) {
+    return new Date(date).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function filterLabel() {
+    if (filter === "daily") return "Hari Ini";
+    if (filter === "weekly") return "Minggu";
+    if (filter === "monthly") return "Bulan Ini";
+
+    if (filter === "custom" && customFrom && customTo) {
+      return `${formatDateLabel(customFrom)} — ${formatDateLabel(customTo)}`;
+    }
+
+    return "Tarikh Custom";
   }
 
   const totalJualan = Object.values(kedaiStats).reduce((s, k) => s + k.jualan, 0);
-  // FIX: totalFee only sums active kedai (beta fee already 0 from fetchAllStats)
   const totalFee = Object.values(kedaiStats).reduce((s, k) => s + k.fee, 0);
   const stats = {
     total: kedaiList.length,
     active: kedaiList.filter((k) => k.status === "active").length,
     beta: kedaiList.filter((k) => k.status === "beta").length,
     suspended: kedaiList.filter((k) => k.status === "suspended").length,
+  };
+
+  // Filter dropdown component (reused across tabs)
+  const FilterBar = () => {
+    const filterOptions: { value: FilterType; label: string }[] = [
+      { value: "daily", label: "Hari Ini" },
+      { value: "weekly", label: "Minggu" },
+      { value: "monthly", label: "Bulan Ini" },
+      { value: "custom", label: "Tarikh Custom" },
+    ];
+
+    function handleSelectFilter(value: FilterType) {
+      setShowFilterDropdown(false);
+
+      if (value === "custom") {
+        setShowCustomPicker(true);
+        return;
+      }
+
+      setFilter(value);
+    }
+
+    return (
+      <div className="relative mb-4 mt-4">
+        <button
+          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+          className="w-full sm:w-auto flex items-center justify-between gap-3 bg-[#1a0e35] border border-purple-700/60 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-lg shadow-black/10 hover:border-purple-500 transition-all"
+        >
+          <span className="text-purple-300 text-xs font-semibold uppercase tracking-wide">
+            Tarikh
+          </span>
+
+          <span>{filterLabel()}</span>
+
+          <span
+            className={`text-purple-300 transition-transform ${
+              showFilterDropdown ? "rotate-180" : ""
+            }`}
+          >
+            ▼
+          </span>
+        </button>
+
+        {showFilterDropdown && (
+          <div className="absolute left-0 mt-2 w-full sm:w-56 bg-[#1a0e35] border border-purple-700/60 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden z-40">
+            {filterOptions.map((option) => {
+              const isActive = filter === option.value;
+
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => handleSelectFilter(option.value)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-left transition-all ${
+                    isActive
+                      ? "bg-purple-700 text-white"
+                      : "text-purple-300 hover:bg-purple-900/50 hover:text-white"
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  {isActive && <span>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -146,10 +271,12 @@ export default function SuperadminDashboardPage() {
       </div>
 
       <div className="p-4 max-w-2xl mx-auto">
+
         {activeTab === "dash" && (
           <div>
-            <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4 mt-4">
-              <div className="text-purple-200 text-sm font-medium">Fee Terkumpul Bulan Ini</div>
+            <FilterBar />
+            <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4">
+              <div className="text-purple-200 text-sm font-medium">Fee Terkumpul — {filterLabel()}</div>
               <div className="text-white text-4xl font-black mt-1">RM {totalFee.toFixed(2)}</div>
               <div className="flex gap-3 mt-3 flex-wrap">
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">📊 Jualan RM {totalJualan.toFixed(2)}</span>
@@ -171,6 +298,7 @@ export default function SuperadminDashboardPage() {
               <div className="text-white font-bold text-lg">Senarai Kedai ({kedaiList.length})</div>
               <button onClick={() => setShowAddKedai(true)} className="bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-full">+ Kedai Baru</button>
             </div>
+            <FilterBar />
             {loading ? (
               <div className="text-center text-purple-400 py-10">Loading...</div>
             ) : (
@@ -215,8 +343,9 @@ export default function SuperadminDashboardPage() {
 
         {activeTab === "billing" && (
           <div className="mt-4">
+            <FilterBar />
             <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4">
-              <div className="text-purple-200 text-sm">Fee Terkumpul Bulan Ini</div>
+              <div className="text-purple-200 text-sm">Fee Terkumpul — {filterLabel()}</div>
               <div className="text-white text-3xl font-black mt-1">RM {totalFee.toFixed(2)}</div>
               <div className="text-purple-200 text-xs mt-2">Daripada {stats.active} kedai berbayar</div>
             </div>
@@ -246,6 +375,27 @@ export default function SuperadminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Custom Date Picker Modal */}
+      {showCustomPicker && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
+            <h3 className="text-white font-bold text-lg mb-5">📅 Pilih Tarikh</h3>
+            <div className="mb-4">
+              <label className="text-purple-400 text-xs font-bold mb-2 block">DARI TARIKH</label>
+              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+            </div>
+            <div className="mb-6">
+              <label className="text-purple-400 text-xs font-bold mb-2 block">HINGGA TARIKH</label>
+              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCustomPicker(false)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
+              <button onClick={applyCustomFilter} disabled={!customFrom || !customTo} className="flex-1 bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50">Tapis</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Delete */}
       {confirmDelete && (
