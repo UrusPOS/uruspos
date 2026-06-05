@@ -52,7 +52,13 @@ export default function SuperadminDashboardPage() {
       const { data: orders } = await supabase.from("orders").select("total").in("status", ["paid", "done"]).eq("kedai_id", kedai.id).gte("created_at", firstDay) as any;
       const { data: staffData } = await supabase.from("users").select("id").eq("kedai_id", kedai.id).neq("role", "superadmin") as any;
       const jualan = orders?.reduce((s: number, o: any) => s + Number(o.total), 0) || 0;
-      statsMap[kedai.id] = { kedai_id: kedai.id, jualan, fee: jualan * 0.02, staff: staffData?.length || 0 };
+      // FIX: beta kedai fee = 0, only active kedai kena 2%
+      statsMap[kedai.id] = {
+        kedai_id: kedai.id,
+        jualan,
+        fee: kedai.status === "beta" ? 0 : jualan * 0.02,
+        staff: staffData?.length || 0
+      };
     }
     setKedaiStats(statsMap);
   }
@@ -108,6 +114,7 @@ export default function SuperadminDashboardPage() {
   }
 
   const totalJualan = Object.values(kedaiStats).reduce((s, k) => s + k.jualan, 0);
+  // FIX: totalFee only sums active kedai (beta fee already 0 from fetchAllStats)
   const totalFee = Object.values(kedaiStats).reduce((s, k) => s + k.fee, 0);
   const stats = {
     total: kedaiList.length,
@@ -183,7 +190,12 @@ export default function SuperadminDashboardPage() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 py-3 border-t border-purple-900/30 mb-3">
                         <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(2) || "0.00"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
-                        <div className="text-center"><div className="text-purple-300 text-sm font-black">RM {s?.fee.toFixed(2) || "0.00"}</div><div className="text-purple-400 text-xs">Fee (2%)</div></div>
+                        <div className="text-center">
+                          <div className="text-purple-300 text-sm font-black">
+                            {kedai.status === "beta" ? <span className="text-yellow-400">—</span> : `RM ${s?.fee.toFixed(2) || "0.00"}`}
+                          </div>
+                          <div className="text-purple-400 text-xs">{kedai.status === "beta" ? "Beta (Free)" : "Fee (2%)"}</div>
+                        </div>
                         <div className="text-center"><div className="text-green-300 text-sm font-black">{s?.staff || 0}</div><div className="text-purple-400 text-xs">Staff</div></div>
                       </div>
                       <div className="flex gap-2 flex-wrap">
