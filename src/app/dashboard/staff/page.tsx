@@ -11,7 +11,7 @@ type Produk = {
   stok: number;
 };
 
-type CartItem = Produk & { qty: number };
+type CartItem = Produk & { qty: number; nota: string };
 
 export default function StaffDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
@@ -111,7 +111,7 @@ export default function StaffDashboardPage() {
 
   function addToCart(item: Produk) {
     if (item.stok === 0) return;
-    setCart((prev) => ({ ...prev, [item.id]: { ...item, qty: (prev[item.id]?.qty || 0) + 1 } }));
+    setCart((prev) => ({ ...prev, [item.id]: { ...item, qty: (prev[item.id]?.qty || 0) + 1, nota: prev[item.id]?.nota || "" } }));
   }
 
   function updateQty(id: string, delta: number) {
@@ -121,6 +121,15 @@ export default function StaffDashboardPage() {
       const newQty = current.qty + delta;
       if (newQty <= 0) { const updated = { ...prev }; delete updated[id]; return updated; }
       return { ...prev, [id]: { ...current, qty: newQty } };
+    });
+  }
+
+
+  function updateNota(id: string, nota: string) {
+    setCart((prev) => {
+      const current = prev[id];
+      if (!current) return prev;
+      return { ...prev, [id]: { ...current, nota } };
     });
   }
 
@@ -143,7 +152,7 @@ export default function StaffDashboardPage() {
       qty: item.qty,
       harga: item.harga_jual,
       kos: item.kos_produk,
-      nota: ""
+      nota: item.nota || ""
     }));
     await supabase.from("order_items").insert(items);
     await supabase.from("orders").update({ status: "preparing" } as any).eq("id", order.id);
@@ -310,66 +319,89 @@ export default function StaffDashboardPage() {
           </div>
 
           {/* Order Panel */}
-          <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
-            <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.04)]">
+            <div className="flex items-start justify-between gap-3 mb-4">
               <div className="min-w-0">
-                <div className="text-gray-900 font-bold text-sm">Pesanan</div>
-                {cartCount > 0 ? (
-                  <div className="mt-1">
-                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{cartCount} item</span>
-                  </div>
-                ) : (
-                  <div className="text-gray-400 text-xs mt-1">Pilih meja atau bungkus</div>
-                )}
+                <div className="text-gray-900 font-black text-base">Pesanan</div>
+                <div className="text-gray-400 text-xs font-bold mt-0.5">{displayMejaLabel(currentMeja)}</div>
               </div>
+              {cartCount > 0 && (
+                <button onClick={clearCart} className="text-red-500 text-xs font-black bg-red-50 px-3 py-2 rounded-xl border border-red-100 active:scale-95 transition-all">
+                  Kosongkan
+                </button>
+              )}
+            </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {cartCount > 0 && (
-                  <button onClick={clearCart} className="text-red-400 text-xs font-bold bg-red-50 px-3 py-2 rounded-xl border border-red-100">
-                    Kosong
-                  </button>
-                )}
-                <div className="relative">
-                  <select
-                    value={currentMeja}
-                    onChange={(e) => { setCurrentMeja(e.target.value); clearCart(); }}
-                    className="appearance-none bg-gray-900 text-white border border-gray-900 rounded-2xl pl-4 pr-9 py-2.5 text-xs font-black outline-none shadow-sm active:scale-95 transition-all"
-                  >
-                    {mejaList.map((meja) => (
-                      <option key={meja} value={meja}>{displayMejaLabel(meja)}</option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/70 text-[10px]">▾</span>
-                </div>
+            <div className="mb-4">
+              <label className="text-gray-500 text-[11px] font-black mb-2 block uppercase tracking-wide">Jenis Pesanan</label>
+              <div className="relative">
+                <select
+                  value={currentMeja}
+                  onChange={(e) => { setCurrentMeja(e.target.value); clearCart(); }}
+                  className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-black outline-none focus:border-green-500 focus:bg-white transition-all"
+                >
+                  {mejaList.map((meja) => (
+                    <option key={meja} value={meja}>{displayMejaLabel(meja)}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
               </div>
             </div>
-            {cartItems.length > 0 && (
-              <div className="flex flex-col gap-2 mb-3 max-h-32 overflow-y-auto">
+
+            {cartItems.length > 0 ? (
+              <div className="flex flex-col gap-3 mb-4 max-h-64 overflow-y-auto pr-1">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2">
-                    <span className="text-gray-700 text-xs flex-1 font-medium">{item.nama}</span>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded-lg border border-gray-200 text-gray-600 text-sm font-bold flex items-center justify-center">−</button>
-                      <span className="text-gray-900 text-xs font-black w-4 text-center">{item.qty}</span>
-                      <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded-lg border border-gray-200 text-gray-600 text-sm font-bold flex items-center justify-center">+</button>
+                  <div key={item.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-gray-900 text-sm font-black truncate">{item.nama}</div>
+                        <div className="text-gray-400 text-xs font-bold mt-0.5">RM {item.harga_jual.toFixed(2)} × {item.qty}</div>
+                      </div>
+                      <div className="text-gray-900 text-sm font-black whitespace-nowrap">RM {(item.harga_jual * item.qty).toFixed(2)}</div>
                     </div>
-                    <span className="text-gray-900 text-xs font-bold w-16 text-right">RM {(item.harga_jual * item.qty).toFixed(2)}</span>
+
+                    <div className="flex items-center justify-between gap-3 mt-3">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => updateQty(item.id, -1)} className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-black flex items-center justify-center active:scale-95 transition-all">−</button>
+                        <span className="min-w-8 text-center text-gray-900 text-sm font-black">{item.qty}</span>
+                        <button onClick={() => updateQty(item.id, 1)} className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-black flex items-center justify-center active:scale-95 transition-all">+</button>
+                      </div>
+                      <span className="bg-white border border-gray-200 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl">{item.qty} item</span>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="text-gray-400 text-[11px] font-black mb-1.5 block uppercase tracking-wide">Nota item</label>
+                      <input
+                        type="text"
+                        value={item.nota}
+                        onChange={(e) => updateNota(item.id, e.target.value)}
+                        placeholder="cth: tak pedas, kurang ais, asing kuah"
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-green-500"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
+            ) : (
+              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-3xl p-5 mb-4 text-center">
+                <div className="text-3xl mb-2">🛒</div>
+                <div className="text-gray-900 text-sm font-black">Belum ada item</div>
+                <div className="text-gray-400 text-xs mt-1">Pilih menu di atas untuk mula order</div>
+              </div>
             )}
-            {cartItems.length === 0 && <div className="text-center text-gray-300 text-xs py-3">Tiada item dipilih</div>}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-gray-500 text-sm">Jumlah</span>
-              <span className="text-gray-900 text-xl font-black">RM {total.toFixed(2)}</span>
+
+            <div className="flex items-center justify-between mb-3 bg-gray-50 rounded-2xl px-4 py-3">
+              <span className="text-gray-500 text-sm font-bold">Jumlah</span>
+              <span className="text-gray-900 text-2xl font-black">RM {total.toFixed(2)}</span>
             </div>
+
             {!orderSent ? (
-              <button onClick={sendOrder} disabled={cartItems.length === 0 || saving} className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-30 transition-all">
-                {saving ? "Menghantar..." : "Hantar ke Dapur 🍳"}
+              <button onClick={sendOrder} disabled={cartItems.length === 0 || saving} className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all">
+                {saving ? "Menghantar..." : cartItems.length === 0 ? "Hantar ke Dapur" : `Hantar ke Dapur • RM ${total.toFixed(2)} 🍳`}
               </button>
             ) : (
-              <button onClick={() => setShowCheckout(true)} disabled={saving} className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl text-sm transition-all">
-                Checkout & Bayar 💳
+              <button onClick={() => setShowCheckout(true)} disabled={saving} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm active:scale-95 transition-all">
+                Checkout & Bayar • RM {total.toFixed(2)} 💳
               </button>
             )}
           </div>
@@ -467,7 +499,7 @@ export default function StaffDashboardPage() {
             <div className="bg-gray-50 rounded-2xl p-4 mb-4">
               {cartItems.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm py-1">
-                  <span className="text-gray-500">{item.nama} ×{item.qty}</span>
+                  <span className="text-gray-500">{item.nama} ×{item.qty}{item.nota ? ` — ${item.nota}` : ""}</span>
                   <span className="text-gray-900 font-bold">RM {(item.harga_jual * item.qty).toFixed(2)}</span>
                 </div>
               ))}
