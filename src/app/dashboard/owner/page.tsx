@@ -21,6 +21,61 @@ type Produk = {
   is_active: boolean;
 };
 
+
+type ReportTopProduct = {
+  nama: string;
+  qty: number;
+  total: number;
+};
+
+type InventoryReportItem = {
+  id: string;
+  nama: string;
+  stok: number;
+  status: "Habis" | "Rendah" | "Cukup";
+};
+
+type PaymentSummaryItem = {
+  method: string;
+  total: number;
+  count: number;
+};
+
+type ReceiptItem = {
+  id?: string;
+  nama: string;
+  qty: number;
+  harga: number;
+  kos?: number;
+  nota?: string | null;
+};
+
+type RecentReceipt = {
+  id: string;
+  created_at: string;
+  meja: string | null;
+  status: string;
+  total: number;
+  payment_method?: string | null;
+  order_items: ReceiptItem[];
+};
+
+type OwnerReportData = {
+  totalSales: number;
+  totalOrders: number;
+  averageOrderValue: number;
+  dineInOrders: number;
+  takeawayOrders: number;
+  grossProfit: number;
+  cogs: number;
+  margin: number;
+  topProducts: ReportTopProduct[];
+  inventoryReport: InventoryReportItem[];
+  paymentSummary: PaymentSummaryItem[];
+  recentReceipts: RecentReceipt[];
+};
+
+
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -73,6 +128,24 @@ export default function OwnerDashboardPage() {
   const [tableCountInput, setTableCountInput] = useState(6);
   const [tableMsg, setTableMsg] = useState("");
 
+  const [reportData, setReportData] = useState<OwnerReportData>({
+    totalSales: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+    dineInOrders: 0,
+    takeawayOrders: 0,
+    grossProfit: 0,
+    cogs: 0,
+    margin: 0,
+    topProducts: [],
+    inventoryReport: [],
+    paymentSummary: [],
+    recentReceipts: [],
+  });
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(null);
+
+
   useEffect(() => {
     fetchSessionAndKedai();
   }, [activeTab]);
@@ -91,6 +164,7 @@ export default function OwnerDashboardPage() {
       fetchSalesData(session.kedai_id);
       if (activeTab === "staff" || activeTab === "settings") fetchStaff(session.kedai_id);
       if (activeTab === "inventory") fetchProduk(session.kedai_id);
+      if (activeTab === "laporan") fetchOwnerReport(session.kedai_id);
     } else {
       fetchSalesData(null);
     }
@@ -132,6 +206,150 @@ export default function OwnerDashboardPage() {
     const bulananUntung = bulananTotal - bulananCOGS;
     const bulananMargin = bulananTotal > 0 ? Math.round((bulananUntung / bulananTotal) * 100) : 0;
     setSalesData({ harianTotal, harianTransaksi, bulananTotal, bulananCOGS, bulananUntung, bulananMargin, stokKritikal: stokRendah?.length || 0 });
+  }
+
+
+  async function fetchOwnerReport(kedaiId: string | null) {
+    if (!kedaiId) {
+      setReportData({
+        totalSales: 0,
+        totalOrders: 0,
+        averageOrderValue: 0,
+        dineInOrders: 0,
+        takeawayOrders: 0,
+        grossProfit: 0,
+        cogs: 0,
+        margin: 0,
+        topProducts: [],
+        inventoryReport: [],
+        paymentSummary: [],
+        recentReceipts: [],
+      });
+      return;
+    }
+
+    setLoadingReport(true);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+
+    const { data: ordersData } = await supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .in("status", ["paid", "done"])
+      .eq("kedai_id", kedaiId)
+      .gte("created_at", todayISO)
+      .order("created_at", { ascending: false }) as any;
+
+    const { data: produkData } = await supabase
+      .from("produk")
+      .select("id, nama, stok, is_active")
+      .eq("kedai_id", kedaiId)
+      .eq("is_active", true)
+      .order("stok", { ascending: true }) as any;
+
+    const orders = ordersData || [];
+    const products = produkData || [];
+
+    const totalSales = orders.reduce((sum: number, order: any) => sum + Number(order.total || 0), 0);
+    const totalOrders = orders.length;
+    const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+    const dineInOrders = orders.filter((order: any) => {
+      const meja = String(order.meja || "").toLowerCase();
+      return meja && !meja.includes("bungkus") && !meja.includes("takeaway");
+    }).length;
+
+    const takeawayOrders = orders.filter((order: any) => {
+      const meja = String(order.meja || "").toLowerCase();
+      return meja.includes("bungkus") || meja.includes("takeaway");
+    }).length;
+
+    let cogs = 0;
+    const productMap: Record<string, ReportTopProduct> = {};
+    const paymentMap: Record<string, PaymentSummaryItem> = {};
+
+    orders.forEach((order: any) => {
+      const paymentMethodRaw = order.payment_method || order.paymentMethod || order.payment || order.bayaran || "Belum direkod";
+      const paymentMethod = String(paymentMethodRaw || "Belum direkod");
+
+      if (!paymentMap[paymentMethod]) {
+        paymentMap[paymentMethod] = { method: paymentMethod, total: 0, count: 0 };
+      }
+
+      paymentMap[paymentMethod].total += Number(order.total || 0);
+      paymentMap[paymentMethod].count += 1;
+
+      (order.order_items || []).forEach((item: any) => {
+        const itemName = item.nama || "Produk";
+        const qty = Number(item.qty || 0);
+        const harga = Number(item.harga || 0);
+        const kos = Number(item.kos || 0);
+
+        cogs += kos * qty;
+
+        if (!productMap[itemName]) {
+          productMap[itemName] = { nama: itemName, qty: 0, total: 0 };
+        }
+
+        productMap[itemName].qty += qty;
+        productMap[itemName].total += harga * qty;
+      });
+    });
+
+    const grossProfit = totalSales - cogs;
+    const margin = totalSales > 0 ? Math.round((grossProfit / totalSales) * 100) : 0;
+
+    const topProducts = Object.values(productMap)
+      .sort((a, b) => b.qty - a.qty)
+      .slice(0, 5);
+
+    const inventoryReport = products
+      .map((item: any) => ({
+        id: item.id,
+        nama: item.nama,
+        stok: Number(item.stok || 0),
+        status: Number(item.stok || 0) <= 0 ? "Habis" : Number(item.stok || 0) <= 5 ? "Rendah" : "Cukup",
+      }))
+      .slice(0, 6) as InventoryReportItem[];
+
+    const paymentSummary = Object.values(paymentMap)
+      .sort((a, b) => b.total - a.total);
+
+    const recentReceipts = orders.slice(0, 8).map((order: any) => ({
+      id: order.id,
+      created_at: order.created_at,
+      meja: order.meja || null,
+      status: order.status,
+      total: Number(order.total || 0),
+      payment_method: order.payment_method || order.paymentMethod || order.payment || order.bayaran || null,
+      order_items: (order.order_items || []).map((item: any) => ({
+        id: item.id,
+        nama: item.nama || "Produk",
+        qty: Number(item.qty || 0),
+        harga: Number(item.harga || 0),
+        kos: Number(item.kos || 0),
+        nota: item.nota || null,
+      })),
+    }));
+
+    setReportData({
+      totalSales,
+      totalOrders,
+      averageOrderValue,
+      dineInOrders,
+      takeawayOrders,
+      grossProfit,
+      cogs,
+      margin,
+      topProducts,
+      inventoryReport,
+      paymentSummary,
+      recentReceipts,
+    });
+
+    setLoadingReport(false);
   }
 
   async function addStaff() {
@@ -283,6 +501,65 @@ export default function OwnerDashboardPage() {
   function changeTableCount(value: number) {
     setTableMsg("");
     setTableCountInput(Math.min(Math.max(value, 1), 20));
+  }
+
+
+  function formatRM(value: number) {
+    return `RM ${Number(value || 0).toFixed(2)}`;
+  }
+
+  function formatReceiptDate(dateValue: string) {
+    if (!dateValue) return "-";
+
+    return new Date(dateValue).toLocaleString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function displayMejaLabel(meja?: string | null) {
+    if (!meja) return "-";
+    if (meja === "Bungkus") return "Bungkus";
+    if (meja.startsWith("Meja")) return meja;
+    if (meja.startsWith("T")) return `Meja ${meja.replace("T", "")}`;
+    return meja;
+  }
+
+  function downloadReceipt(receipt: RecentReceipt) {
+    const receiptNo = receipt.id.slice(0, 8).toUpperCase();
+    const lines = [
+      "URUSPOS RECEIPT",
+      kedaiInfo?.nama || "Kedai Saya",
+      "",
+      `Receipt: #${receiptNo}`,
+      `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
+      `Jenis: ${displayMejaLabel(receipt.meja)}`,
+      `Bayaran: ${receipt.payment_method || "Belum direkod"}`,
+      "",
+      "ITEM",
+      ...receipt.order_items.flatMap((item) => {
+        const itemTotal = item.qty * item.harga;
+        const baseLine = `${item.nama} x${item.qty} @ ${formatRM(item.harga)} = ${formatRM(itemTotal)}`;
+        return item.nota ? [baseLine, `Nota: ${item.nota}`] : [baseLine];
+      }),
+      "",
+      `TOTAL: ${formatRM(receipt.total)}`,
+      "",
+      "Terima kasih.",
+    ];
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `receipt-${receiptNo}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   const marginTambah = produkHarga && produkKos ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100) : 0;
@@ -459,16 +736,225 @@ export default function OwnerDashboardPage() {
         {/* LAPORAN */}
         {activeTab === "laporan" && (
           <div>
-            <h2 className="text-gray-900 font-bold text-lg mb-4">Laporan</h2>
-            <div className="bg-gray-900 rounded-2xl p-5 mb-4 grid grid-cols-2 gap-4">
-              <div><div className="text-gray-400 text-xs">Jualan Bulan</div><div className="text-white text-xl font-black mt-1">RM {salesData.bulananTotal.toFixed(2)}</div></div>
-              <div><div className="text-gray-400 text-xs">COGS</div><div className="text-red-400 text-xl font-black mt-1">RM {salesData.bulananCOGS.toFixed(2)}</div></div>
-              <div><div className="text-gray-400 text-xs">Untung Kasar</div><div className="text-green-400 text-xl font-black mt-1">RM {salesData.bulananUntung.toFixed(2)}</div></div>
-              <div><div className="text-gray-400 text-xs">Margin</div><div className="text-green-400 text-xl font-black mt-1">{salesData.bulananMargin}%</div></div>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-gray-900 font-black text-xl">Laporan Owner</h2>
+                <p className="text-gray-400 text-xs font-bold mt-1">Ringkasan prestasi jualan hari ini</p>
+              </div>
+              <button
+                onClick={() => fetchOwnerReport(sessionUser?.kedai_id)}
+                disabled={loadingReport}
+                className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
+              >
+                {loadingReport ? "Loading..." : "Refresh"}
+              </button>
             </div>
-            <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
-              <div className="text-4xl mb-3">📊</div>
-              <div className="text-gray-400 text-sm">Data akan keluar bila ada jualan</div>
+
+            <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-4 text-white shadow-lg">
+              <div className="flex items-start justify-between gap-3 mb-5">
+                <div>
+                  <div className="text-gray-400 text-xs font-black uppercase tracking-wide">Jumlah Jualan Hari Ini</div>
+                  <div className="text-3xl sm:text-4xl font-black mt-1">{formatRM(reportData.totalSales)}</div>
+                </div>
+                <div className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">
+                  Hari Ini
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 rounded-2xl p-3">
+                  <div className="text-gray-400 text-xs font-bold">Jumlah Order</div>
+                  <div className="text-white text-xl font-black mt-1">{reportData.totalOrders}</div>
+                </div>
+                <div className="bg-white/10 rounded-2xl p-3">
+                  <div className="text-gray-400 text-xs font-bold">Purata Order</div>
+                  <div className="text-white text-xl font-black mt-1">{formatRM(reportData.averageOrderValue)}</div>
+                </div>
+                <div className="bg-white/10 rounded-2xl p-3">
+                  <div className="text-gray-400 text-xs font-bold">Dine-in</div>
+                  <div className="text-white text-xl font-black mt-1">{reportData.dineInOrders}</div>
+                </div>
+                <div className="bg-white/10 rounded-2xl p-3">
+                  <div className="text-gray-400 text-xs font-bold">Bungkus</div>
+                  <div className="text-white text-xl font-black mt-1">{reportData.takeawayOrders}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <div className="text-xl mb-1">💰</div>
+                <div className="text-green-600 text-lg font-black">{formatRM(reportData.grossProfit)}</div>
+                <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
+              </div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <div className="text-xl mb-1">📉</div>
+                <div className="text-red-500 text-lg font-black">{formatRM(reportData.cogs)}</div>
+                <div className="text-gray-400 text-xs mt-1">COGS</div>
+              </div>
+              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                <div className="text-xl mb-1">📊</div>
+                <div className="text-gray-900 text-lg font-black">{reportData.margin}%</div>
+                <div className="text-gray-400 text-xs mt-1">Margin</div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">🔥 Top Product</h3>
+                <span className="text-gray-400 text-xs font-bold">Top 5</span>
+              </div>
+
+              {reportData.topProducts.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">🍽️</div>
+                  <div className="text-gray-400 text-sm">Belum ada produk terjual hari ini</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reportData.topProducts.map((item, index) => (
+                    <div key={`${item.nama}-${index}`} className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${
+                        index === 0 ? "bg-green-600 text-white" : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-gray-900 font-bold text-sm truncate">{item.nama}</div>
+                        <div className="text-gray-400 text-xs">{item.qty} terjual</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gray-900 text-sm font-black">{formatRM(item.total)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">💳 Payment Method</h3>
+                <span className="text-gray-400 text-xs font-bold">{reportData.paymentSummary.length} jenis</span>
+              </div>
+
+              {reportData.paymentSummary.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">💳</div>
+                  <div className="text-gray-400 text-sm">Belum ada rekod bayaran</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reportData.paymentSummary.map((item) => (
+                    <div key={item.method} className="flex items-center justify-between bg-gray-50 rounded-2xl p-3">
+                      <div>
+                        <div className="text-gray-900 text-sm font-black">{item.method}</div>
+                        <div className="text-gray-400 text-xs">{item.count} order</div>
+                      </div>
+                      <div className="text-green-600 text-sm font-black">{formatRM(item.total)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                <div className="text-amber-700 text-xs font-bold">
+                  Nota: Kalau semua keluar "Belum direkod", maksudnya payment method belum disimpan dalam POS checkout.
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">📦 Inventory Report</h3>
+                <span className="text-gray-400 text-xs font-bold">Stok semasa</span>
+              </div>
+
+              {reportData.inventoryReport.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-3xl mb-2">📦</div>
+                  <div className="text-gray-400 text-sm">Belum ada produk aktif</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reportData.inventoryReport.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between bg-gray-50 rounded-2xl p-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-gray-900 text-sm font-black truncate">{item.nama}</div>
+                        <div className="text-gray-400 text-xs">Stok: {item.stok} unit</div>
+                      </div>
+                      <span className={`text-xs font-black px-3 py-1 rounded-full ${
+                        item.status === "Habis"
+                          ? "bg-red-100 text-red-600"
+                          : item.status === "Rendah"
+                            ? "bg-amber-100 text-amber-600"
+                            : "bg-green-100 text-green-600"
+                      }`}>
+                        {item.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">🧾 Receipt Preview</h3>
+                <span className="text-gray-400 text-xs font-bold">Recent</span>
+              </div>
+
+              {reportData.recentReceipts.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">🧾</div>
+                  <div className="text-gray-400 text-sm">Belum ada receipt hari ini</div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reportData.recentReceipts.map((receipt) => (
+                    <div key={receipt.id} className="bg-gray-50 rounded-2xl p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-gray-900 text-sm font-black truncate">#{receipt.id.slice(0, 8).toUpperCase()}</div>
+                          <div className="text-gray-400 text-xs mt-1">{displayMejaLabel(receipt.meja)} · {formatReceiptDate(receipt.created_at)}</div>
+                          <div className="text-gray-400 text-xs mt-1">{receipt.payment_method || "Belum direkod"}</div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="text-right mr-1">
+                            <div className="text-green-600 text-sm font-black whitespace-nowrap">{formatRM(receipt.total)}</div>
+                          </div>
+
+                          <button
+                            onClick={() => setSelectedReceipt(receipt)}
+                            className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            title="Preview receipt"
+                            aria-label="Preview receipt"
+                          >
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+
+                          <button
+                            onClick={() => downloadReceipt(receipt)}
+                            className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            title="Download receipt"
+                            aria-label="Download receipt"
+                          >
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M12 3V15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M5 21H19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -630,6 +1116,80 @@ export default function OwnerDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Receipt Preview Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-gray-900 font-black text-lg">Receipt Preview</h3>
+                <div className="text-gray-400 text-xs font-bold">#{selectedReceipt.id.slice(0, 8).toUpperCase()}</div>
+              </div>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl p-5 bg-white">
+              <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
+                <div className="text-gray-900 font-black text-xl">UrusPOS</div>
+                <div className="text-gray-500 text-sm font-bold">{kedaiInfo?.nama || "Kedai Saya"}</div>
+                <div className="text-gray-400 text-xs mt-2">{formatReceiptDate(selectedReceipt.created_at)}</div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                  <span>Order</span>
+                  <span>#{selectedReceipt.id.slice(0, 8).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                  <span>Jenis</span>
+                  <span>{displayMejaLabel(selectedReceipt.meja)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 font-bold">
+                  <span>Bayaran</span>
+                  <span>{selectedReceipt.payment_method || "Belum direkod"}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-dashed border-gray-300 pt-4 space-y-3">
+                {selectedReceipt.order_items.map((item, index) => (
+                  <div key={`${item.nama}-${index}`} className="flex justify-between gap-3 text-sm">
+                    <div className="flex-1">
+                      <div className="text-gray-900 font-bold">{item.nama}</div>
+                      <div className="text-gray-400 text-xs">{item.qty} x {formatRM(item.harga)}</div>
+                      {item.nota && <div className="text-amber-600 text-xs mt-1">Nota: {item.nota}</div>}
+                    </div>
+                    <div className="text-gray-900 font-black">{formatRM(item.qty * item.harga)}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-900 font-black">TOTAL</span>
+                  <span className="text-gray-900 font-black text-xl">{formatRM(selectedReceipt.total)}</span>
+                </div>
+              </div>
+
+              <div className="text-center text-gray-400 text-xs mt-5">
+                Terima kasih.
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedReceipt(null)}
+              className="w-full mt-4 bg-green-600 text-white font-black py-3 rounded-2xl"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Menu Drawer */}
       {showMobileMenu && (
