@@ -297,10 +297,10 @@ export default function SuperadminDashboardPage() {
     </div>
   );
 
-  const MobileMenuDrawer = () => (
+  const MenuDrawer = () => (
     <>
       {showMobileMenu && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50">
           <button aria-label="Tutup menu" onClick={() => setShowMobileMenu(false)} className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
           <div className="relative h-full w-[84%] max-w-sm bg-[#0f0a1e] border-r border-purple-900/40 shadow-2xl animate-[slideInLeft_0.25s_ease-out] overflow-y-auto">
             <div className="p-5 border-b border-purple-900/30 bg-[#1a0e35]">
@@ -341,27 +341,17 @@ export default function SuperadminDashboardPage() {
     <div className="min-h-screen bg-[#0f0a1e]">
       <div className="bg-[#1a0e35] border-b border-purple-900/30 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowMobileMenu(true)} className="md:hidden w-11 h-11 rounded-2xl bg-[#0f0a1e] border border-purple-800/60 text-white text-xl font-black flex items-center justify-center shadow-lg" aria-label="Buka menu">☰</button>
+          <button onClick={() => setShowMobileMenu(true)} className="w-11 h-11 rounded-2xl bg-[#0f0a1e] border border-purple-800/60 text-white text-xl font-black flex items-center justify-center shadow-lg" aria-label="Buka menu">☰</button>
           <div>
             <span className="text-white font-bold text-xl">Urus<span className="text-purple-400">POS</span></span>
             <span className="hidden sm:inline-block ml-3 bg-purple-700 text-white text-xs font-bold px-3 py-1 rounded-full">SUPERADMIN</span>
-            <div className="md:hidden text-purple-400 text-xs font-bold mt-0.5">{activeMenuLabel()}</div>
+            <div className="text-purple-400 text-xs font-bold mt-0.5">{activeMenuLabel()}</div>
           </div>
         </div>
         <a href="/auth/logout" className="text-purple-400 text-sm font-semibold hover:text-white">Log Keluar</a>
       </div>
 
-      <MobileMenuDrawer />
-
-      <div className="hidden md:flex bg-[#1a0e35] border-b border-purple-900/20 justify-center">
-        <div className="max-w-2xl w-full flex">
-          {menuItems.map((tab) => (
-            <button key={tab.id} onClick={() => handleChangeTab(tab.id)} className={`px-5 py-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${activeTab === tab.id ? "border-purple-400 text-purple-400" : "border-transparent text-stone-500 hover:text-purple-300"}`}>
-              <span>{tab.icon}</span><span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <MenuDrawer />
 
       <div className="p-4 max-w-2xl mx-auto">
 
