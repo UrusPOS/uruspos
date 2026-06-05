@@ -194,7 +194,7 @@ export default function OwnerDashboardPage() {
   const [tableMsg, setTableMsg] = useState("");
 
   const [filter, setFilter] = useState<FilterType>("daily");
-  const [billingStatus, setBillingStatus] = useState<"paid" | "unpaid" | null>(null);
+  const [billingStatus, setBillingStatus] = useState<{ status: string; fee: number; jualan: number; bulanLabel: string } | null>(null);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -351,9 +351,11 @@ export default function OwnerDashboardPage() {
 
   async function fetchBillingStatus(kedaiId: string) {
     const now = new Date();
-    const bulan = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-    const { data } = await supabase.from("billing").select("status").eq("kedai_id", kedaiId).eq("bulan", bulan).single() as any;
-    setBillingStatus(data?.status || null);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const bulan = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
+    const bulanLabel = lastMonth.toLocaleDateString("ms-MY", { month: "long", year: "numeric" });
+    const { data } = await supabase.from("billing").select("status, fee, jualan").eq("kedai_id", kedaiId).eq("bulan", bulan).single() as any;
+    setBillingStatus(data ? { status: data.status, fee: Number(data.fee || 0), jualan: Number(data.jualan || 0), bulanLabel } : null);
   }
 
   async function fetchStaff(kedaiId?: string | null) {
@@ -656,17 +658,29 @@ export default function OwnerDashboardPage() {
               <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${planInfo.pill}`}>{planInfo.label}</span>
             </div>
             {isActivePlan ? (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+              <div className={`rounded-2xl p-4 border ${billingStatus?.status === "unpaid" ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="text-green-700 text-xs font-bold">📊 Fee UrusPOS — {filterLabel()}</div>
-                  {billingStatus === "paid" ? (
+                  <div className={`text-xs font-bold ${billingStatus?.status === "unpaid" ? "text-red-700" : "text-green-700"}`}>
+                    📊 Fee UrusPOS — {billingStatus ? billingStatus.bulanLabel : "Bulan Lepas"}
+                  </div>
+                  {billingStatus?.status === "paid" ? (
                     <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">✅ Dah Bayar</span>
-                  ) : billingStatus === "unpaid" ? (
+                  ) : billingStatus?.status === "unpaid" ? (
                     <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⏳ Belum Bayar</span>
                   ) : null}
                 </div>
-                <div className="text-gray-900 text-2xl font-black">RM {urusposFee.toFixed(2)}</div>
-                <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {stats.jumlahJualan.toFixed(2)}</div>
+                <div className="text-gray-900 text-2xl font-black">
+                  {billingStatus ? `RM ${Number(billingStatus.fee).toFixed(2)}` : "—"}
+                </div>
+                <div className="text-gray-400 text-xs mt-1">
+                  {billingStatus ? `2% daripada jualan RM ${Number(billingStatus.jualan).toFixed(2)}` : "Tiada rekod bulan lepas"}
+                </div>
+                {billingStatus?.status === "unpaid" && (
+                  <div className="mt-3 bg-red-100 border border-red-200 rounded-xl p-3">
+                    <div className="text-red-700 text-xs font-bold">⚠️ Peringatan</div>
+                    <div className="text-red-600 text-xs mt-1">Sila jelaskan fee UrusPOS anda sebelum 7hb bulan ini. Terima kasih.</div>
+                  </div>
+                )}
               </div>
             ) : isBeta ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
