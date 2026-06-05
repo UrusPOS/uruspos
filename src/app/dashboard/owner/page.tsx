@@ -52,7 +52,7 @@ export default function OwnerDashboardPage() {
 
   const [staffError, setStaffError] = useState("");
   const [sessionUser, setSessionUser] = useState<any>(null);
-  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; status: string } | null>(null);
+  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; status: string; table_count?: number | null } | null>(null);
   const [salesData, setSalesData] = useState({
     harianTotal: 0,
     harianTransaksi: 0,
@@ -70,6 +70,8 @@ export default function OwnerDashboardPage() {
   const [resetStaffNama, setResetStaffNama] = useState("");
   const [newStaffPassword, setNewStaffPassword] = useState("");
   const [resetMsg, setResetMsg] = useState("");
+  const [tableCountInput, setTableCountInput] = useState(6);
+  const [tableMsg, setTableMsg] = useState("");
 
   useEffect(() => {
     fetchSessionAndKedai();
@@ -83,9 +85,9 @@ export default function OwnerDashboardPage() {
     setSessionUser(session);
 
     if (session?.kedai_id) {
-      // FIX: tambah status dalam select
-      const { data } = await supabase.from("kedai").select("nama, status").eq("id", session.kedai_id).single() as any;
+      const { data } = await supabase.from("kedai").select("nama, status, table_count").eq("id", session.kedai_id).single() as any;
       setKedaiInfo(data);
+      setTableCountInput(Math.min(Math.max(Number(data?.table_count || 6), 1), 20));
       fetchSalesData(session.kedai_id);
       if (activeTab === "staff" || activeTab === "settings") fetchStaff(session.kedai_id);
       if (activeTab === "inventory") fetchProduk(session.kedai_id);
@@ -251,6 +253,36 @@ export default function OwnerDashboardPage() {
     setResetStaffId(null); setNewStaffPassword("");
     setResetMsg("✅ Password staff berjaya direset!");
     setTimeout(() => setResetMsg(""), 3000);
+  }
+
+  async function saveTableCount() {
+    if (!sessionUser?.kedai_id) return;
+
+    const finalCount = Math.min(Math.max(Number(tableCountInput) || 6, 1), 20);
+    setSaving(true);
+    setTableMsg("");
+
+    const { error } = await supabase
+      .from("kedai")
+      .update({ table_count: finalCount } as any)
+      .eq("id", sessionUser.kedai_id);
+
+    setSaving(false);
+
+    if (error) {
+      setTableMsg("❌ Gagal simpan bilangan meja. Pastikan column table_count sudah dibuat dalam table kedai.");
+      return;
+    }
+
+    setKedaiInfo((prev) => prev ? { ...prev, table_count: finalCount } : prev);
+    setTableCountInput(finalCount);
+    setTableMsg("✅ Setup meja berjaya disimpan.");
+    setTimeout(() => setTableMsg(""), 3000);
+  }
+
+  function changeTableCount(value: number) {
+    setTableMsg("");
+    setTableCountInput(Math.min(Math.max(value, 1), 20));
   }
 
   const marginTambah = produkHarga && produkKos ? Math.round((parseFloat(produkHarga) - parseFloat(produkKos)) / parseFloat(produkHarga) * 100) : 0;
@@ -482,6 +514,78 @@ export default function OwnerDashboardPage() {
         {activeTab === "settings" && (
           <div>
             <h2 className="text-gray-900 font-bold text-lg mb-4">⚙️ Tetapan</h2>
+
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-gray-900 font-bold text-sm">🪑 Setup Meja Kedai</h3>
+                  <p className="text-gray-400 text-xs mt-1">Default 6 meja. Bungkus akan kekal automatik.</p>
+                </div>
+                <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">Max 20</span>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <button
+                    onClick={() => changeTableCount(tableCountInput - 1)}
+                    disabled={tableCountInput <= 1}
+                    className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                  >
+                    −
+                  </button>
+
+                  <div className="text-center">
+                    <div className="text-gray-900 text-4xl font-black leading-none">{tableCountInput}</div>
+                    <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">Meja</div>
+                  </div>
+
+                  <button
+                    onClick={() => changeTableCount(tableCountInput + 1)}
+                    disabled={tableCountInput >= 20}
+                    className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={tableCountInput}
+                  onChange={(e) => changeTableCount(Number(e.target.value))}
+                  className="w-full accent-green-600"
+                />
+
+                <div className="mt-4 grid grid-cols-7 gap-1.5">
+                  {Array.from({ length: tableCountInput }).map((_, index) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black">
+                      {index + 1}
+                    </div>
+                  ))}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
+                    🥡
+                  </div>
+                </div>
+
+                <div className="text-gray-400 text-xs mt-3">
+                  POS akan papar Meja 1 hingga Meja {tableCountInput}, dan pilihan Bungkus.
+                </div>
+              </div>
+
+              {tableMsg && (
+                <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{tableMsg}</div>
+              )}
+
+              <button
+                onClick={saveTableCount}
+                disabled={saving || tableCountInput === Math.min(Math.max(Number(kedaiInfo?.table_count || 6), 1), 20)}
+                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+              >
+                {saving ? "Menyimpan..." : "Simpan Setup Meja"}
+              </button>
+            </div>
+
             <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
               <h3 className="text-gray-900 font-bold text-sm mb-4">🔐 Tukar Password Saya</h3>
               <div className="mb-3">
