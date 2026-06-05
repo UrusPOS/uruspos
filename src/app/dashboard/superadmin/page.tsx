@@ -67,6 +67,7 @@ export default function SuperadminDashboardPage() {
   const [newKedaiTelefon, setNewKedaiTelefon] = useState("");
   const [generatedCreds, setGeneratedCreds] = useState<{username: string, password: string, kedaiNama: string} | null>(null);
   const [activeTab, setActiveTab] = useState("dash");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showCredentials, setShowCredentials] = useState<string | null>(null);
   const [credentialsList, setCredentialsList] = useState<any[]>([]);
   const [loadingCreds, setLoadingCreds] = useState(false);
@@ -76,8 +77,10 @@ export default function SuperadminDashboardPage() {
   const [filter, setFilter] = useState<FilterType>("daily");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [showCustomPicker, setShowCustomPicker] = useState(false);
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [tempFilter, setTempFilter] = useState<FilterType>("daily");
+  const [tempCustomFrom, setTempCustomFrom] = useState("");
+  const [tempCustomTo, setTempCustomTo] = useState("");
 
   useEffect(() => { fetchKedai(); }, [filter, customFrom, customTo]);
 
@@ -146,10 +149,24 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
-  function applyCustomFilter() {
-    if (!customFrom || !customTo) return;
-    setFilter("custom");
-    setShowCustomPicker(false);
+  function openFilterModal() {
+    setTempFilter(filter);
+    setTempCustomFrom(customFrom);
+    setTempCustomTo(customTo);
+    setShowFilterModal(true);
+  }
+
+  function applyDateFilter() {
+    if (tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)) return;
+
+    setFilter(tempFilter);
+
+    if (tempFilter === "custom") {
+      setCustomFrom(tempCustomFrom);
+      setCustomTo(tempCustomTo);
+    }
+
+    setShowFilterModal(false);
   }
 
   function formatDateLabel(date: string) {
@@ -181,93 +198,148 @@ export default function SuperadminDashboardPage() {
     suspended: kedaiList.filter((k) => k.status === "suspended").length,
   };
 
-  // Filter dropdown component (reused across tabs)
-  const FilterBar = () => {
-    const filterOptions: { value: FilterType; label: string }[] = [
-      { value: "daily", label: "Hari Ini" },
-      { value: "weekly", label: "Minggu" },
-      { value: "monthly", label: "Bulan Ini" },
-      { value: "custom", label: "Tarikh Custom" },
-    ];
+  const menuItems = [
+    { id: "dash", label: "Dashboard", icon: "📊", description: "Ringkasan semua kedai" },
+    { id: "kedai", label: "Kedai", icon: "🏪", description: "Senarai & status kedai" },
+    { id: "billing", label: "Billing", icon: "💰", description: "Fee & langganan" },
+  ];
 
-    function handleSelectFilter(value: FilterType) {
-      setShowFilterDropdown(false);
+  function activeMenuLabel() {
+    return menuItems.find((item) => item.id === activeTab)?.label || "Dashboard";
+  }
 
-      if (value === "custom") {
-        setShowCustomPicker(true);
-        return;
-      }
+  function handleChangeTab(tabId: string) {
+    setActiveTab(tabId);
+    setShowMobileMenu(false);
+  }
 
-      setFilter(value);
-    }
+  // Date filter button (reused across tabs)
+  const FilterBar = () => (
+    <div className="mb-4 mt-4">
+      <button
+        onClick={openFilterModal}
+        className="inline-flex items-center gap-2 rounded-full bg-purple-700/20 border border-purple-500/40 text-white px-4 py-2.5 text-sm font-black shadow-lg shadow-black/10 hover:bg-purple-700/30 hover:border-purple-400 transition-all"
+      >
+        <span className="text-base">📅</span>
+        <span>{filterLabel()}</span>
+        <span className="text-purple-300 text-xs">▾</span>
+      </button>
+    </div>
+  );
 
-    return (
-      <div className="relative mb-4 mt-4">
-        <button
-          onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-          className="w-full sm:w-auto flex items-center justify-between gap-3 bg-[#1a0e35] border border-purple-700/60 text-white px-4 py-3 rounded-2xl text-sm font-bold shadow-lg shadow-black/10 hover:border-purple-500 transition-all"
-        >
-          <span className="text-purple-300 text-xs font-semibold uppercase tracking-wide">
-            Tarikh
-          </span>
+  const MobileMenuDrawer = () => (
+    <>
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            aria-label="Tutup menu"
+            onClick={() => setShowMobileMenu(false)}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+          />
 
-          <span>{filterLabel()}</span>
+          <div className="relative h-full w-[84%] max-w-sm bg-[#0f0a1e] border-r border-purple-900/40 shadow-2xl animate-[slideInLeft_0.25s_ease-out] overflow-y-auto">
+            <div className="p-5 border-b border-purple-900/30 bg-[#1a0e35]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-white font-black text-xl">
+                    Urus<span className="text-purple-400">POS</span>
+                  </div>
+                  <div className="text-purple-300 text-xs font-bold mt-1 tracking-wider">SUPERADMIN MENU</div>
+                </div>
 
-          <span
-            className={`text-purple-300 transition-transform ${
-              showFilterDropdown ? "rotate-180" : ""
-            }`}
-          >
-            ▼
-          </span>
-        </button>
-
-        {showFilterDropdown && (
-          <div className="absolute left-0 mt-2 w-full sm:w-56 bg-[#1a0e35] border border-purple-700/60 rounded-2xl shadow-2xl shadow-black/30 overflow-hidden z-40">
-            {filterOptions.map((option) => {
-              const isActive = filter === option.value;
-
-              return (
                 <button
-                  key={option.value}
-                  onClick={() => handleSelectFilter(option.value)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-left transition-all ${
-                    isActive
-                      ? "bg-purple-700 text-white"
-                      : "text-purple-300 hover:bg-purple-900/50 hover:text-white"
-                  }`}
+                  onClick={() => setShowMobileMenu(false)}
+                  className="w-10 h-10 rounded-2xl bg-purple-900/50 border border-purple-700/60 text-purple-200 font-black"
                 >
-                  <span>{option.label}</span>
-                  {isActive && <span>✓</span>}
+                  ✕
                 </button>
-              );
-            })}
+              </div>
+            </div>
+
+            <div className="p-5">
+              <div className="bg-[#1a0e35] border border-purple-900/40 rounded-3xl p-4 mb-5">
+                <div className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-1">Sedang Dibuka</div>
+                <div className="text-white text-lg font-black">{activeMenuLabel()}</div>
+              </div>
+
+              <div className="text-purple-400 text-xs font-black uppercase tracking-[0.18em] mb-3 px-1">Navigasi</div>
+
+              <div className="space-y-3">
+                {menuItems.map((item) => {
+                  const isActive = activeTab === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleChangeTab(item.id)}
+                      className={`w-full flex items-center gap-4 rounded-3xl p-4 text-left border transition-all ${
+                        isActive
+                          ? "bg-purple-700 border-purple-500 text-white shadow-lg shadow-purple-950/30"
+                          : "bg-[#1a0e35] border-purple-900/40 text-purple-200 hover:border-purple-600 hover:bg-purple-950/50"
+                      }`}
+                    >
+                      <span className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${
+                        isActive ? "bg-white/20" : "bg-purple-900/50"
+                      }`}>
+                        {item.icon}
+                      </span>
+                      <span className="flex-1">
+                        <span className="block font-black text-sm">{item.label}</span>
+                        <span className={`block text-xs mt-1 ${isActive ? "text-purple-100" : "text-purple-400"}`}>
+                          {item.description}
+                        </span>
+                      </span>
+                      {isActive && <span className="text-white font-black">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="min-h-screen bg-[#0f0a1e]">
-      <div className="bg-[#1a0e35] border-b border-purple-900/30 px-6 py-4 flex items-center justify-between">
-        <div>
-          <span className="text-white font-bold text-xl">Urus<span className="text-purple-400">POS</span></span>
-          <span className="ml-3 bg-purple-700 text-white text-xs font-bold px-3 py-1 rounded-full">SUPERADMIN</span>
+      <div className="bg-[#1a0e35] border-b border-purple-900/30 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowMobileMenu(true)}
+            className="md:hidden w-11 h-11 rounded-2xl bg-[#0f0a1e] border border-purple-800/60 text-white text-xl font-black flex items-center justify-center shadow-lg"
+            aria-label="Buka menu"
+          >
+            ☰
+          </button>
+
+          <div>
+            <span className="text-white font-bold text-xl">Urus<span className="text-purple-400">POS</span></span>
+            <span className="hidden sm:inline-block ml-3 bg-purple-700 text-white text-xs font-bold px-3 py-1 rounded-full">SUPERADMIN</span>
+            <div className="md:hidden text-purple-400 text-xs font-bold mt-0.5">{activeMenuLabel()}</div>
+          </div>
         </div>
+
         <a href="/auth/logout" className="text-purple-400 text-sm font-semibold hover:text-white">Log Keluar</a>
       </div>
 
-      <div className="bg-[#1a0e35] border-b border-purple-900/20 flex">
-        {[
-          { id: "dash", label: "📊 Dashboard" },
-          { id: "kedai", label: "🏪 Kedai" },
-          { id: "billing", label: "💰 Billing" },
-        ].map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-5 py-3 text-xs font-bold border-b-2 transition-all ${activeTab === tab.id ? "border-purple-400 text-purple-400" : "border-transparent text-stone-500"}`}>
-            {tab.label}
-          </button>
-        ))}
+      <MobileMenuDrawer />
+
+      <div className="hidden md:flex bg-[#1a0e35] border-b border-purple-900/20 justify-center">
+        <div className="max-w-2xl w-full flex">
+          {menuItems.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleChangeTab(tab.id)}
+              className={`px-5 py-3 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === tab.id ? "border-purple-400 text-purple-400" : "border-transparent text-stone-500 hover:text-purple-300"
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="p-4 max-w-2xl mx-auto">
@@ -376,22 +448,101 @@ export default function SuperadminDashboardPage() {
         )}
       </div>
 
-      {/* Custom Date Picker Modal */}
-      {showCustomPicker && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
-            <h3 className="text-white font-bold text-lg mb-5">📅 Pilih Tarikh</h3>
-            <div className="mb-4">
-              <label className="text-purple-400 text-xs font-bold mb-2 block">DARI TARIKH</label>
-              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+      {/* Date Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
+          <div className="bg-[#160b2e] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] border border-purple-500/30 shadow-2xl overflow-hidden animate-[filterSheetUp_0.22s_ease-out]">
+            <div className="p-5 border-b border-purple-900/40">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-white font-black text-lg">Filter by</div>
+                  <div className="text-purple-400 text-xs font-semibold mt-1">Pilih tempoh laporan superadmin</div>
+                </div>
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="w-9 h-9 rounded-full bg-purple-900/50 border border-purple-700/50 text-purple-200 font-black"
+                  aria-label="Tutup filter"
+                >
+                  ×
+                </button>
+              </div>
             </div>
-            <div className="mb-6">
-              <label className="text-purple-400 text-xs font-bold mb-2 block">HINGGA TARIKH</label>
-              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowCustomPicker(false)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
-              <button onClick={applyCustomFilter} disabled={!customFrom || !customTo} className="flex-1 bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50">Tapis</button>
+
+            <div className="p-5">
+              <div className="grid grid-cols-2 gap-2 mb-5">
+                {([
+                  { value: "daily", label: "Hari Ini" },
+                  { value: "weekly", label: "Minggu" },
+                  { value: "monthly", label: "Bulan Ini" },
+                  { value: "custom", label: "Tarikh Custom" },
+                ] as { value: FilterType; label: string }[]).map((option) => {
+                  const isActive = tempFilter === option.value;
+
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => setTempFilter(option.value)}
+                      className={`rounded-full px-3 py-2.5 text-xs font-black border transition-all ${
+                        isActive
+                          ? "bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-950/40"
+                          : "bg-[#0f0a1e] border-purple-900/60 text-purple-300 hover:border-purple-600"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {tempFilter === "custom" && (
+                <div className="bg-[#0f0a1e] border border-purple-900/60 rounded-3xl p-4 mb-5">
+                  <div className="text-purple-300 text-xs font-black uppercase tracking-wider mb-3">Julat Tarikh</div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-purple-400 text-xs font-bold mb-2 block">Start Date</span>
+                      <input
+                        type="date"
+                        value={tempCustomFrom}
+                        onChange={(e) => setTempCustomFrom(e.target.value)}
+                        className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-purple-400 text-xs font-bold mb-2 block">End Date</span>
+                      <input
+                        type="date"
+                        value={tempCustomTo}
+                        onChange={(e) => setTempCustomTo(e.target.value)}
+                        className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400"
+                      />
+                    </label>
+                  </div>
+
+                  {tempCustomFrom && tempCustomTo && (
+                    <div className="mt-3 text-xs text-purple-300 font-semibold">
+                      {formatDateLabel(tempCustomFrom)} — {formatDateLabel(tempCustomTo)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFilterModal(false)}
+                  className="flex-1 bg-purple-900/40 text-purple-300 font-black py-3 rounded-2xl border border-purple-700/60"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={applyDateFilter}
+                  disabled={tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)}
+                  className="flex-1 bg-purple-700 text-white font-black py-3 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -516,6 +667,27 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
+      <style jsx global>{`
+        @keyframes slideInLeft {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes filterSheetUp {
+          from {
+            transform: translateY(100%);
+            opacity: 0.6;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
