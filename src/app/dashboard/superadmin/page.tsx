@@ -113,7 +113,16 @@ export default function SuperadminDashboardPage() {
     const map: { [kedai_id: string]: BillingRecord } = {};
     (data || []).forEach((r: BillingRecord) => { map[r.kedai_id] = r; });
 
-    // Auto-create billing record untuk bulan semasa je (bukan bulan lepas)
+    // Buang record yang tersalah masuk (beta/suspended kedai)
+    for (const record of (data || [])) {
+      const kedai = kedaiList.find(k => k.id === record.kedai_id);
+      if (kedai && kedai.status !== "active") {
+        await supabase.from("billing").delete().eq("id", record.id);
+        delete map[record.kedai_id];
+      }
+    }
+
+    // Auto-create billing record untuk bulan semasa je, active kedai je
     if (isCurrentMonth) {
       const activeKedai = kedaiList.filter(k => k.status === "active");
       for (const kedai of activeKedai) {
@@ -250,10 +259,23 @@ export default function SuperadminDashboardPage() {
     suspended: kedaiList.filter((k) => k.status === "suspended").length,
   };
 
-  const billingPaid = Object.values(billingMap).filter(b => b.status === "paid").length;
-  const billingUnpaid = Object.values(billingMap).filter(b => b.status === "unpaid").length;
-  const totalFeePaid = Object.values(billingMap).filter(b => b.status === "paid").reduce((s, b) => s + Number(b.fee), 0);
-  const totalFeeUnpaid = Object.values(billingMap).filter(b => b.status === "unpaid").reduce((s, b) => s + Number(b.fee), 0);
+  // Kira billing untuk active kedai je — exclude beta & suspended
+  const billingPaid = Object.values(billingMap).filter(b => {
+    const kedai = kedaiList.find(k => k.id === b.kedai_id);
+    return b.status === "paid" && kedai?.status === "active";
+  }).length;
+  const billingUnpaid = Object.values(billingMap).filter(b => {
+    const kedai = kedaiList.find(k => k.id === b.kedai_id);
+    return b.status === "unpaid" && kedai?.status === "active";
+  }).length;
+  const totalFeePaid = Object.values(billingMap).filter(b => {
+    const kedai = kedaiList.find(k => k.id === b.kedai_id);
+    return b.status === "paid" && kedai?.status === "active";
+  }).reduce((s, b) => s + Number(b.fee), 0);
+  const totalFeeUnpaid = Object.values(billingMap).filter(b => {
+    const kedai = kedaiList.find(k => k.id === b.kedai_id);
+    return b.status === "unpaid" && kedai?.status === "active";
+  }).reduce((s, b) => s + Number(b.fee), 0);
 
   const menuItems = [
     { id: "dash", label: "Dashboard", icon: "📊", description: "Ringkasan semua kedai" },
@@ -462,15 +484,13 @@ export default function SuperadminDashboardPage() {
 
                   return (
                     <div key={kedai.id} className={`bg-[#1a0e35] rounded-2xl p-4 border ${isActive && isPaid ? "border-green-500/30" : isActive && !isPaid ? "border-red-500/30" : kedai.status === "beta" ? "border-yellow-500/20" : "border-purple-900/30"}`}>
-                      <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="text-white font-bold text-sm break-words">{kedai.nama}</div>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {/* Status kedai badge */}
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${kedai.status === "active" ? "bg-green-500/20 text-green-300" : kedai.status === "beta" ? "bg-yellow-500/20 text-yellow-300" : "bg-red-500/20 text-red-300"}`}>
                               {kedai.status === "active" ? "✓ Aktif" : kedai.status === "beta" ? "⏳ Beta" : "⊘ Suspended"}
                             </span>
-                            {/* Status bayaran badge — active je */}
                             {isActive && (
                               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPaid ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}`}>
                                 {isPaid ? "✅ Dah Bayar" : "⏳ Belum Bayar"}
@@ -478,32 +498,30 @@ export default function SuperadminDashboardPage() {
                             )}
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          {isActive ? (
-                            <div className="text-white text-sm font-black">RM {s?.fee.toFixed(2) || "0.00"}</div>
-                          ) : kedai.status === "beta" ? (
-                            <div className="text-yellow-400 text-sm font-black">Free</div>
-                          ) : (
-                            <div className="text-red-400 text-sm font-black">—</div>
-                          )}
-                          <div className="text-purple-400 text-xs mt-0.5">
-                            {isActive ? `Jualan RM ${s?.jualan.toFixed(2) || "0.00"}` : kedai.status === "beta" ? "Beta" : "Suspended"}
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            {isActive ? (
+                              <div className="text-white text-sm font-black">RM {s?.fee.toFixed(2) || "0.00"}</div>
+                            ) : kedai.status === "beta" ? (
+                              <div className="text-yellow-400 text-sm font-black">Free</div>
+                            ) : (
+                              <div className="text-red-400 text-sm font-black">—</div>
+                            )}
+                            <div className="text-purple-400 text-xs mt-0.5">
+                              {isActive ? `Jualan RM ${s?.jualan.toFixed(2) || "0.00"}` : kedai.status === "beta" ? "Beta" : "Suspended"}
+                            </div>
                           </div>
+                          {isActive && (
+                            <button
+                              onClick={() => toggleBillingStatus(kedai.id)}
+                              disabled={updatingBilling === kedai.id}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all disabled:opacity-50 whitespace-nowrap ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
+                            >
+                              {updatingBilling === kedai.id ? "..." : isPaid ? "↩ Belum Bayar" : "✅ Dah Bayar"}
+                            </button>
+                          )}
                         </div>
                       </div>
-
-                      {/* Button mark bayar — active je */}
-                      {isActive && (
-                        <div className="border-t border-purple-900/30 pt-3">
-                          <button
-                            onClick={() => toggleBillingStatus(kedai.id)}
-                            disabled={updatingBilling === kedai.id}
-                            className={`w-full py-2.5 rounded-xl text-xs font-black border transition-all disabled:opacity-50 ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
-                          >
-                            {updatingBilling === kedai.id ? "Updating..." : isPaid ? "↩ Mark Belum Bayar" : "✅ Mark Dah Bayar"}
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
