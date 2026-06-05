@@ -23,6 +23,7 @@ type Produk = {
 
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [produk, setProduk] = useState<Produk[]>([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -263,17 +264,71 @@ export default function OwnerDashboardPage() {
 
   const isBeta = kedaiInfo?.status === "beta";
 
+  const navItems = [
+    { id: "dashboard", icon: "🏠", label: "Utama", description: "Ringkasan jualan" },
+    { id: "inventory", icon: "📦", label: "Inventori", description: "Produk & stok" },
+    { id: "laporan", icon: "📊", label: "Laporan", description: "Prestasi kedai" },
+    { id: "staff", icon: "👥", label: "Staff", description: "Akaun pekerja" },
+    { id: "settings", icon: "⚙️", label: "Tetapan", description: "Password & akses" },
+  ];
+
+  function changeTab(tabId: string) {
+    setActiveTab(tabId);
+    setShowMobileMenu(false);
+  }
+
+  const activeNav = navItems.find((item) => item.id === activeTab);
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <span className="text-gray-900 font-bold text-xl">Urus<span className="text-green-600">POS</span></span>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-gray-900 font-bold text-sm">{sessionUser?.nama || "Owner"}</div>
-            <div className="text-green-600 text-xs font-semibold">👑 Owner</div>
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200">
+        <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setShowMobileMenu(true)}
+              className="md:hidden w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all"
+              aria-label="Buka menu"
+            >
+              ☰
+            </button>
+            <div className="min-w-0">
+              <span className="text-gray-900 font-black text-xl block leading-none">Urus<span className="text-green-600">POS</span></span>
+              <div className="md:hidden text-gray-400 text-xs font-bold mt-1 truncate">{activeNav?.label || "Owner"}</div>
+            </div>
           </div>
-          <a href="/auth/logout" className="text-gray-400 text-sm hover:text-gray-600">Log Keluar</a>
+
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="text-right hidden xs:block">
+              <div className="text-gray-900 font-bold text-sm leading-tight">{sessionUser?.nama || "Owner"}</div>
+              <div className="text-green-600 text-xs font-semibold">👑 Owner</div>
+            </div>
+            <a href="/auth/logout" className="bg-gray-50 border border-gray-200 text-gray-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all">
+              Log Keluar
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Nav */}
+      <div className="hidden md:block bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-6 py-3">
+          <div className="grid grid-cols-5 gap-2">
+            {navItems.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => changeTab(tab.id)}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all border ${
+                  activeTab === tab.id
+                    ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20"
+                    : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -472,21 +527,83 @@ export default function OwnerDashboardPage() {
         )}
       </div>
 
-      {/* Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 px-2">
-        {[
-          { id: "dashboard", icon: "🏠", label: "Utama" },
-          { id: "inventory", icon: "📦", label: "Inventori" },
-          { id: "laporan", icon: "📊", label: "Laporan" },
-          { id: "staff", icon: "👥", label: "Staff" },
-          { id: "settings", icon: "⚙️", label: "Tetapan" },
-        ].map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all ${activeTab === tab.id ? "text-green-600" : "text-gray-400"}`}>
-            <span className="text-xl">{tab.icon}</span>
-            <span className="text-xs font-bold">{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* Mobile Menu Drawer */}
+      {showMobileMenu && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            onClick={() => setShowMobileMenu(false)}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            aria-label="Tutup menu"
+          />
+
+          <div className="relative h-full w-[84%] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-green-600">POS</span></div>
+                <div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">Owner Dashboard</div>
+              </div>
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
+                aria-label="Tutup menu"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-700 to-green-500 rounded-3xl p-5 mb-5 text-white shadow-lg shadow-green-600/20">
+              <div className="text-green-100 text-xs font-bold mb-1">KEDAI</div>
+              <div className="font-black text-lg leading-tight truncate">{kedaiInfo?.nama || "Kedai Saya"}</div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">👑 Owner</span>
+                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">{isBeta ? "BETA" : "AKTIF"}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 flex-1">
+              {navItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => changeTab(item.id)}
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${
+                      isActive
+                        ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20"
+                        : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"
+                    }`}
+                  >
+                    <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}>
+                      {item.icon}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-black text-sm">{item.label}</span>
+                      <span className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-green-100" : "text-gray-400"}`}>
+                        {item.description}
+                      </span>
+                    </span>
+                    {isActive && <span className="font-black">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            <a
+              href="/auth/logout"
+              className="mt-5 w-full bg-red-50 border border-red-100 text-red-500 font-black text-sm py-4 rounded-2xl text-center"
+            >
+              Log Keluar
+            </a>
+          </div>
+
+          <style jsx>{`
+            @keyframes slideInLeft {
+              from { transform: translateX(-100%); }
+              to { transform: translateX(0); }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* Add Staff Modal */}
       {showAddStaff && (
