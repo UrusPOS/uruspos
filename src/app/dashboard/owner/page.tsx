@@ -75,6 +75,24 @@ type OwnerReportData = {
   recentReceipts: RecentReceipt[];
 };
 
+function getCookieSession() {
+  try {
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find((c) => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+
+    if (!sessionValue) return null;
+
+    // UrusPOS session cookie is parsed using the shared helper.
+    // Fallback JSON parse is kept for older/dev cookies.
+    const parsedSession = parseSessionCookie(sessionValue);
+    if (parsedSession) return parsedSession;
+
+    return JSON.parse(decodeURIComponent(sessionValue));
+  } catch {
+    return null;
+  }
+}
 
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -151,21 +169,74 @@ export default function OwnerDashboardPage() {
   }, [activeTab]);
 
   async function fetchSessionAndKedai() {
-    const cookies = document.cookie.split(";");
-    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
-    const sessionValue = sessionCookie?.split("=")?.[1];
-    const session = parseSessionCookie(sessionValue);
-    setSessionUser(session);
+    const session = getCookieSession();
 
-    if (session?.kedai_id) {
-      const { data } = await supabase.from("kedai").select("nama, status, table_count").eq("id", session.kedai_id).single() as any;
-      setKedaiInfo(data);
-      setTableCountInput(Math.min(Math.max(Number(data?.table_count || 6), 1), 20));
-      fetchSalesData(session.kedai_id);
-      if (activeTab === "staff" || activeTab === "settings") fetchStaff(session.kedai_id);
-      if (activeTab === "inventory") fetchProduk(session.kedai_id);
-      if (activeTab === "laporan") fetchOwnerReport(session.kedai_id);
+    let resolvedKedaiId = session?.kedai_id || null;
+
+    // Sesetengah session owner lama tidak simpan kedai_id dalam cookie.
+    // Jadi kita resolve balik dari table users supaya status kedai boleh reflect dari superadmin.
+    if (!resolvedKedaiId && session?.id) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id, nama, username, role, kedai_id")
+        .eq("id", session.id)
+        .single() as any;
+
+      resolvedKedaiId = userData?.kedai_id || null;
+    }
+
+    if (!resolvedKedaiId && session?.username) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("id, nama, username, role, kedai_id")
+        .eq("username", session.username)
+        .single() as any;
+
+      resolvedKedaiId = userData?.kedai_id || null;
+    }
+
+    const resolvedSession = { ...(session || {}), kedai_id: resolvedKedaiId };
+    setSessionUser(resolvedSession);
+
+    if (resolvedKedaiId) {
+      let kedaiData: { nama: string; status: string; table_count?: number | null } | null = null;
+
+      // Query utama. Kalau project lama belum ada column table_count,
+      // Supabase akan return 400. Jadi kita fallback kepada query tanpa table_count
+      // supaya status kedai tetap reflect dari superadmin.
+      const { data, error } = await supabase
+        .from("kedai")
+        .select("nama, status, table_count")
+        .eq("id", resolvedKedaiId)
+        .single() as any;
+
+      if (error) {
+        console.warn("Owner kedai query with table_count failed. Retrying without table_count.", error);
+
+        const fallback = await supabase
+          .from("kedai")
+          .select("nama, status")
+          .eq("id", resolvedKedaiId)
+          .single() as any;
+
+        if (fallback.error) {
+          console.error("Owner kedai fallback query failed.", fallback.error);
+          kedaiData = null;
+        } else {
+          kedaiData = { ...(fallback.data || {}), table_count: 6 } as any;
+        }
+      } else {
+        kedaiData = data || null;
+      }
+
+      setKedaiInfo(kedaiData);
+      setTableCountInput(Math.min(Math.max(Number(kedaiData?.table_count || 6), 1), 20));
+      fetchSalesData(resolvedKedaiId);
+      if (activeTab === "staff" || activeTab === "settings") fetchStaff(resolvedKedaiId);
+      if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
+      if (activeTab === "laporan") fetchOwnerReport(resolvedKedaiId);
     } else {
+      setKedaiInfo(null);
       fetchSalesData(null);
     }
   }
@@ -571,7 +642,52 @@ export default function OwnerDashboardPage() {
       : editStokSemasa - parseInt(editStokQty)
     : null;
 
-  const isBeta = kedaiInfo?.status === "beta";
+  function normalizeKedaiStatus(status?: string | null) {
+    return String(status || "").trim().toLowerCase();
+  }
+
+  const kedaiStatus = normalizeKedaiStatus(kedaiInfo?.status);
+  const isBeta = kedaiStatus === "beta";
+  const isActivePlan = kedaiStatus === "active" || kedaiStatus === "aktif";
+  const isSuspended = kedaiStatus === "suspended" || kedaiStatus === "suspend";
+
+  const planInfo = isBeta
+    ? {
+        label: "BETA",
+        title: "⏳ Beta — Cuba Percuma",
+        bg: "bg-yellow-50 border-yellow-200",
+        titleColor: "text-yellow-800",
+        labelColor: "text-yellow-700",
+        pill: "bg-yellow-200 text-yellow-800",
+      }
+    : isActivePlan
+      ? {
+          label: "AKTIF",
+          title: "✅ Aktif — 2% Jualan",
+          bg: "bg-green-50 border-green-200",
+          titleColor: "text-green-800",
+          labelColor: "text-green-700",
+          pill: "bg-green-200 text-green-800",
+        }
+      : isSuspended
+        ? {
+            label: "SUSPENDED",
+            title: "⛔ Suspended — Akses Ditangguhkan",
+            bg: "bg-red-50 border-red-200",
+            titleColor: "text-red-800",
+            labelColor: "text-red-700",
+            pill: "bg-red-200 text-red-800",
+          }
+        : {
+            label: "BELUM SET",
+            title: "⚠️ Status kedai belum ditetapkan",
+            bg: "bg-gray-50 border-gray-200",
+            titleColor: "text-gray-800",
+            labelColor: "text-gray-600",
+            pill: "bg-gray-200 text-gray-800",
+          };
+
+  const monthlyUrusPosFee = isActivePlan ? salesData.bulananTotal * 0.02 : 0;
 
   const navItems = [
     { id: "dashboard", icon: "🏠", label: "Utama", description: "Ringkasan jualan" },
@@ -665,20 +781,26 @@ export default function OwnerDashboardPage() {
             </div>
 
             {/* Plan Badge */}
-            <div className={`rounded-2xl p-4 mb-3 border flex items-center justify-between ${isBeta ? "bg-yellow-50 border-yellow-200" : "bg-green-50 border-green-200"}`}>
+            <div className={`rounded-2xl p-4 mb-3 border flex items-center justify-between ${planInfo.bg}`}>
               <div>
-                <div className={`text-xs font-bold mb-0.5 ${isBeta ? "text-yellow-700" : "text-green-700"}`}>PLAN SEMASA</div>
-                <div className={`text-sm font-black ${isBeta ? "text-yellow-800" : "text-green-800"}`}>
-                  {isBeta ? "⏳ Beta — Cuba Percuma" : "✅ Aktif — 2% Jualan"}
+                <div className={`text-xs font-bold mb-0.5 ${planInfo.labelColor}`}>PLAN SEMASA</div>
+                <div className={`text-sm font-black ${planInfo.titleColor}`}>
+                  {planInfo.title}
                 </div>
               </div>
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isBeta ? "bg-yellow-200 text-yellow-800" : "bg-green-200 text-green-800"}`}>
-                {isBeta ? "BETA" : "AKTIF"}
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${planInfo.pill}`}>
+                {planInfo.label}
               </span>
             </div>
 
             {/* Fee UrusPOS */}
-            {isBeta ? (
+            {isActivePlan ? (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+                <div className="text-gray-900 text-2xl font-black">RM {monthlyUrusPosFee.toFixed(2)}</div>
+                <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+              </div>
+            ) : isBeta ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
                 <div className="text-yellow-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
                 <div className="flex items-center gap-3">
@@ -687,11 +809,17 @@ export default function OwnerDashboardPage() {
                 </div>
                 <div className="text-yellow-600 text-xs mt-1">Jualan bulan ini RM {salesData.bulananTotal.toFixed(2)} — tiada caj semasa beta</div>
               </div>
+            ) : isSuspended ? (
+              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+                <div className="text-red-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+                <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
+                <div className="text-red-600 text-xs mt-1">Akaun suspended — caj tidak dikira buat masa ini.</div>
+              </div>
             ) : (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
-                <div className="text-gray-900 text-2xl font-black">RM {(salesData.bulananTotal * 0.02).toFixed(2)}</div>
-                <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {salesData.bulananTotal.toFixed(2)}</div>
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+                <div className="text-gray-600 text-xs font-bold mb-1">📊 Fee UrusPOS Bulan Ini</div>
+                <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
+                <div className="text-gray-500 text-xs mt-1">Status kedai belum dibaca. Semak status kedai di superadmin.</div>
               </div>
             )}
           </div>
@@ -1220,7 +1348,7 @@ export default function OwnerDashboardPage() {
               <div className="font-black text-lg leading-tight truncate">{kedaiInfo?.nama || "Kedai Saya"}</div>
               <div className="mt-3 flex items-center gap-2">
                 <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">👑 Owner</span>
-                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">{isBeta ? "BETA" : "AKTIF"}</span>
+                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">{planInfo.label}</span>
               </div>
             </div>
 
