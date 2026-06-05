@@ -279,15 +279,6 @@ export default function StaffDashboardPage() {
       {/* POS TAB */}
       {activeTab === "pos" && (
         <>
-          {/* Meja Selector */}
-          <div className="bg-white border-b border-gray-200 px-4 py-2 flex gap-2 overflow-x-auto flex-shrink-0">
-            {mejaList.map((meja) => (
-              <button key={meja} onClick={() => { setCurrentMeja(meja); clearCart(); }} className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap flex-shrink-0 border transition-all ${currentMeja === meja ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-400 border-gray-200"}`}>
-                {meja}
-              </button>
-            ))}
-          </div>
-
           {/* Menu Grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (
@@ -320,12 +311,37 @@ export default function StaffDashboardPage() {
 
           {/* Order Panel */}
           <div className="bg-white border-t border-gray-200 p-4 flex-shrink-0">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-gray-900 font-bold text-sm">
-                Pesanan — {displayMejaLabel(currentMeja)}
-                {cartCount > 0 && <span className="ml-2 bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{cartCount} item</span>}
-              </span>
-              {cartCount > 0 && <button onClick={clearCart} className="text-red-400 text-xs font-bold bg-red-50 px-3 py-1 rounded-full">Kosong</button>}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <div className="text-gray-900 font-bold text-sm">Pesanan</div>
+                {cartCount > 0 ? (
+                  <div className="mt-1">
+                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{cartCount} item</span>
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-xs mt-1">Pilih meja atau bungkus</div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {cartCount > 0 && (
+                  <button onClick={clearCart} className="text-red-400 text-xs font-bold bg-red-50 px-3 py-2 rounded-xl border border-red-100">
+                    Kosong
+                  </button>
+                )}
+                <div className="relative">
+                  <select
+                    value={currentMeja}
+                    onChange={(e) => { setCurrentMeja(e.target.value); clearCart(); }}
+                    className="appearance-none bg-gray-900 text-white border border-gray-900 rounded-2xl pl-4 pr-9 py-2.5 text-xs font-black outline-none shadow-sm active:scale-95 transition-all"
+                  >
+                    {mejaList.map((meja) => (
+                      <option key={meja} value={meja}>{displayMejaLabel(meja)}</option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/70 text-[10px]">▾</span>
+                </div>
+              </div>
             </div>
             {cartItems.length > 0 && (
               <div className="flex flex-col gap-2 mb-3 max-h-32 overflow-y-auto">
