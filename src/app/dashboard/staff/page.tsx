@@ -516,7 +516,14 @@ export default function StaffDashboardPage() {
           {/* Menu Grid */}
           <div className="flex-1 overflow-y-auto p-4">
             <div className="sticky top-0 z-10 bg-gray-50 pb-3">
-              <label className="text-gray-500 text-[11px] font-black mb-2 block uppercase tracking-wide">Cari Produk</label>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="text-gray-500 text-[11px] font-black uppercase tracking-wide">Cari Produk</label>
+                {!loading && produk.length > 0 && (
+                  <div className="text-gray-400 text-[11px] font-bold text-right whitespace-nowrap">
+                    {productSearch.trim() ? `${filteredProduk.length}/${produk.length} dijumpai` : `${produk.length} produk tersedia`}
+                  </div>
+                )}
+              </div>
               <div className="relative">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                   <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -539,11 +546,6 @@ export default function StaffDashboardPage() {
                   </button>
                 )}
               </div>
-              {!loading && produk.length > 0 && (
-                <div className="text-gray-400 text-xs font-bold mt-2">
-                  {productSearch.trim() ? `${filteredProduk.length} daripada ${produk.length} produk dijumpai` : `${produk.length} produk tersedia`}
-                </div>
-              )}
             </div>
 
             {loading ? (
@@ -568,7 +570,9 @@ export default function StaffDashboardPage() {
                     className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-green-500 bg-green-50" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
                   >
                     {cart[item.id]?.qty > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-green-600 text-white text-xs font-black w-5 h-5 rounded-full flex items-center justify-center">{cart[item.id].qty}</div>
+                      <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
+                        {cart[item.id].qty}
+                      </div>
                     )}
                     <div className="text-2xl mb-1">🍽️</div>
                     <div className="text-gray-900 text-xs font-bold leading-tight">{item.nama}</div>
