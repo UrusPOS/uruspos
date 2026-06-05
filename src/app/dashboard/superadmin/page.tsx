@@ -57,6 +57,7 @@ export default function SuperadminDashboardPage() {
   const [billingMap, setBillingMap] = useState<{ [kedai_id: string]: BillingRecord }>({});
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [updatingBilling, setUpdatingBilling] = useState<string | null>(null);
+  const [confirmBilling, setConfirmBilling] = useState<{ kedaiId: string; nama: string; currentStatus: string } | null>(null);
   const [billingBulan, setBillingBulan] = useState(getCurrentBulan());
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -513,7 +514,7 @@ export default function SuperadminDashboardPage() {
                           </div>
                           {isActive && (
                             <button
-                              onClick={() => toggleBillingStatus(kedai.id)}
+                              onClick={() => setConfirmBilling({ kedaiId: kedai.id, nama: kedai.nama, currentStatus: billing?.status || "unpaid" })}
                               disabled={updatingBilling === kedai.id}
                               className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all disabled:opacity-50 whitespace-nowrap ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
                             >
@@ -570,6 +571,36 @@ export default function SuperadminDashboardPage() {
                 <button onClick={() => setShowFilterModal(false)} className="flex-1 bg-purple-900/40 text-purple-300 font-black py-3 rounded-2xl border border-purple-700/60">Batal</button>
                 <button onClick={applyDateFilter} disabled={tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)} className="flex-1 bg-purple-700 text-white font-black py-3 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed">Apply</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Billing Status */}
+      {confirmBilling && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
+            <div className="text-3xl text-center mb-3">💳</div>
+            <h3 className="text-white font-bold text-lg text-center mb-2">Tukar Status Bayaran?</h3>
+            <p className="text-purple-300 text-sm text-center mb-5 leading-relaxed">
+              <span className="text-white font-bold">{confirmBilling.nama}</span>
+              <br />
+              <span className={`font-bold ${confirmBilling.currentStatus === "paid" ? "text-green-300" : "text-red-300"}`}>
+                {confirmBilling.currentStatus === "paid" ? "✅ Dah Bayar" : "⏳ Belum Bayar"}
+              </span>
+              <span className="text-purple-400"> → </span>
+              <span className={`font-bold ${confirmBilling.currentStatus === "paid" ? "text-red-300" : "text-green-300"}`}>
+                {confirmBilling.currentStatus === "paid" ? "⏳ Belum Bayar" : "✅ Dah Bayar"}
+              </span>
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmBilling(null)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
+              <button
+                onClick={() => { toggleBillingStatus(confirmBilling.kedaiId); setConfirmBilling(null); }}
+                className={`flex-1 text-white font-bold py-3 rounded-xl ${confirmBilling.currentStatus === "paid" ? "bg-red-600" : "bg-green-600"}`}
+              >
+                Ya, Tukar
+              </button>
             </div>
           </div>
         </div>

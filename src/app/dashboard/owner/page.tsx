@@ -194,6 +194,7 @@ export default function OwnerDashboardPage() {
   const [tableMsg, setTableMsg] = useState("");
 
   const [filter, setFilter] = useState<FilterType>("daily");
+  const [billingStatus, setBillingStatus] = useState<"paid" | "unpaid" | null>(null);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -232,6 +233,7 @@ export default function OwnerDashboardPage() {
       setTableCountInput(Math.min(Math.max(Number(kedaiData?.table_count || 6), 1), 20));
 
       fetchAllData(resolvedKedaiId);
+      fetchBillingStatus(resolvedKedaiId);
 
       if (activeTab === "staff" || activeTab === "settings") fetchStaff(resolvedKedaiId);
       if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
@@ -345,6 +347,13 @@ export default function OwnerDashboardPage() {
       });
       setLoadingReport(false);
     }
+  }
+
+  async function fetchBillingStatus(kedaiId: string) {
+    const now = new Date();
+    const bulan = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const { data } = await supabase.from("billing").select("status").eq("kedai_id", kedaiId).eq("bulan", bulan).single() as any;
+    setBillingStatus(data?.status || null);
   }
 
   async function fetchStaff(kedaiId?: string | null) {
@@ -648,7 +657,14 @@ export default function OwnerDashboardPage() {
             </div>
             {isActivePlan ? (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS — {filterLabel()}</div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="text-green-700 text-xs font-bold">📊 Fee UrusPOS — {filterLabel()}</div>
+                  {billingStatus === "paid" ? (
+                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">✅ Dah Bayar</span>
+                  ) : billingStatus === "unpaid" ? (
+                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⏳ Belum Bayar</span>
+                  ) : null}
+                </div>
                 <div className="text-gray-900 text-2xl font-black">RM {urusposFee.toFixed(2)}</div>
                 <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {stats.jumlahJualan.toFixed(2)}</div>
               </div>
