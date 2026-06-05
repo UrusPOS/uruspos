@@ -24,17 +24,30 @@ export default function KitchenDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [currentTime, setCurrentTime] = useState("");
   const [loading, setLoading] = useState(true);
+  const [kitchenNama, setKitchenNama] = useState("Dapur");
+  const [kedaiId, setKedaiId] = useState<string | null>(null);
+  const [showTukarPassword, setShowTukarPassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState("");
 
   useEffect(() => {
+    // Get session
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    if (sessionValue) {
+      const session = JSON.parse(decodeURIComponent(sessionValue));
+      setKedaiId(session.kedai_id);
+      setKitchenNama(session.nama);
+    }
+
     fetchOrders();
 
     const channel = supabase
       .channel("orders-channel")
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "orders",
-      }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
         fetchOrders();
       })
       .subscribe();
@@ -55,56 +68,56 @@ export default function KitchenDashboardPage() {
   }, []);
 
   async function fetchOrders() {
-  // Get session
-  const cookies = document.cookie.split(";");
-  const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
-  const sessionValue = sessionCookie?.split("=")?.[1];
-  let kId = null;
-  if (sessionValue) {
-    const session = JSON.parse(decodeURIComponent(sessionValue));
-    kId = session.kedai_id;
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    let kId = null;
+    if (sessionValue) {
+      const session = JSON.parse(decodeURIComponent(sessionValue));
+      kId = session.kedai_id;
+    }
+
+    const query = supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .in("status", ["pending", "preparing", "paid", "done"])
+      .order("created_at", { ascending: true });
+
+    if (kId) query.eq("kedai_id", kId);
+
+    const { data } = await query as any;
+    setOrders(data || []);
+    setLoading(false);
   }
-
-  const query = supabase
-    .from("orders")
-    .select("*, order_items(*)")
-    .in("status", ["pending", "preparing", "paid", "done"])
-    .order("created_at", { ascending: true });
-
-  if (kId) query.eq("kedai_id", kId);
-
-  const { data } = await query as any;
-  setOrders(data || []);
-  setLoading(false);
-}
 
   async function markDone(id: string) {
-  const { data: order } = await supabase
-    .from("orders")
-    .select("status")
-    .eq("id", id)
-    .single() as any;
-
-  if (order?.status === "paid") {
+    const { data: order } = await supabase.from("orders").select("status").eq("id", id).single() as any;
     await supabase.from("orders").update({
       status: "done",
       completed_at: new Date().toISOString()
-    } as any).eq("id", id);
-  } else {
-    await supabase.from("orders").update({
-      status: "done",
-      completed_at: new Date().toISOString()
-    } as any).eq("id", id);
-  }
-  fetchOrders();
-}
-
-  async function undoDone(id: string) {
-    await supabase.from("orders").update({
-      status: "preparing",
-      completed_at: null
     } as any).eq("id", id);
     fetchOrders();
+  }
+
+  async function undoDone(id: string) {
+    await supabase.from("orders").update({ status: "preparing", completed_at: null } as any).eq("id", id);
+    fetchOrders();
+  }
+
+  async function tukarPasswordKitchen() {
+    if (!newPassword.trim()) return;
+    if (newPassword !== confirmPassword) { setPasswordMsg("❌ Password baru tidak sepadan."); return; }
+    if (newPassword.length < 6) { setPasswordMsg("❌ Password kena sekurang-kurangnya 6 aksara."); return; }
+    const cookies = document.cookie.split(";");
+    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionValue = sessionCookie?.split("=")?.[1];
+    const session = sessionValue ? JSON.parse(decodeURIComponent(sessionValue)) : null;
+    const { data: currentUser } = await supabase.from("users").select("password, id").eq("username", session?.username).single() as any;
+    if (currentUser?.password !== oldPassword) { setPasswordMsg("❌ Password semasa tidak betul."); return; }
+    await supabase.from("users").update({ password: newPassword } as any).eq("id", currentUser.id);
+    setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+    setPasswordMsg("✅ Password berjaya ditukar!");
+    setTimeout(() => { setPasswordMsg(""); setShowTukarPassword(false); }, 2000);
   }
 
   function getTimeDiff(created_at: string) {
@@ -121,9 +134,7 @@ export default function KitchenDashboardPage() {
     return `${diff} min`;
   }
 
-  const newOrders = orders.filter((o) =>
-    o.status === "pending" || o.status === "preparing" || o.status === "paid"
-  );
+  const newOrders = orders.filter((o) => o.status === "pending" || o.status === "preparing" || o.status === "paid");
   const doneOrders = orders.filter((o) => o.status === "done");
 
   return (
@@ -134,12 +145,13 @@ export default function KitchenDashboardPage() {
           <span className="text-white font-bold text-lg">Urus<span className="text-orange-400">POS</span></span>
           <span className="ml-2 text-stone-500 text-sm">Dapur</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <span className="text-stone-400 text-xs">Live</span>
           </div>
           <span className="text-stone-300 text-sm font-bold">{currentTime}</span>
+          <button onClick={() => setShowTukarPassword(true)} className="text-amber-400 text-xs font-bold px-2 py-1">🔑</button>
           <a href="/auth/logout" className="text-stone-500 text-xs">Keluar</a>
         </div>
       </div>
@@ -166,9 +178,7 @@ export default function KitchenDashboardPage() {
           {/* New Orders */}
           <div className="flex-1 flex flex-col border-r border-stone-800 overflow-hidden">
             <div className="bg-[#292524] px-4 py-2 flex-shrink-0 border-b border-stone-700">
-              <span className="text-orange-400 text-xs font-black tracking-widest uppercase">
-                ⏳ Baru Masuk ({newOrders.length})
-              </span>
+              <span className="text-orange-400 text-xs font-black tracking-widest uppercase">⏳ Baru Masuk ({newOrders.length})</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               {newOrders.length === 0 ? (
@@ -182,13 +192,9 @@ export default function KitchenDashboardPage() {
                         <div className="text-stone-500 text-xs mt-0.5">{order.order_number || "ORD-LAMA"}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="bg-orange-500/20 text-orange-400 text-xs font-bold px-2 py-1 rounded-full">
-                          {getTimeDiff(order.created_at)}
-                        </span>
+                        <span className="bg-orange-500/20 text-orange-400 text-xs font-bold px-2 py-1 rounded-full">{getTimeDiff(order.created_at)}</span>
                         {order.status === "paid" && (
-                          <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
-                            💳 Dah Bayar
-                          </span>
+                          <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">💳 Dah Bayar</span>
                         )}
                       </div>
                     </div>
@@ -198,17 +204,12 @@ export default function KitchenDashboardPage() {
                           <span className="text-orange-400 font-black text-sm min-w-6">{item.qty}×</span>
                           <div>
                             <span className="text-stone-200 text-sm font-medium">{item.nama}</span>
-                            {item.nota && (
-                              <div className="text-stone-500 text-xs mt-0.5">📝 {item.nota}</div>
-                            )}
+                            {item.nota && <div className="text-stone-500 text-xs mt-0.5">📝 {item.nota}</div>}
                           </div>
                         </div>
                       ))}
                     </div>
-                    <button
-                      onClick={() => markDone(order.id)}
-                      className="w-full bg-orange-500 text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all"
-                    >
+                    <button onClick={() => markDone(order.id)} className="w-full bg-orange-500 text-white font-bold py-2.5 rounded-xl text-sm active:scale-95 transition-all">
                       ✓ Tandakan Siap
                     </button>
                   </div>
@@ -220,9 +221,7 @@ export default function KitchenDashboardPage() {
           {/* Done Orders */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="bg-[#1a2e1a] px-4 py-2 flex-shrink-0 border-b border-green-900/50">
-              <span className="text-green-400 text-xs font-black tracking-widest uppercase">
-                ✅ Siap ({doneOrders.length})
-              </span>
+              <span className="text-green-400 text-xs font-black tracking-widest uppercase">✅ Siap ({doneOrders.length})</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               {doneOrders.length === 0 ? (
@@ -236,13 +235,9 @@ export default function KitchenDashboardPage() {
                         <div className="text-stone-600 text-xs mt-0.5">{order.order_number || "ORD-LAMA"}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">
-                          Siap ✓
-                        </span>
+                        <span className="bg-green-500/20 text-green-400 text-xs font-bold px-2 py-1 rounded-full">Siap ✓</span>
                         {getDuration(order.created_at, order.completed_at) && (
-                          <span className="text-stone-500 text-xs">
-                            ⏱ {getDuration(order.created_at, order.completed_at)}
-                          </span>
+                          <span className="text-stone-500 text-xs">⏱ {getDuration(order.created_at, order.completed_at)}</span>
                         )}
                       </div>
                     </div>
@@ -254,12 +249,7 @@ export default function KitchenDashboardPage() {
                         </div>
                       ))}
                     </div>
-                    <button
-                      onClick={() => undoDone(order.id)}
-                      className="w-full bg-green-500/20 text-green-400 font-bold py-2 rounded-xl text-xs border border-green-500/30"
-                    >
-                      ↩ Undo
-                    </button>
+                    <button onClick={() => undoDone(order.id)} className="w-full bg-green-500/20 text-green-400 font-bold py-2 rounded-xl text-xs border border-green-500/30">↩ Undo</button>
                   </div>
                 ))
               )}
@@ -267,6 +257,35 @@ export default function KitchenDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Tukar Password Modal */}
+      {showTukarPassword && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
+            <h3 className="text-white font-bold text-lg mb-6">🔑 Tukar Password</h3>
+            <div className="mb-3">
+              <label className="text-purple-400 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
+              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+            </div>
+            <div className="mb-3">
+              <label className="text-purple-400 text-xs font-bold mb-1 block">PASSWORD BARU</label>
+              <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+            </div>
+            <div className="mb-4">
+              <label className="text-purple-400 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+            </div>
+            {passwordMsg && (
+              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>{passwordMsg}</div>
+            )}
+            <div className="flex gap-3">
+              <button onClick={() => { setShowTukarPassword(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); setPasswordMsg(""); }} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
+              <button onClick={tukarPasswordKitchen} disabled={!oldPassword || !newPassword || !confirmPassword} className="flex-1 bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50">Tukar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
