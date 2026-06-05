@@ -155,6 +155,7 @@ export default function OwnerDashboardPage() {
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; status: string; table_count?: number | null } | null>(null);
 
+  // UNIFIED stats — satu je state, ikut filter
   const [stats, setStats] = useState({
     jumlahJualan: 0,
     jumlahTransaksi: 0,
@@ -193,8 +194,8 @@ export default function OwnerDashboardPage() {
   const [tableCountInput, setTableCountInput] = useState(6);
   const [tableMsg, setTableMsg] = useState("");
 
+  // Filter states — shared across dashboard & laporan
   const [filter, setFilter] = useState<FilterType>("daily");
-  const [billingStatus, setBillingStatus] = useState<{ status: string; fee: number; jualan: number; bulanLabel: string } | null>(null);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -232,8 +233,8 @@ export default function OwnerDashboardPage() {
       setKedaiInfo(kedaiData);
       setTableCountInput(Math.min(Math.max(Number(kedaiData?.table_count || 6), 1), 20));
 
+      // UNIFIED fetch — satu call je untuk semua stats
       fetchAllData(resolvedKedaiId);
-      fetchBillingStatus(resolvedKedaiId);
 
       if (activeTab === "staff" || activeTab === "settings") fetchStaff(resolvedKedaiId);
       if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
@@ -242,6 +243,7 @@ export default function OwnerDashboardPage() {
     }
   }
 
+  // UNIFIED data fetch — stats + report dalam satu function, guna filter yang sama
   async function fetchAllData(kedaiId: string) {
     setLoadingStats(true);
     if (activeTab === "laporan") setLoadingReport(true);
@@ -273,9 +275,17 @@ export default function OwnerDashboardPage() {
     const jumlahUntung = jumlahJualan - jumlahCOGS;
     const jumlahMargin = jumlahJualan > 0 ? Math.round((jumlahUntung / jumlahJualan) * 100) : 0;
 
-    setStats({ jumlahJualan, jumlahTransaksi, jumlahCOGS, jumlahUntung, jumlahMargin, stokKritikal: stokRendah?.length || 0 });
+    setStats({
+      jumlahJualan,
+      jumlahTransaksi,
+      jumlahCOGS,
+      jumlahUntung,
+      jumlahMargin,
+      stokKritikal: stokRendah?.length || 0,
+    });
     setLoadingStats(false);
 
+    // Report data — kiraan lanjut dari orders yang sama
     if (activeTab === "laporan") {
       const dineInOrders = orders.filter((o: any) => {
         const meja = String(o.meja || "").toLowerCase();
@@ -290,6 +300,7 @@ export default function OwnerDashboardPage() {
       const paymentMap: Record<string, PaymentSummaryItem> = {};
 
       orders.forEach((order: any) => {
+        // FIX: simpan payment method betul-betul
         const pm = String(order.payment_method || order.paymentMethod || order.payment || order.bayaran || "Belum direkod");
         if (!paymentMap[pm]) paymentMap[pm] = { method: pm, total: 0, count: 0 };
         paymentMap[pm].total += Number(order.total || 0);
@@ -347,15 +358,6 @@ export default function OwnerDashboardPage() {
       });
       setLoadingReport(false);
     }
-  }
-
-  async function fetchBillingStatus(kedaiId: string) {
-    const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const bulan = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}`;
-    const bulanLabel = lastMonth.toLocaleDateString("ms-MY", { month: "long", year: "numeric" });
-    const { data } = await supabase.from("billing").select("status, fee, jualan").eq("kedai_id", kedaiId).eq("bulan", bulan).single() as any;
-    setBillingStatus(data ? { status: data.status, fee: Number(data.fee || 0), jualan: Number(data.jualan || 0), bulanLabel } : null);
   }
 
   async function fetchStaff(kedaiId?: string | null) {
@@ -475,7 +477,11 @@ export default function OwnerDashboardPage() {
 
   function formatDateLabel(date: string) {
     if (!date) return "";
-    return new Date(date).toLocaleDateString("ms-MY", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date(date).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   }
 
   function openFilterModal() {
@@ -487,11 +493,14 @@ export default function OwnerDashboardPage() {
 
   function applyFilterModal() {
     if (pendingFilter === "custom" && (!pendingCustomFrom || !pendingCustomTo)) return;
+
     setFilter(pendingFilter);
+
     if (pendingFilter === "custom") {
       setCustomFrom(pendingCustomFrom);
       setCustomTo(pendingCustomTo);
     }
+
     setShowFilterModal(false);
   }
 
@@ -598,10 +607,10 @@ export default function OwnerDashboardPage() {
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200">
         <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => setShowMobileMenu(true)} className="md:hidden w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all" aria-label="Buka menu">☰</button>
+            <button onClick={() => setShowMobileMenu(true)} className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all" aria-label="Buka menu">☰</button>
             <div className="min-w-0">
               <span className="text-gray-900 font-black text-xl block leading-none">Urus<span className="text-green-600">POS</span></span>
-              <div className="md:hidden text-gray-400 text-xs font-bold mt-1 truncate">{activeNav?.label || "Owner"}</div>
+              <div className="text-gray-400 text-xs font-bold mt-1 truncate">{activeNav?.label || "Owner"}</div>
             </div>
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
@@ -610,19 +619,6 @@ export default function OwnerDashboardPage() {
               <div className="text-green-600 text-xs font-semibold">👑 Owner</div>
             </div>
             <a href="/auth/logout" className="bg-gray-50 border border-gray-200 text-gray-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all">Log Keluar</a>
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop Nav */}
-      <div className="hidden md:block bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 py-3">
-          <div className="grid grid-cols-5 gap-2">
-            {navItems.map((tab) => (
-              <button key={tab.id} onClick={() => changeTab(tab.id)} className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-black transition-all border ${activeTab === tab.id ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}>
-                <span>{tab.icon}</span><span>{tab.label}</span>
-              </button>
-            ))}
           </div>
         </div>
       </div>
@@ -636,7 +632,9 @@ export default function OwnerDashboardPage() {
               <div className="text-gray-400 text-sm">Selamat datang 👋</div>
               <div className="text-gray-900 text-xl font-black">{kedaiInfo?.nama || "Kedai Saya"}</div>
             </div>
+
             <FilterBar />
+
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">Jualan — {filterLabel()}</div>
               <div className="text-white text-4xl font-black mt-1">RM {stats.jumlahJualan.toFixed(2)}</div>
@@ -644,12 +642,14 @@ export default function OwnerDashboardPage() {
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🧾 {stats.jumlahTransaksi} transaksi</span>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">💰</div><div className="text-green-600 text-lg font-black">RM {stats.jumlahUntung.toFixed(0)}</div><div className="text-gray-400 text-xs mt-1">Untung Kasar</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">📊</div><div className="text-gray-900 text-lg font-black">{stats.jumlahMargin}%</div><div className="text-gray-400 text-xs mt-1">Margin</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">⚠️</div><div className="text-amber-500 text-lg font-black">{stats.stokKritikal} item</div><div className="text-gray-400 text-xs mt-1">Stok Kritikal</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">👥</div><div className="text-gray-900 text-lg font-black">{staff.length} orang</div><div className="text-gray-400 text-xs mt-1">Jumlah Staff</div></div>
             </div>
+
             <div className={`rounded-2xl p-4 mb-3 border flex items-center justify-between ${planInfo.bg}`}>
               <div>
                 <div className={`text-xs font-bold mb-0.5 ${planInfo.labelColor}`}>PLAN SEMASA</div>
@@ -657,30 +657,12 @@ export default function OwnerDashboardPage() {
               </div>
               <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${planInfo.pill}`}>{planInfo.label}</span>
             </div>
+
             {isActivePlan ? (
-              <div className={`rounded-2xl p-4 border ${billingStatus?.status === "unpaid" ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className={`text-xs font-bold ${billingStatus?.status === "unpaid" ? "text-red-700" : "text-green-700"}`}>
-                    📊 Fee UrusPOS — {billingStatus ? billingStatus.bulanLabel : "Bulan Lepas"}
-                  </div>
-                  {billingStatus?.status === "paid" ? (
-                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">✅ Dah Bayar</span>
-                  ) : billingStatus?.status === "unpaid" ? (
-                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">⏳ Belum Bayar</span>
-                  ) : null}
-                </div>
-                <div className="text-gray-900 text-2xl font-black">
-                  {billingStatus ? `RM ${Number(billingStatus.fee).toFixed(2)}` : "—"}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">
-                  {billingStatus ? `2% daripada jualan RM ${Number(billingStatus.jualan).toFixed(2)}` : "Tiada rekod bulan lepas"}
-                </div>
-                {billingStatus?.status === "unpaid" && (
-                  <div className="mt-3 bg-red-100 border border-red-200 rounded-xl p-3">
-                    <div className="text-red-700 text-xs font-bold">⚠️ Peringatan</div>
-                    <div className="text-red-600 text-xs mt-1">Sila jelaskan fee UrusPOS anda sebelum 7hb bulan ini. Terima kasih.</div>
-                  </div>
-                )}
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+                <div className="text-green-700 text-xs font-bold mb-1">📊 Fee UrusPOS — {filterLabel()}</div>
+                <div className="text-gray-900 text-2xl font-black">RM {urusposFee.toFixed(2)}</div>
+                <div className="text-gray-400 text-xs mt-1">2% daripada jualan RM {stats.jumlahJualan.toFixed(2)}</div>
               </div>
             ) : isBeta ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
@@ -755,7 +737,9 @@ export default function OwnerDashboardPage() {
                 {loadingReport ? "Loading..." : "Refresh"}
               </button>
             </div>
+
             <FilterBar />
+
             <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-4 text-white shadow-lg">
               <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
@@ -771,13 +755,18 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white/10 rounded-2xl p-3"><div className="text-gray-400 text-xs font-bold">Bungkus</div><div className="text-white text-xl font-black mt-1">{reportData.takeawayOrders}</div></div>
               </div>
             </div>
+
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">💰</div><div className="text-green-600 text-lg font-black">{formatRM(reportData.grossProfit)}</div><div className="text-gray-400 text-xs mt-1">Untung Kasar</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">📉</div><div className="text-red-500 text-lg font-black">{formatRM(reportData.cogs)}</div><div className="text-gray-400 text-xs mt-1">COGS</div></div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div className="text-xl mb-1">📊</div><div className="text-gray-900 text-lg font-black">{reportData.margin}%</div><div className="text-gray-400 text-xs mt-1">Margin</div></div>
             </div>
+
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4"><h3 className="text-gray-900 font-black text-sm">🔥 Top Product</h3><span className="text-gray-400 text-xs font-bold">Top 5</span></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">🔥 Top Product</h3>
+                <span className="text-gray-400 text-xs font-bold">Top 5</span>
+              </div>
               {reportData.topProducts.length === 0 ? (
                 <div className="text-center py-6"><div className="text-3xl mb-2">🍽️</div><div className="text-gray-400 text-sm">Belum ada produk terjual</div></div>
               ) : (
@@ -792,8 +781,12 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4"><h3 className="text-gray-900 font-black text-sm">💳 Payment Method</h3><span className="text-gray-400 text-xs font-bold">{reportData.paymentSummary.length} jenis</span></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">💳 Payment Method</h3>
+                <span className="text-gray-400 text-xs font-bold">{reportData.paymentSummary.length} jenis</span>
+              </div>
               {reportData.paymentSummary.length === 0 ? (
                 <div className="text-center py-6"><div className="text-3xl mb-2">💳</div><div className="text-gray-400 text-sm">Belum ada rekod bayaran</div></div>
               ) : (
@@ -812,8 +805,12 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4"><h3 className="text-gray-900 font-black text-sm">📦 Inventory Report</h3><span className="text-gray-400 text-xs font-bold">Stok semasa</span></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">📦 Inventory Report</h3>
+                <span className="text-gray-400 text-xs font-bold">Stok semasa</span>
+              </div>
               {reportData.inventoryReport.length === 0 ? (
                 <div className="text-center py-6"><div className="text-3xl mb-2">📦</div><div className="text-gray-400 text-sm">Belum ada produk aktif</div></div>
               ) : (
@@ -827,8 +824,12 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4"><h3 className="text-gray-900 font-black text-sm">🧾 Receipt Preview</h3><span className="text-gray-400 text-xs font-bold">Recent</span></div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">🧾 Receipt Preview</h3>
+                <span className="text-gray-400 text-xs font-bold">Recent</span>
+              </div>
               {reportData.recentReceipts.length === 0 ? (
                 <div className="text-center py-8"><div className="text-4xl mb-3">🧾</div><div className="text-gray-400 text-sm">Belum ada receipt dalam tempoh ini</div></div>
               ) : (
@@ -843,10 +844,10 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <div className="text-green-600 text-sm font-black whitespace-nowrap mr-1">{formatRM(receipt.total)}</div>
-                          <button onClick={() => setSelectedReceipt(receipt)} className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm">
+                          <button onClick={() => setSelectedReceipt(receipt)} className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm" title="Preview">
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
-                          <button onClick={() => downloadReceipt(receipt)} className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm">
+                          <button onClick={() => downloadReceipt(receipt)} className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm" title="Download">
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3V15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 21H19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
                           </button>
                         </div>
@@ -859,14 +860,13 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-        {/* STAFF — PERUBAHAN 1: tambah icon 🔑 dan 🗑, remove dari settings */}
+        {/* STAFF */}
         {activeTab === "staff" && (
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-gray-900 font-bold text-lg">Staff ({staff.length})</h2>
               <button onClick={() => setShowAddStaff(true)} className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full">+ Tambah Staff</button>
             </div>
-            {resetMsg && <div className="bg-green-50 text-green-700 text-xs font-bold p-3 rounded-2xl mb-3 border border-green-200">{resetMsg}</div>}
             <div className="flex flex-col gap-3">
               {staff.map((s) => (
                 <div key={s.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3">
@@ -880,14 +880,7 @@ export default function OwnerDashboardPage() {
                   </div>
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <button onClick={() => toggleStaff(s.id, s.is_active)} className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-green-50 text-green-600 border-green-200"}`}>{s.is_active ? "Nyahaktif" : "Aktifkan"}</button>
-                    <div className="flex gap-1">
-                      <button onClick={() => { setResetStaffId(s.id); setResetStaffNama(s.nama); setNewStaffPassword(""); }} className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-amber-50 text-amber-500 border-amber-200" title="Reset Password">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2.4" strokeLinejoin="round"/></svg>
-                      </button>
-                      <button onClick={() => removeStaff(s.id)} className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200" title="Buang Staff">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6H5H21" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6L18.1245 19.1354C18.0544 20.1875 17.1763 21 16.1218 21H7.87824C6.82373 21 5.94563 20.1875 5.87551 19.1354L5 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      </button>
-                    </div>
+                    <button onClick={() => removeStaff(s.id)} className="text-xs font-bold px-2 py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200">🗑 Buang</button>
                   </div>
                 </div>
               ))}
@@ -896,7 +889,7 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-        {/* SETTINGS — PERUBAHAN 2: remove section reset password staff */}
+        {/* SETTINGS */}
         {activeTab === "settings" && (
           <div>
             <h2 className="text-gray-900 font-bold text-lg mb-4">⚙️ Tetapan</h2>
@@ -923,13 +916,26 @@ export default function OwnerDashboardPage() {
               {tableMsg && <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{tableMsg}</div>}
               <button onClick={saveTableCount} disabled={saving || tableCountInput === Math.min(Math.max(Number(kedaiInfo?.table_count || 6), 1), 20)} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50">{saving ? "Menyimpan..." : "Simpan Setup Meja"}</button>
             </div>
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
               <h3 className="text-gray-900 font-bold text-sm mb-4">🔐 Tukar Password Saya</h3>
               <div className="mb-3"><label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label><input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" /></div>
               <div className="mb-3"><label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label><input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" /></div>
               <div className="mb-4"><label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label><input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" /></div>
               {passwordMsg && <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{passwordMsg}</div>}
               <button onClick={tukarPassword} disabled={!currentPassword || !newPassword || !confirmPassword} className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50">Tukar Password</button>
+            </div>
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <h3 className="text-gray-900 font-bold text-sm mb-4">👥 Reset Password Staff</h3>
+              {resetMsg && <div className="bg-green-50 text-green-700 text-xs font-bold p-3 rounded-xl mb-4">{resetMsg}</div>}
+              <div className="flex flex-col gap-3">
+                {staff.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between bg-gray-50 rounded-xl p-3">
+                    <div><div className="text-gray-900 text-sm font-bold">{s.nama}</div><div className="text-gray-400 text-xs">@{s.username}</div></div>
+                    <button onClick={() => { setResetStaffId(s.id); setResetStaffNama(s.nama); setNewStaffPassword(""); }} className="bg-amber-50 text-amber-600 text-xs font-bold px-3 py-2 rounded-xl border border-amber-200">🔑 Reset</button>
+                  </div>
+                ))}
+                {staff.length === 0 && <div className="text-center text-gray-400 text-sm py-4">Tiada staff lagi</div>}
+              </div>
             </div>
           </div>
         )}
@@ -944,32 +950,74 @@ export default function OwnerDashboardPage() {
                 <h3 className="text-gray-900 font-black text-lg">Filter by</h3>
                 <p className="text-gray-400 text-xs font-bold mt-0.5">Pilih tempoh laporan</p>
               </div>
-              <button onClick={() => setShowFilterModal(false)} className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all">✕</button>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
+                aria-label="Tutup filter"
+              >
+                ✕
+              </button>
             </div>
+
             <div className="grid grid-cols-2 gap-2 mb-5">
-              {(["daily", "weekly", "monthly", "custom"] as FilterType[]).map((option) => (
-                <button key={option} onClick={() => setPendingFilter(option)} className={`rounded-2xl border px-3 py-3 text-xs font-black transition-all ${pendingFilter === option ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"}`}>
-                  {pendingFilterLabel(option)}
-                </button>
-              ))}
+              {(["daily", "weekly", "monthly", "custom"] as FilterType[]).map((option) => {
+                const isSelected = pendingFilter === option;
+
+                return (
+                  <button
+                    key={option}
+                    onClick={() => setPendingFilter(option)}
+                    className={`rounded-2xl border px-3 py-3 text-xs font-black transition-all ${
+                      isSelected
+                        ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20"
+                        : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    {pendingFilterLabel(option)}
+                  </button>
+                );
+              })}
             </div>
+
             {pendingFilter === "custom" && (
               <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="text-gray-500 text-xs font-black mb-2 block">START DATE</label>
-                    <input type="date" value={pendingCustomFrom} onChange={(e) => setPendingCustomFrom(e.target.value)} className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500" />
+                    <input
+                      type="date"
+                      value={pendingCustomFrom}
+                      onChange={(e) => setPendingCustomFrom(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    />
                   </div>
                   <div>
                     <label className="text-gray-500 text-xs font-black mb-2 block">END DATE</label>
-                    <input type="date" value={pendingCustomTo} onChange={(e) => setPendingCustomTo(e.target.value)} className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500" />
+                    <input
+                      type="date"
+                      value={pendingCustomTo}
+                      onChange={(e) => setPendingCustomTo(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    />
                   </div>
                 </div>
               </div>
             )}
+
             <div className="flex gap-3">
-              <button onClick={() => setShowFilterModal(false)} className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all">Batal</button>
-              <button onClick={applyFilterModal} disabled={pendingFilter === "custom" && (!pendingCustomFrom || !pendingCustomTo)} className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all">Apply</button>
+              <button
+                onClick={() => setShowFilterModal(false)}
+                className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={applyFilterModal}
+                disabled={pendingFilter === "custom" && (!pendingCustomFrom || !pendingCustomTo)}
+                className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+              >
+                Apply
+              </button>
             </div>
           </div>
         </div>
@@ -1012,14 +1060,14 @@ export default function OwnerDashboardPage() {
         </div>
       )}
 
-      {/* Mobile Menu Drawer */}
+      {/* Menu Drawer */}
       {showMobileMenu && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50">
           <button onClick={() => setShowMobileMenu(false)} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" aria-label="Tutup menu" />
-          <div className="relative h-full w-[84%] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
+          <div className="relative h-full w-[84%] sm:w-[380px] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
             <div className="flex items-center justify-between mb-5">
-              <div><div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-green-600">POS</span></div><div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">Owner Dashboard</div></div>
-              <button onClick={() => setShowMobileMenu(false)} className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all">✕</button>
+              <div><div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-green-600">POS</span></div><div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">Owner Menu</div></div>
+              <button onClick={() => setShowMobileMenu(false)} className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all" aria-label="Tutup menu">✕</button>
             </div>
             <div className="bg-gradient-to-br from-green-700 to-green-500 rounded-3xl p-5 mb-5 text-white shadow-lg shadow-green-600/20">
               <div className="text-green-100 text-xs font-bold mb-1">KEDAI</div>
