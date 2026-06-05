@@ -27,6 +27,7 @@ export default function StaffDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [lastTotal, setLastTotal] = useState(0);
   const [activeTab, setActiveTab] = useState("pos");
+  const [showMenu, setShowMenu] = useState(false);
   const [rekod, setRekod] = useState<any[]>([]);
   const [loadingRekod, setLoadingRekod] = useState(false);
   const [showTukarPassword, setShowTukarPassword] = useState(false);
@@ -185,22 +186,95 @@ export default function StaffDashboardPage() {
     setTimeout(() => { setPasswordMsgStaff(""); setShowTukarPassword(false); }, 2000);
   }
 
+
+  const navItems = [
+    { id: "pos", label: "Sistem POS", icon: "🛒", description: "Ambil order & hantar dapur" },
+    { id: "rekod", label: "Rekod Jualan", icon: "📋", description: "Semak order terkini" },
+    { id: "settings", label: "Tetapan", icon: "🔑", description: "Ubah password akaun" },
+  ];
+
+  const activeNav = navItems.find((item) => item.id === activeTab) || navItems[0];
+
+  function changeTab(tabId: string) {
+    setActiveTab(tabId);
+    setShowMenu(false);
+    if (tabId === "rekod") fetchRekod();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-gray-900 font-bold text-lg">Urus<span className="text-green-600">POS</span></span>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setActiveTab("pos")} className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${activeTab === "pos" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"}`}>
-            🛒 POS
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            onClick={() => setShowMenu(true)}
+            className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all"
+            aria-label="Buka menu"
+          >
+            ☰
           </button>
-          <button onClick={() => { setActiveTab("rekod"); fetchRekod(); }} className={`text-xs font-bold px-3 py-1.5 rounded-full transition-all ${activeTab === "rekod" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"}`}>
-            📋 Rekod
-          </button>
-          <button onClick={() => setShowTukarPassword(true)} className="text-amber-500 text-xs font-bold px-2 py-1.5">🔑</button>
-          <a href="/auth/logout" className="text-gray-400 text-xs">Keluar</a>
+          <div className="min-w-0">
+            <span className="text-gray-900 font-bold text-lg leading-none block">Urus<span className="text-green-600">POS</span></span>
+            <div className="text-gray-400 text-xs font-bold mt-1 truncate">{activeNav.label}</div>
+          </div>
         </div>
+        <a href="/auth/logout" className="bg-gray-50 border border-gray-200 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all">Log Keluar</a>
       </div>
+
+      {/* Drawer Menu */}
+      {showMenu && (
+        <div className="fixed inset-0 z-50">
+          <button
+            onClick={() => setShowMenu(false)}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            aria-label="Tutup menu"
+          />
+          <div className="relative h-full w-[84%] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-green-600">POS</span></div>
+                <div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">Staff Menu</div>
+              </div>
+              <button
+                onClick={() => setShowMenu(false)}
+                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
+                aria-label="Tutup menu"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-5 text-white shadow-lg">
+              <div className="text-gray-400 text-xs font-bold mb-1">SEDANG DIBUKA</div>
+              <div className="font-black text-lg leading-tight truncate">{activeNav.label}</div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">👤 {staffNama || "Staff"}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 flex-1">
+              {navItems.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => changeTab(item.id)}
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-gray-900 border-gray-900 text-white shadow-lg shadow-gray-900/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                  >
+                    <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}>{item.icon}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-black text-sm">{item.label}</span>
+                      <span className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-gray-200" : "text-gray-400"}`}>{item.description}</span>
+                    </span>
+                    {isActive && <span className="font-black">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* POS TAB */}
       {activeTab === "pos" && (
@@ -331,6 +405,42 @@ export default function StaffDashboardPage() {
         </div>
       )}
 
+      {/* SETTINGS TAB */}
+      {activeTab === "settings" && (
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-4">
+            <h2 className="text-gray-900 font-bold text-lg">Tetapan</h2>
+            <p className="text-gray-400 text-xs mt-1">Ubah password akaun staff</p>
+          </div>
+
+          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <h3 className="text-gray-900 font-bold text-sm mb-4">🔑 Tukar Password</h3>
+            <div className="mb-3">
+              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
+              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+            </div>
+            <div className="mb-3">
+              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label>
+              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+            </div>
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
+              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+            </div>
+            {passwordMsgStaff && (
+              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
+            )}
+            <button
+              onClick={tukarPasswordStaff}
+              disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff}
+              className="w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+            >
+              Tukar Password
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Checkout Modal */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
@@ -405,6 +515,13 @@ export default function StaffDashboardPage() {
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+      `}</style>
 
     </div>
   );
