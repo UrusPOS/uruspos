@@ -1,6 +1,17 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { parseSessionCookie, SESSION_COOKIE } from "@/lib/auth/session";
+
+export const metadata: Metadata = {
+  title: "UrusPOS",
+  description: "UrusPOS business management system",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
 
 export default function DashboardLayout({
   children,
