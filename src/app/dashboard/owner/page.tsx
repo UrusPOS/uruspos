@@ -1572,7 +1572,7 @@ export default function OwnerDashboardPage() {
             <FilterBar />
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">
-                Jualan — {filterLabel()}
+                Jumlah Jualan
               </div>
               <div className="text-white text-4xl font-black mt-1">
                 RM {stats.jumlahJualan.toFixed(2)}
