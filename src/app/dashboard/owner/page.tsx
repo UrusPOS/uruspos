@@ -395,6 +395,10 @@ export default function OwnerDashboardPage() {
     duitnow_qr_url?: string | null;
     accent_color?: string | null;
     theme_mode?: string | null;
+    sst_enabled?: boolean | null;
+    sst_rate?: number | null;
+    service_charge_enabled?: boolean | null;
+    service_charge_rate?: number | null;
   } | null>(null);
 
   const [stats, setStats] = useState({
@@ -444,6 +448,11 @@ export default function OwnerDashboardPage() {
   const [selectedAccentColor, setSelectedAccentColor] = useState("green");
   const [selectedThemeMode, setSelectedThemeMode] = useState("light");
   const [themeMsg, setThemeMsg] = useState("");
+  const [chargeMsg, setChargeMsg] = useState("");
+  const [sstEnabled, setSstEnabled] = useState(false);
+  const [sstRate, setSstRate] = useState("0");
+  const [serviceChargeEnabled, setServiceChargeEnabled] = useState(false);
+  const [serviceChargeRate, setServiceChargeRate] = useState("0");
   const [billingStatus, setBillingStatus] = useState<{
     status: string;
     fee: number;
@@ -501,14 +510,14 @@ export default function OwnerDashboardPage() {
     if (resolvedKedaiId) {
       const { data, error } = (await supabase
         .from("kedai")
-        .select("nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode")
+        .select("nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate")
         .eq("id", resolvedKedaiId)
         .single()) as any;
       let kedaiData = data || null;
       if (error) {
         const fallback = (await supabase
           .from("kedai")
-          .select("nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode")
+          .select("nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate")
           .eq("id", resolvedKedaiId)
           .single()) as any;
         kedaiData = fallback.data ? { ...fallback.data, table_count: 6 } : null;
@@ -519,6 +528,10 @@ export default function OwnerDashboardPage() {
       );
       setSelectedAccentColor(kedaiData?.accent_color || "green");
       setSelectedThemeMode(kedaiData?.theme_mode || "light");
+      setSstEnabled(Boolean(kedaiData?.sst_enabled));
+      setSstRate(String(Number(kedaiData?.sst_rate || 0)));
+      setServiceChargeEnabled(Boolean(kedaiData?.service_charge_enabled));
+      setServiceChargeRate(String(Number(kedaiData?.service_charge_rate || 0)));
 
       fetchAllData(resolvedKedaiId);
       fetchBillingStatus(resolvedKedaiId);
@@ -1273,6 +1286,49 @@ export default function OwnerDashboardPage() {
     setTimeout(() => setThemeMsg(""), 3000);
   }
 
+  async function saveChargeSetting() {
+    if (!sessionUser?.kedai_id) return;
+
+    const finalSstRate = Math.max(0, Math.min(Number(sstRate) || 0, 100));
+    const finalServiceChargeRate = Math.max(0, Math.min(Number(serviceChargeRate) || 0, 100));
+
+    setSaving(true);
+    setChargeMsg("");
+
+    const { error } = await supabase
+      .from("kedai")
+      .update({
+        sst_enabled: sstEnabled,
+        sst_rate: finalSstRate,
+        service_charge_enabled: serviceChargeEnabled,
+        service_charge_rate: finalServiceChargeRate,
+      } as any)
+      .eq("id", sessionUser.kedai_id);
+
+    setSaving(false);
+
+    if (error) {
+      setChargeMsg(`❌ Gagal simpan setup caj: ${error.message}`);
+      return;
+    }
+
+    setSstRate(String(finalSstRate));
+    setServiceChargeRate(String(finalServiceChargeRate));
+    setKedaiInfo((prev) =>
+      prev
+        ? {
+            ...prev,
+            sst_enabled: sstEnabled,
+            sst_rate: finalSstRate,
+            service_charge_enabled: serviceChargeEnabled,
+            service_charge_rate: finalServiceChargeRate,
+          }
+        : prev,
+    );
+    setChargeMsg("✅ Setup caj berjaya disimpan.");
+    setTimeout(() => setChargeMsg(""), 3000);
+  }
+
   function formatDateLabel(date: string) {
     if (!date) return "";
     return new Date(date).toLocaleDateString("ms-MY", {
@@ -1715,6 +1771,12 @@ export default function OwnerDashboardPage() {
       icon: "🏪",
       label: "Setup Kedai",
       description: "Logo & QR DuitNow",
+    },
+    {
+      id: "charge-setup",
+      icon: "🧾",
+      label: "Setup Caj",
+      description: "SST & service charge",
     },
     {
       id: "theme",
@@ -2990,6 +3052,171 @@ export default function OwnerDashboardPage() {
                       Nota: QR DuitNow akan digunakan di staff payment popup. Logo kedai akan digunakan untuk branding owner, staff dan kitchen selepas Phase B/C.
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+
+            {activeSettingsTab === "charge-setup" && (
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div>
+                      <h3 className="text-gray-900 font-bold text-sm">
+                        🧾 Setup Caj
+                      </h3>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Tetapkan SST dan service charge untuk receipt dan checkout staff.
+                      </p>
+                    </div>
+                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                      Tax & Charge
+                    </span>
+                  </div>
+
+                  {chargeMsg && (
+                    <div
+                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${chargeMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                    >
+                      {chargeMsg}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div className={`rounded-3xl border p-4 ${sstEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}>
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                          <div className="text-gray-900 text-sm font-black">
+                            SST
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            Cukai SST yang dikenakan pada order
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSstEnabled(!sstEnabled)}
+                          className={`w-14 h-8 rounded-full p-1 transition-all ${sstEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                        >
+                          <span
+                            className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${sstEnabled ? "translate-x-6" : "translate-x-0"}`}
+                          />
+                        </button>
+                      </div>
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        RATE SST (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={sstRate}
+                          onChange={(e) => setSstRate(e.target.value)}
+                          disabled={!sstEnabled}
+                          className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                          %
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-3xl border p-4 ${serviceChargeEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}>
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                          <div className="text-gray-900 text-sm font-black">
+                            Service Charge
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            Caj servis kedai untuk order pelanggan
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setServiceChargeEnabled(!serviceChargeEnabled)}
+                          className={`w-14 h-8 rounded-full p-1 transition-all ${serviceChargeEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                        >
+                          <span
+                            className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${serviceChargeEnabled ? "translate-x-6" : "translate-x-0"}`}
+                          />
+                        </button>
+                      </div>
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        RATE SERVICE CHARGE (%)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={serviceChargeRate}
+                          onChange={(e) => setServiceChargeRate(e.target.value)}
+                          disabled={!serviceChargeEnabled}
+                          className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+                    <div className="text-gray-500 text-xs font-black mb-3">
+                      PREVIEW KIRAAN
+                    </div>
+                    {(() => {
+                      const previewSubtotal = 100;
+                      const previewService = serviceChargeEnabled
+                        ? previewSubtotal * ((Number(serviceChargeRate) || 0) / 100)
+                        : 0;
+                      const previewSst = sstEnabled
+                        ? (previewSubtotal + previewService) * ((Number(sstRate) || 0) / 100)
+                        : 0;
+                      const previewTotal = previewSubtotal + previewService + previewSst;
+
+                      return (
+                        <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
+                          <div className="flex justify-between text-sm font-bold text-gray-500">
+                            <span>Subtotal</span>
+                            <span>RM {previewSubtotal.toFixed(2)}</span>
+                          </div>
+                          {serviceChargeEnabled && (
+                            <div className="flex justify-between text-sm font-bold text-gray-500">
+                              <span>Service Charge ({Number(serviceChargeRate) || 0}%)</span>
+                              <span>RM {previewService.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {sstEnabled && (
+                            <div className="flex justify-between text-sm font-bold text-gray-500">
+                              <span>SST ({Number(sstRate) || 0}%)</span>
+                              <span>RM {previewSst.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-center">
+                            <span className="text-gray-900 font-black">Total</span>
+                            <span className="text-gray-900 font-black text-xl">
+                              RM {previewTotal.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    <div className="text-gray-400 text-xs font-bold mt-3">
+                      Formula: Service charge dikira dari subtotal. SST dikira selepas service charge.
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={saveChargeSetting}
+                    disabled={saving}
+                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan Setup Caj"}
+                  </button>
                 </div>
               </div>
             )}

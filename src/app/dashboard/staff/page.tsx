@@ -285,7 +285,8 @@ export default function StaffDashboardPage() {
     const receipt = toRecentReceipt(order);
     const receiptNo = receipt.id.slice(0, 8).toUpperCase();
     const lines = [
-      "URUSPOS RECEIPT",
+      kedaiInfo?.nama || "Kedai Saya",
+      "Powered by UrusPOS",
       "",
       `Receipt: #${receiptNo}`,
       `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
@@ -1458,7 +1459,8 @@ export default function StaffDashboardPage() {
             </div>
             <div className="border border-gray-200 rounded-2xl p-5 bg-white">
               <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                <div className="text-gray-900 font-black text-xl">UrusPOS</div>
+                <div className="text-gray-900 font-black text-xl">{kedaiInfo?.nama || "Kedai Saya"}</div>
+                <div className="text-gray-400 text-xs font-bold mt-1">Powered by UrusPOS</div>
                 <div className="text-gray-400 text-xs mt-2">{formatReceiptDate(selectedReceipt.created_at)}</div>
               </div>
               <div className="mb-4">
