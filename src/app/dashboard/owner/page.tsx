@@ -3114,15 +3114,6 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="border border-gray-200 rounded-2xl p-5 bg-white">
               <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                {kedaiLogoUrl && (
-                  <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center mx-auto mb-3">
-                    <img
-                      src={kedaiLogoUrl}
-                      alt={kedaiInfo?.nama || "Logo kedai"}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
                 <div className="text-gray-900 font-black text-xl">
                   {kedaiInfo?.nama || "Kedai Saya"}
                 </div>

@@ -39,6 +39,7 @@ export default function StaffDashboardPage() {
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [staffNama, setStaffNama] = useState("Staff");
+  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; logo_url?: string | null } | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
@@ -406,13 +407,17 @@ export default function StaffDashboardPage() {
 
     const { data: kedaiData } = await supabase
       .from("kedai")
-      .select("table_count, duitnow_qr_url")
+      .select("nama, table_count, duitnow_qr_url, logo_url")
       .eq("id", kId)
       .single() as any;
 
     const savedTableCount = Math.min(20, Math.max(1, Number(kedaiData?.table_count) || 6));
     setTableCount(savedTableCount);
     setDuitNowQrUrl(kedaiData?.duitnow_qr_url || "");
+    setKedaiInfo({
+      nama: kedaiData?.nama || "Kedai Saya",
+      logo_url: kedaiData?.logo_url || null,
+    });
 
     let resolvedMeja = currentMeja;
     if (resolvedMeja !== "Bungkus") {
@@ -796,10 +801,26 @@ export default function StaffDashboardPage() {
             </div>
 
             <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-5 text-white shadow-lg">
-              <div className="text-gray-400 text-xs font-bold mb-1">SEDANG DIBUKA</div>
-              <div className="font-black text-lg leading-tight truncate">{activeNav.label}</div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">👤 {staffNama || "Staff"}</span>
+              <div className="flex items-center gap-3">
+                {kedaiInfo?.logo_url ? (
+                  <img
+                    src={kedaiInfo.logo_url}
+                    alt="Logo kedai"
+                    className="w-14 h-14 rounded-2xl object-cover bg-white border border-white/20 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
+                    🏪
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-gray-400 text-xs font-bold mb-1">KEDAI</div>
+                  <div className="font-black text-lg leading-tight truncate">{kedaiInfo?.nama || "Kedai Saya"}</div>
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">👤 {staffNama || "Staff"}</span>
+                    <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">{activeNav.label}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
