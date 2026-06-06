@@ -27,7 +27,7 @@ type BillingRecord = {
   status: string;
 };
 
-type FilterType = "daily" | "weekly" | "monthly" | "custom";
+type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
 type PendingStatusChange = {
   id: string;
   nama: string;
@@ -40,6 +40,7 @@ function getDateRange(filter: FilterType, customFrom?: string, customTo?: string
   const to = new Date(now);
   to.setHours(23, 59, 59, 999);
   if (filter === "daily") { const from = new Date(now); from.setHours(0, 0, 0, 0); return { from: from.toISOString(), to: to.toISOString() }; }
+  if (filter === "yesterday") { const from = new Date(now); from.setDate(now.getDate() - 1); from.setHours(0, 0, 0, 0); const yesterdayTo = new Date(from); yesterdayTo.setHours(23, 59, 59, 999); return { from: from.toISOString(), to: yesterdayTo.toISOString() }; }
   if (filter === "weekly") { const from = new Date(now); from.setDate(now.getDate() - 6); from.setHours(0, 0, 0, 0); return { from: from.toISOString(), to: to.toISOString() }; }
   if (filter === "monthly") { const from = new Date(now.getFullYear(), now.getMonth(), 1); from.setHours(0, 0, 0, 0); return { from: from.toISOString(), to: to.toISOString() }; }
   if (filter === "custom" && customFrom && customTo) { const from = new Date(customFrom); from.setHours(0, 0, 0, 0); const toCustom = new Date(customTo); toCustom.setHours(23, 59, 59, 999); return { from: from.toISOString(), to: toCustom.toISOString() }; }
@@ -248,6 +249,7 @@ export default function SuperadminDashboardPage() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [tempFilter, setTempFilter] = useState<FilterType>("daily");
   const [tempCustomFrom, setTempCustomFrom] = useState("");
   const [tempCustomTo, setTempCustomTo] = useState("");
@@ -440,12 +442,30 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
-  function openFilterModal() { setTempFilter(filter); setTempCustomFrom(customFrom); setTempCustomTo(customTo); setShowFilterModal(true); }
+  function openCustomDateModal() {
+    setTempFilter("custom");
+    setTempCustomFrom(customFrom);
+    setTempCustomTo(customTo);
+    setShowFilterDropdown(false);
+    setShowFilterModal(true);
+  }
+
+  function selectDateFilter(nextFilter: FilterType) {
+    if (nextFilter === "custom") {
+      openCustomDateModal();
+      return;
+    }
+    setFilter(nextFilter);
+    setCustomFrom("");
+    setCustomTo("");
+    setShowFilterDropdown(false);
+  }
 
   function applyDateFilter() {
-    if (tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)) return;
-    setFilter(tempFilter);
-    if (tempFilter === "custom") { setCustomFrom(tempCustomFrom); setCustomTo(tempCustomTo); }
+    if (!tempCustomFrom || !tempCustomTo) return;
+    setFilter("custom");
+    setCustomFrom(tempCustomFrom);
+    setCustomTo(tempCustomTo);
     setShowFilterModal(false);
   }
 
@@ -455,7 +475,8 @@ export default function SuperadminDashboardPage() {
 
   function filterLabel() {
     if (filter === "daily") return "Hari Ini";
-    if (filter === "weekly") return "Minggu";
+    if (filter === "yesterday") return "Semalam";
+    if (filter === "weekly") return "7 Hari Lepas";
     if (filter === "monthly") return "Bulan Ini";
     if (filter === "custom" && customFrom && customTo) return `${formatDateLabel(customFrom)} — ${formatDateLabel(customTo)}`;
     return "Tarikh Custom";
@@ -512,15 +533,57 @@ export default function SuperadminDashboardPage() {
   function activeMenuLabel() { return menuItems.find((item) => item.id === activeTab)?.label || "Dashboard"; }
   function handleChangeTab(tabId: string) { setActiveTab(tabId); setShowMobileMenu(false); }
 
-  const FilterBar = ({ compact = false }: { compact?: boolean } = {}) => (
-    <div className={compact ? "" : "mb-4 mt-4"}>
-      <button onClick={openFilterModal} className="inline-flex items-center gap-2 rounded-full bg-purple-700/20 border border-purple-500/40 text-white px-4 py-2.5 text-sm font-black shadow-lg shadow-black/10 hover:bg-purple-700/30 hover:border-purple-400 transition-all whitespace-nowrap">
-        <span className="text-base">📅</span>
-        <span>{filterLabel()}</span>
-        <span className="text-purple-300 text-xs">▾</span>
-      </button>
-    </div>
-  );
+  const FilterBar = ({ compact = false }: { compact?: boolean } = {}) => {
+    const filterOptions: { value: FilterType; label: string }[] = [
+      { value: "daily", label: "Hari Ini" },
+      { value: "yesterday", label: "Semalam" },
+      { value: "monthly", label: "Bulan Ini" },
+      { value: "weekly", label: "7 Hari Lepas" },
+      { value: "custom", label: "Tarikh Custom" },
+    ];
+
+    return (
+      <div className={`relative inline-block ${compact ? "" : "mb-4 mt-4"}`}>
+        <button
+          onClick={() => setShowFilterDropdown((value) => !value)}
+          className="inline-flex items-center gap-2 rounded-full bg-purple-700/20 border border-purple-500/40 text-white px-4 py-2.5 text-sm font-black shadow-lg shadow-black/10 hover:bg-purple-700/30 hover:border-purple-400 transition-all whitespace-nowrap"
+        >
+          <span className="text-base">📅</span>
+          <span>{filterLabel()}</span>
+          <span className="text-purple-300 text-xs">▾</span>
+        </button>
+
+        {showFilterDropdown && (
+          <>
+            <button
+              aria-label="Tutup filter tarikh"
+              onClick={() => setShowFilterDropdown(false)}
+              className="fixed inset-0 z-40 cursor-default"
+            />
+            <div className="absolute left-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-purple-500/30 bg-[#160b2e] shadow-2xl shadow-black/40">
+              {filterOptions.map((option) => {
+                const active = filter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => selectDateFilter(option.value)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm font-bold transition-all ${
+                      active
+                        ? "bg-purple-700 text-white"
+                        : "text-purple-200 hover:bg-purple-900/50"
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    {active && <span className="text-white">✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const MenuDrawer = () => (
     <>
@@ -731,9 +794,11 @@ export default function SuperadminDashboardPage() {
                             <button
                               onClick={() => setConfirmBilling({ kedaiId: kedai.id, nama: kedai.nama, currentStatus: billing?.status || "unpaid" })}
                               disabled={updatingBilling === kedai.id}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-black border transition-all disabled:opacity-50 whitespace-nowrap ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
+                              title={isPaid ? "Tukar kepada belum bayar" : "Tandakan dah bayar"}
+                              aria-label={isPaid ? "Tukar kepada belum bayar" : "Tandakan dah bayar"}
+                              className={`w-9 h-9 rounded-xl text-sm font-black border transition-all disabled:opacity-50 flex items-center justify-center shrink-0 ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
                             >
-                              {updatingBilling === kedai.id ? "..." : isPaid ? "↩ Belum Bayar" : "✅ Dah Bayar"}
+                              {updatingBilling === kedai.id ? "..." : isPaid ? "↩" : "✓"}
                             </button>
                           )}
                         </div>
@@ -747,44 +812,37 @@ export default function SuperadminDashboardPage() {
         )}
       </div>
 
-      {/* Date Filter Modal */}
+      {/* Custom Date Modal */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
           <div className="bg-[#160b2e] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] border border-purple-500/30 shadow-2xl overflow-hidden animate-[filterSheetUp_0.22s_ease-out]">
             <div className="p-5 border-b border-purple-900/40">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-white font-black text-lg">Filter by</div>
-                  <div className="text-purple-400 text-xs font-semibold mt-1">Pilih tempoh laporan superadmin</div>
+                  <div className="text-white font-black text-lg">Tarikh Custom</div>
+                  <div className="text-purple-400 text-xs font-semibold mt-1">Pilih julat tarikh laporan superadmin</div>
                 </div>
                 <button onClick={() => setShowFilterModal(false)} className="w-9 h-9 rounded-full bg-purple-900/50 border border-purple-700/50 text-purple-200 font-black" aria-label="Tutup filter">×</button>
               </div>
             </div>
             <div className="p-5">
-              <div className="grid grid-cols-2 gap-2 mb-5">
-                {([{ value: "daily", label: "Hari Ini" }, { value: "weekly", label: "Minggu" }, { value: "monthly", label: "Bulan Ini" }, { value: "custom", label: "Tarikh Custom" }] as { value: FilterType; label: string }[]).map((option) => (
-                  <button key={option.value} onClick={() => setTempFilter(option.value)} className={`rounded-full px-3 py-2.5 text-xs font-black border transition-all ${tempFilter === option.value ? "bg-purple-600 border-purple-400 text-white shadow-lg shadow-purple-950/40" : "bg-[#0f0a1e] border-purple-900/60 text-purple-300 hover:border-purple-600"}`}>{option.label}</button>
-                ))}
-              </div>
-              {tempFilter === "custom" && (
-                <div className="bg-[#0f0a1e] border border-purple-900/60 rounded-3xl p-4 mb-5">
-                  <div className="text-purple-300 text-xs font-black uppercase tracking-wider mb-3">Julat Tarikh</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="block">
-                      <span className="text-purple-400 text-xs font-bold mb-2 block">Start Date</span>
-                      <input type="date" value={tempCustomFrom} onChange={(e) => setTempCustomFrom(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
-                    </label>
-                    <label className="block">
-                      <span className="text-purple-400 text-xs font-bold mb-2 block">End Date</span>
-                      <input type="date" value={tempCustomTo} onChange={(e) => setTempCustomTo(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
-                    </label>
-                  </div>
-                  {tempCustomFrom && tempCustomTo && <div className="mt-3 text-xs text-purple-300 font-semibold">{formatDateLabel(tempCustomFrom)} — {formatDateLabel(tempCustomTo)}</div>}
+              <div className="bg-[#0f0a1e] border border-purple-900/60 rounded-3xl p-4 mb-5">
+                <div className="text-purple-300 text-xs font-black uppercase tracking-wider mb-3">Julat Tarikh</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-purple-400 text-xs font-bold mb-2 block">Start Date</span>
+                    <input type="date" value={tempCustomFrom} onChange={(e) => setTempCustomFrom(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+                  </label>
+                  <label className="block">
+                    <span className="text-purple-400 text-xs font-bold mb-2 block">End Date</span>
+                    <input type="date" value={tempCustomTo} onChange={(e) => setTempCustomTo(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
+                  </label>
                 </div>
-              )}
+                {tempCustomFrom && tempCustomTo && <div className="mt-3 text-xs text-purple-300 font-semibold">{formatDateLabel(tempCustomFrom)} — {formatDateLabel(tempCustomTo)}</div>}
+              </div>
               <div className="flex gap-3">
                 <button onClick={() => setShowFilterModal(false)} className="flex-1 bg-purple-900/40 text-purple-300 font-black py-3 rounded-2xl border border-purple-700/60">Batal</button>
-                <button onClick={applyDateFilter} disabled={tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)} className="flex-1 bg-purple-700 text-white font-black py-3 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed">Apply</button>
+                <button onClick={applyDateFilter} disabled={!tempCustomFrom || !tempCustomTo} className="flex-1 bg-purple-700 text-white font-black py-3 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed">Apply</button>
               </div>
             </div>
           </div>
