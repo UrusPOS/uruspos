@@ -34,6 +34,28 @@ type InventoryReportItem = {
   status: "Habis" | "Rendah" | "Cukup";
 };
 
+type StockMovementRecord = {
+  id: string;
+  produk_id?: string | null;
+  produk_nama: string;
+  type: "in" | "out" | "adjustment" | "sold" | string;
+  qty: number;
+  reason?: string | null;
+  source?: string | null;
+  order_id?: string | null;
+  created_at: string;
+  created_by?: string | null;
+};
+
+type InventorySummaryItem = {
+  id: string;
+  nama: string;
+  stokAwal: number;
+  stockIn: number;
+  stockOut: number;
+  stokAkhir: number;
+};
+
 type PaymentSummaryItem = {
   method: string;
   total: number;
@@ -70,6 +92,10 @@ type OwnerReportData = {
   margin: number;
   topProducts: ReportTopProduct[];
   inventoryReport: InventoryReportItem[];
+  inventorySummary: InventorySummaryItem[];
+  stockMovements: StockMovementRecord[];
+  stockInTotal: number;
+  stockOutTotal: number;
   paymentSummary: PaymentSummaryItem[];
   recentReceipts: RecentReceipt[];
 };
@@ -269,6 +295,24 @@ function isOrderInDateRange(order: any, from: string, to: string) {
   return time >= new Date(from).getTime() && time <= new Date(to).getTime();
 }
 
+function normalizeStockMovementType(value: any) {
+  const type = normalizeText(value);
+  if (["in", "masuk", "restock", "tambah", "receipt"].includes(type))
+    return "in";
+  if (["out", "keluar", "tolak", "sold", "sale", "sales"].includes(type))
+    return "out";
+  return type || "adjustment";
+}
+
+function isStockInMovement(type: any) {
+  return normalizeStockMovementType(type) === "in";
+}
+
+function isStockOutMovement(type: any) {
+  const normalized = normalizeStockMovementType(type);
+  return normalized === "out" || normalized === "sold";
+}
+
 async function attachOrderItemsToOrders(rawOrders: any[]) {
   const orders = rawOrders || [];
   if (orders.length === 0) return [];
@@ -367,6 +411,10 @@ export default function OwnerDashboardPage() {
     margin: 0,
     topProducts: [],
     inventoryReport: [],
+    inventorySummary: [],
+    stockMovements: [],
+    stockInTotal: 0,
+    stockOutTotal: 0,
     paymentSummary: [],
     recentReceipts: [],
   });
@@ -507,6 +555,38 @@ export default function OwnerDashboardPage() {
         .eq("is_active", true)
         .order("stok", { ascending: true })) as any;
 
+      let stockMovementsData: StockMovementRecord[] = [];
+      const { data: rawStockMovements, error: stockMovementsError } =
+        (await supabase
+          .from("stock_movements")
+          .select("*")
+          .eq("kedai_id", kedaiId)
+          .gte("created_at", from)
+          .lte("created_at", to)
+          .order("created_at", { ascending: false })
+          .limit(50)) as any;
+
+      if (stockMovementsError) {
+        console.warn(
+          "Owner dashboard stock_movements query skipped:",
+          stockMovementsError.message || stockMovementsError,
+        );
+      } else {
+        stockMovementsData = (rawStockMovements || []).map((item: any) => ({
+          id: item.id,
+          produk_id: item.produk_id || item.product_id || null,
+          produk_nama:
+            item.produk_nama || item.product_name || item.nama_produk || "Produk",
+          type: normalizeStockMovementType(item.type),
+          qty: Number(item.qty || item.quantity || 0),
+          reason: item.reason || item.sebab || null,
+          source: item.source || null,
+          order_id: item.order_id || null,
+          created_at: item.created_at,
+          created_by: item.created_by || null,
+        }));
+      }
+
       const paidOrders = (ordersWithItems || [])
         .filter(isPaidSalesOrder)
         .filter((order: any) => isOrderInDateRange(order, from, to));
@@ -611,6 +691,90 @@ export default function OwnerDashboardPage() {
                   : "Cukup",
           })) as InventoryReportItem[];
 
+        const stockInTotal = stockMovementsData
+          .filter((item) => isStockInMovement(item.type))
+          .reduce((sum, item) => sum + Number(item.qty || 0), 0);
+        const stockOutTotal = stockMovementsData
+          .filter((item) => isStockOutMovement(item.type))
+          .reduce((sum, item) => sum + Number(item.qty || 0), 0);
+
+        const manualStockInByProduct: Record<string, number> = {};
+        const manualStockOutByProduct: Record<string, number> = {};
+        stockMovementsData.forEach((movement) => {
+          const productKey = movement.produk_id || movement.produk_nama;
+          if (!productKey) return;
+          if (isStockInMovement(movement.type)) {
+            manualStockInByProduct[productKey] =
+              (manualStockInByProduct[productKey] || 0) +
+              Number(movement.qty || 0);
+          }
+          if (isStockOutMovement(movement.type)) {
+            manualStockOutByProduct[productKey] =
+              (manualStockOutByProduct[productKey] || 0) +
+              Number(movement.qty || 0);
+          }
+        });
+
+        const salesMovementOrderIds = new Set(
+          stockMovementsData
+            .filter((movement) => movement.source === "sales" && movement.order_id)
+            .map((movement) => movement.order_id as string),
+        );
+
+        const soldQtyByProduct: Record<string, number> = {};
+        paidOrders.forEach((order: any) => {
+          // Phase 3: kalau order ni sudah ada stock_movements source=sales,
+          // jangan kira order_items sekali lagi supaya stock out tak double count.
+          if (order.id && salesMovementOrderIds.has(order.id)) return;
+
+          (order.order_items || []).forEach((item: any) => {
+            const productKey =
+              item.produk_id ||
+              item.product_id ||
+              item.produkId ||
+              item.productId ||
+              item.nama ||
+              item.product_name ||
+              item.nama_produk ||
+              "Produk";
+            soldQtyByProduct[productKey] =
+              (soldQtyByProduct[productKey] || 0) +
+              Number(item.qty || item.quantity || 0);
+          });
+        });
+
+        const inventorySummary = (produkData || [])
+          .map((item: any) => {
+            const productKeys = [item.id, item.nama].filter(Boolean);
+            const stockIn = productKeys.reduce(
+              (sum: number, key: string) => sum + (manualStockInByProduct[key] || 0),
+              0,
+            );
+            const manualStockOut = productKeys.reduce(
+              (sum: number, key: string) => sum + (manualStockOutByProduct[key] || 0),
+              0,
+            );
+            const soldStockOut = productKeys.reduce(
+              (sum: number, key: string) => sum + (soldQtyByProduct[key] || 0),
+              0,
+            );
+            const stockOut = manualStockOut + soldStockOut;
+            const stokAkhir = Number(item.stok || 0);
+            const stokAwal = stokAkhir - stockIn + stockOut;
+
+            return {
+              id: item.id,
+              nama: item.nama,
+              stokAwal,
+              stockIn,
+              stockOut,
+              stokAkhir,
+            };
+          })
+          .sort((a: InventorySummaryItem, b: InventorySummaryItem) =>
+            b.stockOut + b.stockIn - (a.stockOut + a.stockIn),
+          ) as InventorySummaryItem[];
+
         const recentReceipts = paidOrders.slice(0, 8).map((order: any) => ({
           id: order.id,
           created_at: getOrderSalesDate(order) || order.created_at,
@@ -647,6 +811,10 @@ export default function OwnerDashboardPage() {
           margin: jumlahMargin,
           topProducts,
           inventoryReport,
+          inventorySummary,
+          stockMovements: stockMovementsData,
+          stockInTotal,
+          stockOutTotal,
           paymentSummary,
           recentReceipts,
         });
@@ -673,6 +841,10 @@ export default function OwnerDashboardPage() {
           margin: 0,
           topProducts: [],
           inventoryReport: [],
+          inventorySummary: [],
+          stockMovements: [],
+          stockInTotal: 0,
+          stockOutTotal: 0,
           paymentSummary: [],
           recentReceipts: [],
         });
@@ -836,6 +1008,8 @@ export default function OwnerDashboardPage() {
     setEditStokError("");
     setSaving(true);
     let stokBaru = editStokSemasa;
+    let movementQty = 0;
+    let movementType: "in" | "out" | null = null;
     if (editStokQty) {
       const qty = parseInt(editStokQty);
       if (isNaN(qty) || qty <= 0) {
@@ -850,6 +1024,8 @@ export default function OwnerDashboardPage() {
       }
       stokBaru =
         editStokMode === "tambah" ? editStokSemasa + qty : editStokSemasa - qty;
+      movementQty = qty;
+      movementType = editStokMode === "tambah" ? "in" : "out";
       if (stokBaru < 0) {
         setEditStokError(
           `Stok tidak mencukupi. Stok semasa: ${editStokSemasa} unit.`,
@@ -858,7 +1034,7 @@ export default function OwnerDashboardPage() {
         return;
       }
     }
-    await supabase
+    const { error: updateProdukError } = await supabase
       .from("produk")
       .update({
         nama: editProdukNama,
@@ -867,9 +1043,36 @@ export default function OwnerDashboardPage() {
         stok: stokBaru,
       } as any)
       .eq("id", editProdukId);
+
+    if (updateProdukError) {
+      setEditStokError("Gagal kemaskini produk. Sila cuba lagi.");
+      setSaving(false);
+      return;
+    }
+
+    if (movementQty > 0 && movementType) {
+      const { error: movementError } = await supabase
+        .from("stock_movements")
+        .insert({
+          kedai_id: sessionUser?.kedai_id,
+          produk_id: editProdukId,
+          produk_nama: editProdukNama,
+          type: movementType,
+          qty: movementQty,
+          reason: editStokReason.trim(),
+          source: "manual",
+          created_by: sessionUser?.nama || sessionUser?.username || "Owner",
+        } as any);
+
+      if (movementError) {
+        console.warn("Stock movement log failed:", movementError);
+      }
+    }
+
     closeEditProduk();
     setSaving(false);
     fetchProduk(sessionUser?.kedai_id);
+    if (sessionUser?.kedai_id) fetchAllData(sessionUser.kedai_id);
   }
 
   async function tukarPassword() {
@@ -1006,6 +1209,12 @@ export default function OwnerDashboardPage() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  }
+
+  function formatMovementType(type: string) {
+    if (isStockInMovement(type)) return "Masuk";
+    if (isStockOutMovement(type)) return "Keluar";
+    return "Adjustment";
   }
 
   function displayMejaLabel(meja?: string | null) {
@@ -1270,7 +1479,7 @@ export default function OwnerDashboardPage() {
             <FilterBar />
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">
-                Jumlah Jualan
+                Jualan — {filterLabel()}
               </div>
               <div className="text-white text-4xl font-black mt-1">
                 RM {stats.jumlahJualan.toFixed(2)}
@@ -1539,7 +1748,7 @@ export default function OwnerDashboardPage() {
               <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
                   <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
-                    Jumlah Jualan
+                    Jumlah Jualan — {filterLabel()}
                   </div>
                   <div className="text-3xl sm:text-4xl font-black mt-1">
                     {formatRM(reportData.totalSales)}
@@ -1696,42 +1905,189 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-black text-sm">
-                  📦 Inventory Report
-                </h3>
+                <div>
+                  <h3 className="text-gray-900 font-black text-sm">
+                    📊 Ringkasan Stok
+                  </h3>
+                  <p className="text-gray-400 text-xs font-bold mt-1">
+                    Stok awal, masuk, keluar dan akhir ikut filter tarikh
+                  </p>
+                </div>
                 <span className="text-gray-400 text-xs font-bold">
-                  Stok semasa
+                  {reportData.inventorySummary.length} produk
                 </span>
               </div>
-              {reportData.inventoryReport.length === 0 ? (
-                <div className="text-center py-6">
+              {reportData.inventorySummary.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 rounded-2xl">
                   <div className="text-3xl mb-2">📦</div>
-                  <div className="text-gray-400 text-sm">
+                  <div className="text-gray-400 text-sm font-bold">
                     Belum ada produk aktif
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {reportData.inventoryReport.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between bg-gray-50 rounded-2xl p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="text-gray-900 text-sm font-black truncate">
+                <div className="max-h-80 overflow-y-auto pr-1">
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="sticky top-0 bg-white z-10">
+                        <tr className="text-gray-400 font-black border-b border-gray-100">
+                          <th className="py-3 pr-3">Produk</th>
+                          <th className="py-3 px-3 text-right">Stok Awal</th>
+                          <th className="py-3 px-3 text-right">Masuk</th>
+                          <th className="py-3 px-3 text-right">Keluar</th>
+                          <th className="py-3 pl-3 text-right">Stok Akhir</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.inventorySummary.map((item) => (
+                          <tr
+                            key={item.id}
+                            className="border-b border-gray-50 last:border-0"
+                          >
+                            <td className="py-3 pr-3 text-gray-900 font-black max-w-[160px] truncate">
+                              {item.nama}
+                            </td>
+                            <td className="py-3 px-3 text-right text-gray-600 font-bold">
+                              {item.stokAwal}
+                            </td>
+                            <td className="py-3 px-3 text-right text-green-600 font-black">
+                              +{item.stockIn}
+                            </td>
+                            <td className="py-3 px-3 text-right text-red-500 font-black">
+                              -{item.stockOut}
+                            </td>
+                            <td className="py-3 pl-3 text-right text-gray-900 font-black">
+                              {item.stokAkhir}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="sm:hidden space-y-3">
+                    {reportData.inventorySummary.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-gray-50 rounded-2xl p-3 border border-gray-100"
+                      >
+                        <div className="text-gray-900 text-sm font-black truncate mb-3">
                           {item.nama}
                         </div>
-                        <div className="text-gray-400 text-xs">
-                          Stok: {item.stok} unit
+                        <div className="grid grid-cols-4 gap-2 text-center">
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              {item.stokAwal}
+                            </div>
+                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                              Awal
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-green-600 text-sm font-black">
+                              +{item.stockIn}
+                            </div>
+                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                              Masuk
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-red-500 text-sm font-black">
+                              -{item.stockOut}
+                            </div>
+                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                              Keluar
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              {item.stokAkhir}
+                            </div>
+                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                              Akhir
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <span
-                        className={`text-xs font-black px-3 py-1 rounded-full ${item.status === "Habis" ? "bg-red-100 text-red-600" : item.status === "Rendah" ? "bg-amber-100 text-amber-600" : "bg-green-100 text-green-600"}`}
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-gray-900 font-black text-sm">
+                    📦 Rekod Pergerakan Stok
+                  </h3>
+                  <p className="text-gray-400 text-xs font-bold mt-1">
+                    Tambah/tolak stok manual ikut filter tarikh
+                  </p>
+                </div>
+                <span className="text-gray-400 text-xs font-bold">
+                  {reportData.stockMovements.length} rekod
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-green-50 border border-green-100 rounded-2xl p-3">
+                  <div className="text-green-700 text-xs font-black">
+                    Stok Masuk
+                  </div>
+                  <div className="text-green-700 text-xl font-black mt-1">
+                    +{reportData.stockInTotal} unit
+                  </div>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-2xl p-3">
+                  <div className="text-red-600 text-xs font-black">
+                    Stok Keluar
+                  </div>
+                  <div className="text-red-600 text-xl font-black mt-1">
+                    -{reportData.stockOutTotal} unit
+                  </div>
+                </div>
+              </div>
+              {reportData.stockMovements.length === 0 ? (
+                <div className="text-center py-6 bg-gray-50 rounded-2xl">
+                  <div className="text-3xl mb-2">📦</div>
+                  <div className="text-gray-400 text-sm font-bold">
+                    Belum ada pergerakan stok dalam tempoh ini
+                  </div>
+                </div>
+              ) : (
+                <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                  {reportData.stockMovements.map((item) => {
+                    const isIn = isStockInMovement(item.type);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl p-3"
                       >
-                        {item.status}
-                      </span>
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-gray-900 text-sm font-black truncate">
+                            {item.produk_nama}
+                          </div>
+                          <div className="text-gray-400 text-xs mt-1">
+                            {formatReceiptDate(item.created_at)}
+                          </div>
+                          <div className="text-gray-500 text-xs mt-1 truncate">
+                            {item.reason || "Tiada sebab"}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div
+                            className={`text-sm font-black ${isIn ? "text-green-600" : "text-red-500"}`}
+                          >
+                            {isIn ? "+" : "-"}
+                            {item.qty} unit
+                          </div>
+                          <div
+                            className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+                          >
+                            {formatMovementType(item.type)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
