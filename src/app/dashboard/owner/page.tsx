@@ -74,7 +74,7 @@ type OwnerReportData = {
   recentReceipts: RecentReceipt[];
 };
 
-type FilterType = "daily" | "weekly" | "monthly" | "custom";
+type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
 
 function getDateRange(
   filter: FilterType,
@@ -88,6 +88,15 @@ function getDateRange(
     const from = new Date(now);
     from.setHours(0, 0, 0, 0);
     return { from: from.toISOString(), to: to.toISOString() };
+  }
+  if (filter === "yesterday") {
+    const from = new Date(now);
+    from.setDate(now.getDate() - 1);
+    from.setHours(0, 0, 0, 0);
+    const yesterdayTo = new Date(now);
+    yesterdayTo.setDate(now.getDate() - 1);
+    yesterdayTo.setHours(23, 59, 59, 999);
+    return { from: from.toISOString(), to: yesterdayTo.toISOString() };
   }
   if (filter === "weekly") {
     const from = new Date(now);
@@ -236,15 +245,18 @@ function isPaidSalesOrder(order: any) {
 }
 
 function getOrderSalesDate(order: any) {
+  // Untuk report jualan historical, jangan guna updated_at sebelum created_at.
+  // updated_at boleh berubah bila order disentuh semula, lalu jualan semalam nampak macam jualan hari ini.
+  // Bila staff checkout nanti simpan paid_at, field itu tetap jadi priority utama.
   return (
     order?.paid_at ||
     order?.paidAt ||
     order?.completed_at ||
     order?.completedAt ||
-    order?.updated_at ||
-    order?.updatedAt ||
     order?.created_at ||
     order?.createdAt ||
+    order?.updated_at ||
+    order?.updatedAt ||
     null
   );
 }
@@ -382,8 +394,9 @@ export default function OwnerDashboardPage() {
   const [filter, setFilter] = useState<FilterType>("daily");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [pendingFilter, setPendingFilter] = useState<FilterType>("daily");
+  const [pendingFilter, setPendingFilter] = useState<FilterType>("custom");
   const [pendingCustomFrom, setPendingCustomFrom] = useState("");
   const [pendingCustomTo, setPendingCustomTo] = useState("");
 
@@ -937,27 +950,35 @@ export default function OwnerDashboardPage() {
     });
   }
 
-  function openFilterModal() {
-    setPendingFilter(filter);
-    setPendingCustomFrom(customFrom);
-    setPendingCustomTo(customTo);
-    setShowFilterModal(true);
+  function openFilterDropdown() {
+    setShowFilterDropdown((prev) => !prev);
+  }
+
+  function applyQuickFilter(value: FilterType) {
+    if (value === "custom") {
+      setPendingFilter("custom");
+      setPendingCustomFrom(customFrom);
+      setPendingCustomTo(customTo);
+      setShowFilterDropdown(false);
+      setShowFilterModal(true);
+      return;
+    }
+    setFilter(value);
+    setShowFilterDropdown(false);
   }
 
   function applyFilterModal() {
-    if (pendingFilter === "custom" && (!pendingCustomFrom || !pendingCustomTo))
-      return;
-    setFilter(pendingFilter);
-    if (pendingFilter === "custom") {
-      setCustomFrom(pendingCustomFrom);
-      setCustomTo(pendingCustomTo);
-    }
+    if (!pendingCustomFrom || !pendingCustomTo) return;
+    setFilter("custom");
+    setCustomFrom(pendingCustomFrom);
+    setCustomTo(pendingCustomTo);
     setShowFilterModal(false);
   }
 
   function filterLabel() {
     if (filter === "daily") return "Hari Ini";
-    if (filter === "weekly") return "Minggu";
+    if (filter === "yesterday") return "Semalam";
+    if (filter === "weekly") return "7 Hari Lepas";
     if (filter === "monthly") return "Bulan Ini";
     if (filter === "custom" && customFrom && customTo)
       return `${formatDateLabel(customFrom)} — ${formatDateLabel(customTo)}`;
@@ -966,7 +987,8 @@ export default function OwnerDashboardPage() {
 
   function pendingFilterLabel(value: FilterType) {
     if (value === "daily") return "Hari Ini";
-    if (value === "weekly") return "Minggu";
+    if (value === "yesterday") return "Semalam";
+    if (value === "weekly") return "7 Hari Lepas";
     if (value === "monthly") return "Bulan Ini";
     return "Tarikh Custom";
   }
@@ -1134,45 +1156,64 @@ export default function OwnerDashboardPage() {
   const activeNav = navItems.find((item) => item.id === activeTab);
 
   const FilterBar = () => (
-    <button
-      onClick={openFilterModal}
-      className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all mb-4"
-    >
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        className="text-green-600"
+    <div className="relative inline-block mb-4">
+      <button
+        onClick={openFilterDropdown}
+        className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
       >
-        <path
-          d="M7 3V6"
-          stroke="currentColor"
-          strokeWidth="2.3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M17 3V6"
-          stroke="currentColor"
-          strokeWidth="2.3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M4 9H20"
-          stroke="currentColor"
-          strokeWidth="2.3"
-          strokeLinecap="round"
-        />
-        <path
-          d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z"
-          stroke="currentColor"
-          strokeWidth="2.3"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span>{filterLabel()}</span>
-      <span className="text-gray-400 text-[10px]">▾</span>
-    </button>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="text-green-600"
+        >
+          <path
+            d="M7 3V6"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M17 3V6"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M4 9H20"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinecap="round"
+          />
+          <path
+            d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span>{filterLabel()}</span>
+        <span className="text-gray-400 text-[10px]">▾</span>
+      </button>
+
+      {showFilterDropdown && (
+        <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2">
+          {(["daily", "yesterday", "monthly", "weekly", "custom"] as FilterType[]).map(
+            (option) => (
+              <button
+                key={option}
+                onClick={() => applyQuickFilter(option)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <span>{pendingFilterLabel(option)}</span>
+                {filter === option && <span className="text-green-600">✓</span>}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
   );
 
   return (
@@ -1229,7 +1270,7 @@ export default function OwnerDashboardPage() {
             <FilterBar />
             <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
               <div className="text-green-100 text-sm">
-                Jualan — {filterLabel()}
+                Jumlah Jualan
               </div>
               <div className="text-white text-4xl font-black mt-1">
                 RM {stats.jumlahJualan.toFixed(2)}
@@ -1498,7 +1539,7 @@ export default function OwnerDashboardPage() {
               <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
                   <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
-                    Jumlah Jualan — {filterLabel()}
+                    Jumlah Jualan
                   </div>
                   <div className="text-3xl sm:text-4xl font-black mt-1">
                     {formatRM(reportData.totalSales)}
@@ -2085,15 +2126,17 @@ export default function OwnerDashboardPage() {
         )}
       </div>
 
-      {/* Filter By Modal */}
+      {/* Custom Date Modal */}
       {showFilterModal && (
         <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
           <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-gray-900 font-black text-lg">Filter by</h3>
+                <h3 className="text-gray-900 font-black text-lg">
+                  Tarikh Custom
+                </h3>
                 <p className="text-gray-400 text-xs font-bold mt-0.5">
-                  Pilih tempoh laporan
+                  Pilih julat tarikh laporan
                 </p>
               </div>
               <button
@@ -2103,47 +2146,32 @@ export default function OwnerDashboardPage() {
                 ✕
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              {(["daily", "weekly", "monthly", "custom"] as FilterType[]).map(
-                (option) => (
-                  <button
-                    key={option}
-                    onClick={() => setPendingFilter(option)}
-                    className={`rounded-2xl border px-3 py-3 text-xs font-black transition-all ${pendingFilter === option ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"}`}
-                  >
-                    {pendingFilterLabel(option)}
-                  </button>
-                ),
-              )}
-            </div>
-            {pendingFilter === "custom" && (
-              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="text-gray-500 text-xs font-black mb-2 block">
-                      START DATE
-                    </label>
-                    <input
-                      type="date"
-                      value={pendingCustomFrom}
-                      onChange={(e) => setPendingCustomFrom(e.target.value)}
-                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-gray-500 text-xs font-black mb-2 block">
-                      END DATE
-                    </label>
-                    <input
-                      type="date"
-                      value={pendingCustomTo}
-                      onChange={(e) => setPendingCustomTo(e.target.value)}
-                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
-                    />
-                  </div>
+            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-gray-500 text-xs font-black mb-2 block">
+                    START DATE
+                  </label>
+                  <input
+                    type="date"
+                    value={pendingCustomFrom}
+                    onChange={(e) => setPendingCustomFrom(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs font-black mb-2 block">
+                    END DATE
+                  </label>
+                  <input
+                    type="date"
+                    value={pendingCustomTo}
+                    onChange={(e) => setPendingCustomTo(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                  />
                 </div>
               </div>
-            )}
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowFilterModal(false)}
@@ -2153,10 +2181,7 @@ export default function OwnerDashboardPage() {
               </button>
               <button
                 onClick={applyFilterModal}
-                disabled={
-                  pendingFilter === "custom" &&
-                  (!pendingCustomFrom || !pendingCustomTo)
-                }
+                disabled={!pendingCustomFrom || !pendingCustomTo}
                 className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
               >
                 Apply
