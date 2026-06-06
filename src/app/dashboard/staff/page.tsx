@@ -13,6 +13,26 @@ type Produk = {
 
 type CartItem = Produk & { qty: number; nota: string };
 
+type RekodFilterType = "daily" | "weekly" | "monthly" | "custom";
+
+type ReceiptItem = {
+  id?: string;
+  nama: string;
+  qty: number;
+  harga: number;
+  nota?: string | null;
+};
+
+type RecentReceipt = {
+  id: string;
+  created_at: string;
+  meja: string | null;
+  status: string;
+  total: number;
+  payment_method?: string | null;
+  order_items: ReceiptItem[];
+};
+
 export default function StaffDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
   const [cart, setCart] = useState<{ [id: string]: CartItem }>({});
@@ -30,6 +50,14 @@ export default function StaffDashboardPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [rekod, setRekod] = useState<any[]>([]);
   const [loadingRekod, setLoadingRekod] = useState(false);
+  const [rekodFilter, setRekodFilter] = useState<RekodFilterType>("daily");
+  const [rekodCustomFrom, setRekodCustomFrom] = useState("");
+  const [rekodCustomTo, setRekodCustomTo] = useState("");
+  const [showRekodFilterModal, setShowRekodFilterModal] = useState(false);
+  const [pendingRekodFilter, setPendingRekodFilter] = useState<RekodFilterType>("daily");
+  const [pendingRekodCustomFrom, setPendingRekodCustomFrom] = useState("");
+  const [pendingRekodCustomTo, setPendingRekodCustomTo] = useState("");
+  const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(null);
   const [showTukarPassword, setShowTukarPassword] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPasswordStaff, setNewPasswordStaff] = useState("");
@@ -85,6 +113,181 @@ export default function StaffDashboardPage() {
     if (meja.startsWith("Meja")) return meja;
     if (meja.startsWith("T")) return `Meja ${meja.replace("T", "")}`;
     return meja;
+  }
+
+  function getRekodDateRange(filterType: RekodFilterType, customFrom?: string, customTo?: string) {
+    const now = new Date();
+    const to = new Date(now);
+    to.setHours(23, 59, 59, 999);
+
+    if (filterType === "daily") {
+      const from = new Date(now);
+      from.setHours(0, 0, 0, 0);
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+
+    if (filterType === "weekly") {
+      const from = new Date(now);
+      from.setDate(now.getDate() - 6);
+      from.setHours(0, 0, 0, 0);
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+
+    if (filterType === "monthly") {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      from.setHours(0, 0, 0, 0);
+      return { from: from.toISOString(), to: to.toISOString() };
+    }
+
+    if (filterType === "custom" && customFrom && customTo) {
+      const from = new Date(customFrom);
+      from.setHours(0, 0, 0, 0);
+      const customEnd = new Date(customTo);
+      customEnd.setHours(23, 59, 59, 999);
+      return { from: from.toISOString(), to: customEnd.toISOString() };
+    }
+
+    const from = new Date(now);
+    from.setHours(0, 0, 0, 0);
+    return { from: from.toISOString(), to: to.toISOString() };
+  }
+
+  function rekodFilterLabel() {
+    if (rekodFilter === "daily") return "Hari Ini";
+    if (rekodFilter === "weekly") return "7 Hari";
+    if (rekodFilter === "monthly") return "Bulan Ini";
+    if (rekodFilter === "custom" && rekodCustomFrom && rekodCustomTo) {
+      return `${formatShortDate(rekodCustomFrom)} — ${formatShortDate(rekodCustomTo)}`;
+    }
+    return "Tarikh Custom";
+  }
+
+  function rekodPendingFilterLabel(value: RekodFilterType) {
+    if (value === "daily") return "Hari Ini";
+    if (value === "weekly") return "7 Hari";
+    if (value === "monthly") return "Bulan Ini";
+    return "Tarikh Custom";
+  }
+
+  function openRekodFilterModal() {
+    setPendingRekodFilter(rekodFilter);
+    setPendingRekodCustomFrom(rekodCustomFrom);
+    setPendingRekodCustomTo(rekodCustomTo);
+    setShowRekodFilterModal(true);
+  }
+
+  function applyRekodFilterModal() {
+    if (pendingRekodFilter === "custom" && (!pendingRekodCustomFrom || !pendingRekodCustomTo)) return;
+
+    setRekodFilter(pendingRekodFilter);
+    if (pendingRekodFilter === "custom") {
+      setRekodCustomFrom(pendingRekodCustomFrom);
+      setRekodCustomTo(pendingRekodCustomTo);
+    }
+    setShowRekodFilterModal(false);
+  }
+
+  function formatShortDate(dateValue: string) {
+    if (!dateValue) return "";
+    return new Date(dateValue).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function formatReceiptDate(dateValue?: string | null) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatRM(value: number) {
+    return `RM ${Number(value || 0).toFixed(2)}`;
+  }
+
+  function getOrderTotal(order: any) {
+    const possibleTotals = [order?.total, order?.jumlah, order?.jumlah_bayaran, order?.grand_total, order?.total_amount, order?.amount, order?.subtotal];
+    for (const value of possibleTotals) {
+      const numberValue = Number(value);
+      if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
+    }
+    return (order?.order_items || []).reduce((sum: number, item: any) => {
+      const qty = Number(item?.qty || item?.quantity || 0);
+      const harga = Number(item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0);
+      return sum + qty * harga;
+    }, 0);
+  }
+
+  function getPaymentMethod(order: any) {
+    return order?.payment_method || order?.paymentMethod || order?.payment || order?.bayaran || order?.kaedah_bayaran || order?.method || null;
+  }
+
+  function getOrderSalesDate(order: any) {
+    return order?.paid_at || order?.paidAt || order?.completed_at || order?.completedAt || order?.updated_at || order?.updatedAt || order?.created_at || order?.createdAt || null;
+  }
+
+  function isOrderInRekodDateRange(order: any, from: string, to: string) {
+    const rawDate = getOrderSalesDate(order);
+    if (!rawDate) return true;
+    const time = new Date(rawDate).getTime();
+    if (Number.isNaN(time)) return true;
+    return time >= new Date(from).getTime() && time <= new Date(to).getTime();
+  }
+
+  function toRecentReceipt(order: any): RecentReceipt {
+    return {
+      id: order.id,
+      created_at: getOrderSalesDate(order) || order.created_at,
+      meja: order.meja || order.table_no || order.tableNo || null,
+      status: order.status,
+      total: getOrderTotal(order),
+      payment_method: getPaymentMethod(order),
+      order_items: (order.order_items || []).map((item: any) => ({
+        id: item.id,
+        nama: item.nama || item.product_name || item.nama_produk || "Produk",
+        qty: Number(item.qty || item.quantity || 0),
+        harga: Number(item.harga || item.harga_jual || item.price || item.unit_price || 0),
+        nota: item.nota || item.note || null,
+      })),
+    };
+  }
+
+  function downloadReceipt(order: any) {
+    const receipt = toRecentReceipt(order);
+    const receiptNo = receipt.id.slice(0, 8).toUpperCase();
+    const lines = [
+      "URUSPOS RECEIPT",
+      "",
+      `Receipt: #${receiptNo}`,
+      `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
+      `Jenis: ${displayMejaLabel(receipt.meja)}`,
+      `Bayaran: ${receipt.payment_method || "Belum direkod"}`,
+      "",
+      "ITEM",
+      ...receipt.order_items.flatMap((item) => {
+        const line = `${item.nama} x${item.qty} @ ${formatRM(item.harga)} = ${formatRM(item.qty * item.harga)}`;
+        return item.nota ? [line, `Nota: ${item.nota}`] : [line];
+      }),
+      "",
+      `TOTAL: ${formatRM(receipt.total)}`,
+      "",
+      "Terima kasih.",
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `receipt-${receiptNo}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
 
@@ -162,6 +365,10 @@ export default function StaffDashboardPage() {
     fetchProduk();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "rekod") fetchRekod();
+  }, [activeTab, rekodFilter, rekodCustomFrom, rekodCustomTo]);
+
   async function fetchProduk() {
     const cookies = document.cookie.split(";");
     const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
@@ -203,15 +410,33 @@ export default function StaffDashboardPage() {
     const cookies = document.cookie.split(";");
     const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
     const sessionValue = sessionCookie?.split("=")?.[1];
-    let kId = null;
-    if (sessionValue) {
+    let kId = kedaiId;
+    if (!kId && sessionValue) {
       const session = JSON.parse(decodeURIComponent(sessionValue));
       kId = session.kedai_id;
     }
-    const query = supabase.from("orders").select("*, order_items(*)").in("status", ["paid", "done"]).order("created_at", { ascending: false }).limit(50);
+
+    const { from, to } = getRekodDateRange(rekodFilter, rekodCustomFrom, rekodCustomTo);
+
+    const query = supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .in("status", ["paid", "done", "completed", "complete", "selesai", "closed", "settled"])
+      .order("created_at", { ascending: false })
+      .limit(300);
+
     if (kId) query.eq("kedai_id", kId);
-    const { data } = await query as any;
-    setRekod(data || []);
+
+    const { data, error } = await query as any;
+    if (error) {
+      console.error("Fetch rekod jualan error:", error);
+      setRekod([]);
+      setLoadingRekod(false);
+      return;
+    }
+
+    const filtered = (data || []).filter((order: any) => isOrderInRekodDateRange(order, from, to));
+    setRekod(filtered);
     setLoadingRekod(false);
   }
 
@@ -471,7 +696,6 @@ export default function StaffDashboardPage() {
   function changeTab(tabId: string) {
     setActiveTab(tabId);
     setShowMenu(false);
-    if (tabId === "rekod") fetchRekod();
   }
 
   return (
@@ -775,42 +999,86 @@ export default function StaffDashboardPage() {
       {activeTab === "rekod" && (
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-4">
-            <h2 className="text-gray-900 font-bold text-lg">Rekod Order</h2>
-            <p className="text-gray-400 text-xs mt-1">50 jualan berbayar terkini</p>
+            <h2 className="text-gray-900 font-bold text-lg">Rekod Jualan</h2>
+            <p className="text-gray-400 text-xs mt-1">Semak jualan mengikut tarikh dan download receipt</p>
           </div>
+
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <button
+              onClick={openRekodFilterModal}
+              className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                <path d="M7 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                <path d="M17 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                <path d="M4 9H20" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                <path d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round" />
+              </svg>
+              <span>{rekodFilterLabel()}</span>
+              <span className="text-gray-400 text-[10px]">▾</span>
+            </button>
+            <button
+              onClick={fetchRekod}
+              disabled={loadingRekod}
+              className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 active:scale-95 transition-all"
+            >
+              {loadingRekod ? "Loading" : "Refresh"}
+            </button>
+          </div>
+
           {loadingRekod ? (
             <div className="text-center text-gray-400 py-10">Loading...</div>
           ) : rekod.length === 0 ? (
             <div className="text-center py-10">
               <div className="text-4xl mb-3">📋</div>
-              <div className="text-gray-400 text-sm">Tiada rekod lagi</div>
+              <div className="text-gray-400 text-sm">Tiada rekod dalam tempoh ini</div>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {rekod.map((order) => (
-                <div key={order.id} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <div className="text-gray-900 font-black text-sm">{order.order_number || "ORD-LAMA"}</div>
-                      <div className="text-gray-400 text-xs mt-0.5">{displayMejaLabel(order.meja)} · {new Date(order.created_at).toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-gray-900 font-black">RM {Number(order.total).toFixed(2)}</div>
-                      <div className={`text-xs font-bold mt-0.5 ${order.status === "paid" ? "text-green-600" : order.status === "done" ? "text-blue-600" : "text-amber-500"}`}>
-                        {order.status === "paid" ? "✓ Dibayar" : order.status === "done" ? "Siap" : "Dalam proses"}
+            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-900 font-black text-sm">🧾 Receipt Preview</h3>
+                <span className="text-gray-400 text-xs font-bold">{rekod.length} rekod</span>
+              </div>
+              <div className="space-y-3">
+                {rekod.map((order) => {
+                  const receipt = toRecentReceipt(order);
+                  return (
+                    <div key={order.id} className="bg-gray-50 rounded-2xl p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-gray-900 text-sm font-black truncate">#{receipt.id.slice(0, 8).toUpperCase()}</div>
+                          <div className="text-gray-400 text-xs mt-1">{displayMejaLabel(receipt.meja)} · {formatReceiptDate(receipt.created_at)}</div>
+                          <div className="text-gray-400 text-xs mt-1">{receipt.payment_method || "Belum direkod"}</div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="text-green-600 text-sm font-black whitespace-nowrap mr-1">{formatRM(receipt.total)}</div>
+                          <button
+                            onClick={() => setSelectedReceipt(receipt)}
+                            className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            aria-label="View receipt"
+                          >
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => downloadReceipt(order)}
+                            className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            aria-label="Download receipt"
+                          >
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                              <path d="M12 3V15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                              <path d="M5 21H19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="border-t border-gray-100 pt-2 mt-2">
-                    {order.order_items?.map((item: any) => (
-                      <div key={item.id} className="flex justify-between text-xs text-gray-500 py-0.5">
-                        <span>{item.nama} ×{item.qty}</span>
-                        <span>RM {(item.harga * item.qty).toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -848,6 +1116,125 @@ export default function StaffDashboardPage() {
             >
               Tukar Password
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rekod Filter Modal */}
+      {showRekodFilterModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-gray-900 font-black text-lg">Filter Tarikh</h3>
+                <p className="text-gray-400 text-xs font-bold mt-0.5">Pilih tempoh rekod jualan</p>
+              </div>
+              <button
+                onClick={() => setShowRekodFilterModal(false)}
+                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-5">
+              {(["daily", "weekly", "monthly", "custom"] as RekodFilterType[]).map((option) => (
+                <button
+                  key={option}
+                  onClick={() => setPendingRekodFilter(option)}
+                  className={`rounded-2xl border px-3 py-3 text-xs font-black transition-all ${pendingRekodFilter === option ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"}`}
+                >
+                  {rekodPendingFilterLabel(option)}
+                </button>
+              ))}
+            </div>
+
+            {pendingRekodFilter === "custom" && (
+              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="text-gray-500 text-xs font-black mb-2 block">START DATE</label>
+                    <input
+                      type="date"
+                      value={pendingRekodCustomFrom}
+                      onChange={(e) => setPendingRekodCustomFrom(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-black mb-2 block">END DATE</label>
+                    <input
+                      type="date"
+                      value={pendingRekodCustomTo}
+                      onChange={(e) => setPendingRekodCustomTo(e.target.value)}
+                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRekodFilterModal(false)}
+                className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={applyRekodFilterModal}
+                disabled={pendingRekodFilter === "custom" && (!pendingRekodCustomFrom || !pendingRekodCustomTo)}
+                className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Preview Modal */}
+      {selectedReceipt && (
+        <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 p-4">
+          <div className="bg-white rounded-t-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-gray-900 font-black text-lg">Receipt Preview</h3>
+                <div className="text-gray-400 text-xs font-bold">#{selectedReceipt.id.slice(0, 8).toUpperCase()}</div>
+              </div>
+              <button onClick={() => setSelectedReceipt(null)} className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black">✕</button>
+            </div>
+            <div className="border border-gray-200 rounded-2xl p-5 bg-white">
+              <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
+                <div className="text-gray-900 font-black text-xl">UrusPOS</div>
+                <div className="text-gray-400 text-xs mt-2">{formatReceiptDate(selectedReceipt.created_at)}</div>
+              </div>
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1"><span>Order</span><span>#{selectedReceipt.id.slice(0, 8).toUpperCase()}</span></div>
+                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1"><span>Jenis</span><span>{displayMejaLabel(selectedReceipt.meja)}</span></div>
+                <div className="flex justify-between text-xs text-gray-500 font-bold"><span>Bayaran</span><span>{selectedReceipt.payment_method || "Belum direkod"}</span></div>
+              </div>
+              <div className="border-t border-dashed border-gray-300 pt-4 space-y-3">
+                {selectedReceipt.order_items.map((item, index) => (
+                  <div key={`${item.nama}-${index}`} className="flex justify-between gap-3 text-sm">
+                    <div className="flex-1">
+                      <div className="text-gray-900 font-bold">{item.nama}</div>
+                      <div className="text-gray-400 text-xs">{item.qty} x {formatRM(item.harga)}</div>
+                      {item.nota && <div className="text-amber-600 text-xs mt-1">Nota: {item.nota}</div>}
+                    </div>
+                    <div className="text-gray-900 font-black">{formatRM(item.qty * item.harga)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
+                <div className="flex justify-between items-center"><span className="text-gray-900 font-black">TOTAL</span><span className="text-gray-900 font-black text-xl">{formatRM(selectedReceipt.total)}</span></div>
+              </div>
+              <div className="text-center text-gray-400 text-xs mt-5">Terima kasih.</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <button onClick={() => setSelectedReceipt(null)} className="bg-gray-100 text-gray-600 font-black py-3 rounded-2xl text-sm">Tutup</button>
+              <button onClick={() => downloadReceipt(selectedReceipt)} className="bg-green-600 text-white font-black py-3 rounded-2xl text-sm">Download</button>
+            </div>
           </div>
         </div>
       )}
