@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase";
 import { parseSessionCookie } from "@/lib/auth/session";
 
@@ -1434,10 +1434,10 @@ export default function OwnerDashboardPage() {
       ? {
           label: "AKTIF",
           title: "✅ Aktif — 2% Jualan",
-          bg: "bg-green-50 border-green-200",
-          titleColor: "text-green-800",
-          labelColor: "text-green-700",
-          pill: "bg-green-200 text-green-800",
+          bg: "bg-[var(--accent-50)] border-[var(--accent-200)]",
+          titleColor: "text-[var(--accent-800)]",
+          labelColor: "text-[var(--accent-700)]",
+          pill: "bg-[var(--accent-200)] text-[var(--accent-800)]",
         }
       : isSuspended
         ? {
@@ -1475,6 +1475,165 @@ export default function OwnerDashboardPage() {
   const selectedAccent =
     accentColorOptions.find((color) => color.id === selectedAccentColor) ||
     accentColorOptions[0];
+
+  const accentThemeMap: Record<string, Record<string, string>> = {
+    green: {
+      "50": "#f0fdf4",
+      "100": "#dcfce7",
+      "200": "#bbf7d0",
+      "300": "#86efac",
+      "500": "#22c55e",
+      "600": "#16a34a",
+      "700": "#15803d",
+      "800": "#166534",
+      "900": "#14532d",
+      gradientFrom: "#166534",
+      gradientTo: "#22c55e",
+      textOnAccent: "#ffffff",
+    },
+    blue: {
+      "50": "#eff6ff",
+      "100": "#dbeafe",
+      "200": "#bfdbfe",
+      "300": "#93c5fd",
+      "500": "#3b82f6",
+      "600": "#2563eb",
+      "700": "#1d4ed8",
+      "800": "#1e40af",
+      "900": "#1e3a8a",
+      gradientFrom: "#1e40af",
+      gradientTo: "#3b82f6",
+      textOnAccent: "#ffffff",
+    },
+    purple: {
+      "50": "#faf5ff",
+      "100": "#f3e8ff",
+      "200": "#e9d5ff",
+      "300": "#d8b4fe",
+      "500": "#a855f7",
+      "600": "#9333ea",
+      "700": "#7e22ce",
+      "800": "#6b21a8",
+      "900": "#581c87",
+      gradientFrom: "#6b21a8",
+      gradientTo: "#a855f7",
+      textOnAccent: "#ffffff",
+    },
+    red: {
+      "50": "#fef2f2",
+      "100": "#fee2e2",
+      "200": "#fecaca",
+      "300": "#fca5a5",
+      "500": "#ef4444",
+      "600": "#dc2626",
+      "700": "#b91c1c",
+      "800": "#991b1b",
+      "900": "#7f1d1d",
+      gradientFrom: "#991b1b",
+      gradientTo: "#ef4444",
+      textOnAccent: "#ffffff",
+    },
+    orange: {
+      "50": "#fff7ed",
+      "100": "#ffedd5",
+      "200": "#fed7aa",
+      "300": "#fdba74",
+      "500": "#f97316",
+      "600": "#ea580c",
+      "700": "#c2410c",
+      "800": "#9a3412",
+      "900": "#7c2d12",
+      gradientFrom: "#9a3412",
+      gradientTo: "#f97316",
+      textOnAccent: "#ffffff",
+    },
+    amber: {
+      "50": "#fffbeb",
+      "100": "#fef3c7",
+      "200": "#fde68a",
+      "300": "#fcd34d",
+      "500": "#f59e0b",
+      "600": "#d97706",
+      "700": "#b45309",
+      "800": "#92400e",
+      "900": "#78350f",
+      gradientFrom: "#92400e",
+      gradientTo: "#f59e0b",
+      textOnAccent: "#ffffff",
+    },
+    pink: {
+      "50": "#fdf2f8",
+      "100": "#fce7f3",
+      "200": "#fbcfe8",
+      "300": "#f9a8d4",
+      "500": "#ec4899",
+      "600": "#db2777",
+      "700": "#be185d",
+      "800": "#9d174d",
+      "900": "#831843",
+      gradientFrom: "#9d174d",
+      gradientTo: "#ec4899",
+      textOnAccent: "#ffffff",
+    },
+    teal: {
+      "50": "#f0fdfa",
+      "100": "#ccfbf1",
+      "200": "#99f6e4",
+      "300": "#5eead4",
+      "500": "#14b8a6",
+      "600": "#0d9488",
+      "700": "#0f766e",
+      "800": "#115e59",
+      "900": "#134e4a",
+      gradientFrom: "#115e59",
+      gradientTo: "#14b8a6",
+      textOnAccent: "#ffffff",
+    },
+    indigo: {
+      "50": "#eef2ff",
+      "100": "#e0e7ff",
+      "200": "#c7d2fe",
+      "300": "#a5b4fc",
+      "500": "#6366f1",
+      "600": "#4f46e5",
+      "700": "#4338ca",
+      "800": "#3730a3",
+      "900": "#312e81",
+      gradientFrom: "#3730a3",
+      gradientTo: "#6366f1",
+      textOnAccent: "#ffffff",
+    },
+    slate: {
+      "50": "#f8fafc",
+      "100": "#f1f5f9",
+      "200": "#e2e8f0",
+      "300": "#cbd5e1",
+      "500": "#64748b",
+      "600": "#475569",
+      "700": "#334155",
+      "800": "#1e293b",
+      "900": "#0f172a",
+      gradientFrom: "#1e293b",
+      gradientTo: "#64748b",
+      textOnAccent: "#ffffff",
+    },
+  };
+
+  const accentTheme = accentThemeMap[selectedAccentColor] || accentThemeMap.green;
+  const accentStyle = {
+    "--accent-50": accentTheme["50"],
+    "--accent-100": accentTheme["100"],
+    "--accent-200": accentTheme["200"],
+    "--accent-300": accentTheme["300"],
+    "--accent-500": accentTheme["500"],
+    "--accent-600": accentTheme["600"],
+    "--accent-700": accentTheme["700"],
+    "--accent-800": accentTheme["800"],
+    "--accent-900": accentTheme["900"],
+    "--accent-gradient-from": accentTheme.gradientFrom,
+    "--accent-gradient-to": accentTheme.gradientTo,
+    "--accent-text": accentTheme.textOnAccent,
+  } as CSSProperties;
 
   const navItems = [
     {
@@ -1616,14 +1775,14 @@ export default function OwnerDashboardPage() {
     <div className="relative inline-block mb-4">
       <button
         onClick={openFilterDropdown}
-        className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
+        className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
       >
         <svg
           width="15"
           height="15"
           viewBox="0 0 24 24"
           fill="none"
-          className="text-green-600"
+          className="text-[var(--accent-600)]"
         >
           <path
             d="M7 3V6"
@@ -1661,10 +1820,10 @@ export default function OwnerDashboardPage() {
               <button
                 key={option}
                 onClick={() => applyQuickFilter(option)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
               >
                 <span>{pendingFilterLabel(option)}</span>
-                {filter === option && <span className="text-green-600">✓</span>}
+                {filter === option && <span className="text-[var(--accent-600)]">✓</span>}
               </button>
             ),
           )}
@@ -1674,7 +1833,7 @@ export default function OwnerDashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="min-h-screen bg-gray-50 pb-10" style={accentStyle}>
       {/* Header */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200">
         <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto flex items-center justify-between gap-3">
@@ -1688,7 +1847,7 @@ export default function OwnerDashboardPage() {
             </button>
             <div className="min-w-0">
               <span className="text-gray-900 font-black text-xl block leading-none">
-                Urus<span className="text-green-600">POS</span>
+                Urus<span className="text-[var(--accent-600)]">POS</span>
               </span>
               <div className="text-gray-400 text-xs font-bold mt-1 truncate">
                 {activeNav?.label || "Owner"}
@@ -1700,7 +1859,7 @@ export default function OwnerDashboardPage() {
               <div className="text-gray-900 font-bold text-sm leading-tight">
                 {sessionUser?.nama || "Owner"}
               </div>
-              <div className="text-green-600 text-xs font-semibold">
+              <div className="text-[var(--accent-600)] text-xs font-semibold">
                 👑 Owner
               </div>
             </div>
@@ -1725,8 +1884,8 @@ export default function OwnerDashboardPage() {
               </div>
             </div>
             <FilterBar />
-            <div className="bg-gradient-to-br from-green-800 to-green-500 rounded-2xl p-6 mb-4">
-              <div className="text-green-100 text-sm">
+            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-2xl p-6 mb-4">
+              <div className="text-[var(--accent-100)] text-sm">
                 Jumlah Jualan
               </div>
               <div className="text-white text-4xl font-black mt-1">
@@ -1741,7 +1900,7 @@ export default function OwnerDashboardPage() {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="text-xl mb-1">💰</div>
-                <div className="text-green-600 text-lg font-black">
+                <div className="text-[var(--accent-600)] text-lg font-black">
                   RM {stats.jumlahUntung.toFixed(0)}
                 </div>
                 <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
@@ -1789,17 +1948,17 @@ export default function OwnerDashboardPage() {
             </div>
             {isActivePlan ? (
               <div
-                className={`rounded-2xl p-4 border ${billingStatus?.status === "unpaid" ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}
+                className={`rounded-2xl p-4 border ${billingStatus?.status === "unpaid" ? "bg-red-50 border-red-200" : "bg-[var(--accent-50)] border-[var(--accent-200)]"}`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div
-                    className={`text-xs font-bold ${billingStatus?.status === "unpaid" ? "text-red-700" : "text-green-700"}`}
+                    className={`text-xs font-bold ${billingStatus?.status === "unpaid" ? "text-red-700" : "text-[var(--accent-700)]"}`}
                   >
                     📊 Fee UrusPOS —{" "}
                     {billingStatus ? billingStatus.bulanLabel : "Bulan Lepas"}
                   </div>
                   {billingStatus?.status === "paid" ? (
-                    <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
                       ✅ Dah Bayar
                     </span>
                   ) : billingStatus?.status === "unpaid" ? (
@@ -1881,7 +2040,7 @@ export default function OwnerDashboardPage() {
               </h2>
               <button
                 onClick={() => setShowAddProduk(true)}
-                className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full"
+                className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
               >
                 + Tambah Produk
               </button>
@@ -1946,7 +2105,7 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="text-center bg-gray-50 rounded-xl p-2">
                           <div
-                            className={`text-sm font-black ${m >= 40 ? "text-green-600" : "text-amber-500"}`}
+                            className={`text-sm font-black ${m >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
                           >
                             {m}%
                           </div>
@@ -2042,7 +2201,7 @@ export default function OwnerDashboardPage() {
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
                 <div className="text-xl mb-1">💰</div>
-                <div className="text-green-600 text-lg font-black">
+                <div className="text-[var(--accent-600)] text-lg font-black">
                   {formatRM(reportData.grossProfit)}
                 </div>
                 <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
@@ -2088,7 +2247,7 @@ export default function OwnerDashboardPage() {
                       className="flex items-center gap-3"
                     >
                       <div
-                        className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${index === 0 ? "bg-green-600 text-white" : "bg-gray-100 text-gray-500"}`}
+                        className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${index === 0 ? "bg-[var(--accent-600)] text-white" : "bg-gray-100 text-gray-500"}`}
                       >
                         {index + 1}
                       </div>
@@ -2143,7 +2302,7 @@ export default function OwnerDashboardPage() {
                           {item.count} order
                         </div>
                       </div>
-                      <div className="text-green-600 text-sm font-black">
+                      <div className="text-[var(--accent-600)] text-sm font-black">
                         {formatRM(item.total)}
                       </div>
                     </div>
@@ -2211,7 +2370,7 @@ export default function OwnerDashboardPage() {
                             <td className="py-3 px-3 text-right text-gray-600 font-bold">
                               {item.stokAwal}
                             </td>
-                            <td className="py-3 px-3 text-right text-green-600 font-black">
+                            <td className="py-3 px-3 text-right text-[var(--accent-600)] font-black">
                               +{item.stockIn}
                             </td>
                             <td className="py-3 px-3 text-right text-red-500 font-black">
@@ -2244,7 +2403,7 @@ export default function OwnerDashboardPage() {
                             </div>
                           </div>
                           <div>
-                            <div className="text-green-600 text-sm font-black">
+                            <div className="text-[var(--accent-600)] text-sm font-black">
                               +{item.stockIn}
                             </div>
                             <div className="text-gray-400 text-[10px] font-bold mt-0.5">
@@ -2294,11 +2453,11 @@ export default function OwnerDashboardPage() {
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-green-50 border border-green-100 rounded-2xl p-3">
-                  <div className="text-green-700 text-xs font-black">
+                <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-2xl p-3">
+                  <div className="text-[var(--accent-700)] text-xs font-black">
                     Stok Masuk
                   </div>
-                  <div className="text-green-700 text-xl font-black mt-1">
+                  <div className="text-[var(--accent-700)] text-xl font-black mt-1">
                     +{reportData.stockInTotal} unit
                   </div>
                 </div>
@@ -2340,13 +2499,13 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <div
-                            className={`text-sm font-black ${isIn ? "text-green-600" : "text-red-500"}`}
+                            className={`text-sm font-black ${isIn ? "text-[var(--accent-600)]" : "text-red-500"}`}
                           >
                             {isIn ? "+" : "-"}
                             {item.qty} unit
                           </div>
                           <div
-                            className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+                            className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-red-100 text-red-600"}`}
                           >
                             {formatMovementType(item.type)}
                           </div>
@@ -2396,7 +2555,7 @@ export default function OwnerDashboardPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="text-green-600 text-sm font-black whitespace-nowrap mr-1">
+                          <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">
                             {formatRM(receipt.total)}
                           </div>
                           <button
@@ -2427,7 +2586,7 @@ export default function OwnerDashboardPage() {
                           </button>
                           <button
                             onClick={() => downloadReceipt(receipt)}
-                            className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
                           >
                             <svg
                               width="17"
@@ -2479,13 +2638,13 @@ export default function OwnerDashboardPage() {
               </h2>
               <button
                 onClick={() => setShowAddStaff(true)}
-                className="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-full"
+                className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
               >
                 + Tambah Staff
               </button>
             </div>
             {resetMsg && (
-              <div className="bg-green-50 text-green-700 text-xs font-bold p-3 rounded-2xl mb-3 border border-green-200">
+              <div className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-bold p-3 rounded-2xl mb-3 border border-[var(--accent-200)]">
                 {resetMsg}
               </div>
             )}
@@ -2495,7 +2654,7 @@ export default function OwnerDashboardPage() {
                   key={s.id}
                   className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3"
                 >
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center text-lg flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[var(--accent-100)] flex items-center justify-center text-lg flex-shrink-0">
                     {s.role === "kitchen"
                       ? "👨‍🍳"
                       : s.role === "manager"
@@ -2524,7 +2683,7 @@ export default function OwnerDashboardPage() {
                   <div className="flex flex-col gap-1 flex-shrink-0">
                     <button
                       onClick={() => toggleStaff(s.id, s.is_active)}
-                      className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-green-50 text-green-600 border-green-200"}`}
+                      className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
                     >
                       {s.is_active ? "Nyahaktif" : "Aktifkan"}
                     </button>
@@ -2627,7 +2786,7 @@ export default function OwnerDashboardPage() {
                       Default 6 meja. Bungkus akan kekal automatik.
                     </p>
                   </div>
-                  <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">
+                  <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
                     Max 20
                   </span>
                 </div>
@@ -2662,7 +2821,7 @@ export default function OwnerDashboardPage() {
                     max="20"
                     value={tableCountInput}
                     onChange={(e) => changeTableCount(Number(e.target.value))}
-                    className="w-full accent-green-600"
+                    className="w-full accent-[var(--accent-600)]"
                   />
                   <div className="mt-4 grid grid-cols-7 gap-1.5">
                     {Array.from({ length: tableCountInput }).map((_, index) => (
@@ -2684,7 +2843,7 @@ export default function OwnerDashboardPage() {
                 </div>
                 {tableMsg && (
                   <div
-                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                   >
                     {tableMsg}
                   </div>
@@ -2699,7 +2858,7 @@ export default function OwnerDashboardPage() {
                         20,
                       )
                   }
-                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
                   {saving ? "Menyimpan..." : "Simpan Setup Meja"}
                 </button>
@@ -2718,14 +2877,14 @@ export default function OwnerDashboardPage() {
                         Upload logo kedai dan QR DuitNow untuk digunakan di owner, staff dan kitchen.
                       </p>
                     </div>
-                    <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">
+                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
                       Branding
                     </span>
                   </div>
 
                   {storeSetupMsg && (
                     <div
-                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${storeSetupMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${storeSetupMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                     >
                       {storeSetupMsg}
                     </div>
@@ -2819,7 +2978,7 @@ export default function OwnerDashboardPage() {
                             )
                           }
                         />
-                        <span className="w-full inline-flex items-center justify-center bg-green-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                        <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
                           {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
                         </span>
                       </label>
@@ -2853,7 +3012,7 @@ export default function OwnerDashboardPage() {
 
                 {themeMsg && (
                   <div
-                    className={`text-xs font-bold mb-4 p-3 rounded-xl ${themeMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                    className={`text-xs font-bold mb-4 p-3 rounded-xl ${themeMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                   >
                     {themeMsg}
                   </div>
@@ -2877,7 +3036,7 @@ export default function OwnerDashboardPage() {
                             {color.label}
                           </span>
                           {isSelected && (
-                            <span className="text-green-600 text-xs font-black">
+                            <span className="text-[var(--accent-600)] text-xs font-black">
                               ✓
                             </span>
                           )}
@@ -2901,12 +3060,12 @@ export default function OwnerDashboardPage() {
                         <button
                           key={mode.id}
                           onClick={() => setSelectedThemeMode(mode.id)}
-                          className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-green-500 bg-green-50" : "border-gray-100 bg-gray-50"}`}
+                          className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100 bg-gray-50"}`}
                         >
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xl">{mode.icon}</span>
                             {isSelected && (
-                              <span className="text-green-600 text-xs font-black">
+                              <span className="text-[var(--accent-600)] text-xs font-black">
                                 ✓
                               </span>
                             )}
@@ -2958,7 +3117,7 @@ export default function OwnerDashboardPage() {
                 <button
                   onClick={saveThemeSetting}
                   disabled={saving}
-                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
                   {saving ? "Menyimpan..." : "Simpan Theme"}
                 </button>
@@ -2979,7 +3138,7 @@ export default function OwnerDashboardPage() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="••••••"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div className="mb-3">
@@ -2991,7 +3150,7 @@ export default function OwnerDashboardPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div className="mb-4">
@@ -3003,12 +3162,12 @@ export default function OwnerDashboardPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 {passwordMsg && (
                   <div
-                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                   >
                     {passwordMsg}
                   </div>
@@ -3016,7 +3175,7 @@ export default function OwnerDashboardPage() {
                 <button
                   onClick={tukarPassword}
                   disabled={!currentPassword || !newPassword || !confirmPassword}
-                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
                   Tukar Password
                 </button>
@@ -3057,7 +3216,7 @@ export default function OwnerDashboardPage() {
                     type="date"
                     value={pendingCustomFrom}
                     onChange={(e) => setPendingCustomFrom(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div>
@@ -3068,7 +3227,7 @@ export default function OwnerDashboardPage() {
                     type="date"
                     value={pendingCustomTo}
                     onChange={(e) => setPendingCustomTo(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
               </div>
@@ -3083,7 +3242,7 @@ export default function OwnerDashboardPage() {
               <button
                 onClick={applyFilterModal}
                 disabled={!pendingCustomFrom || !pendingCustomTo}
-                className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+                className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
               >
                 Apply
               </button>
@@ -3177,7 +3336,7 @@ export default function OwnerDashboardPage() {
             </div>
             <button
               onClick={() => setSelectedReceipt(null)}
-              className="w-full mt-4 bg-green-600 text-white font-black py-3 rounded-2xl"
+              className="w-full mt-4 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl"
             >
               Tutup
             </button>
@@ -3197,9 +3356,9 @@ export default function OwnerDashboardPage() {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <div className="text-gray-900 font-black text-xl leading-none">
-                  Urus<span className="text-green-600">POS</span>
+                  Urus<span className="text-[var(--accent-600)]">POS</span>
                 </div>
-                <div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">
+                <div className="text-[var(--accent-600)] text-xs font-black mt-1 uppercase tracking-wide">
                   Owner Menu
                 </div>
               </div>
@@ -3210,7 +3369,7 @@ export default function OwnerDashboardPage() {
                 ✕
               </button>
             </div>
-            <div className="bg-gradient-to-br from-green-700 to-green-500 rounded-3xl p-5 mb-5 text-white shadow-lg shadow-green-600/20">
+            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-3xl p-5 mb-5 text-white shadow-lg ">
               <div className="flex items-center gap-3">
                 {kedaiLogoUrl && (
                   <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -3222,7 +3381,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="text-green-100 text-xs font-bold mb-1">
+                  <div className="text-[var(--accent-100)] text-xs font-bold mb-1">
                     KEDAI
                   </div>
                   <div className="font-black text-lg leading-tight truncate">
@@ -3250,7 +3409,7 @@ export default function OwnerDashboardPage() {
                     <div key={item.id} className="space-y-2">
                       <button
                         onClick={() => changeTab(item.id)}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isReportOpen ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isReportOpen ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
                       >
                         <span
                           className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isReportOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
@@ -3262,7 +3421,7 @@ export default function OwnerDashboardPage() {
                             {item.label}
                           </span>
                           <span
-                            className={`block text-xs font-semibold mt-0.5 ${isReportOpen ? "text-green-100" : "text-gray-400"}`}
+                            className={`block text-xs font-semibold mt-0.5 ${isReportOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
                           >
                             {isActive
                               ? activeReport?.label || item.description
@@ -3275,7 +3434,7 @@ export default function OwnerDashboardPage() {
                       </button>
 
                       {isReportOpen && (
-                        <div className="ml-4 pl-4 border-l border-green-100 space-y-1.5">
+                        <div className="ml-4 pl-4 border-l border-[var(--accent-100)] space-y-1.5">
                           {reportMenuItems.map((reportItem) => {
                             const isReportActive =
                               activeReportTab === reportItem.id;
@@ -3283,7 +3442,7 @@ export default function OwnerDashboardPage() {
                               <button
                                 key={reportItem.id}
                                 onClick={() => changeReportTab(reportItem.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isReportActive ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isReportActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
                               >
                                 <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
                                   {reportItem.icon}
@@ -3297,7 +3456,7 @@ export default function OwnerDashboardPage() {
                                   </span>
                                 </span>
                                 {isReportActive && (
-                                  <span className="text-green-600 text-xs font-black">
+                                  <span className="text-[var(--accent-600)] text-xs font-black">
                                     ✓
                                   </span>
                                 )}
@@ -3317,7 +3476,7 @@ export default function OwnerDashboardPage() {
                     <div key={item.id} className="space-y-2">
                       <button
                         onClick={() => changeTab(item.id)}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isSettingsOpen ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isSettingsOpen ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
                       >
                         <span
                           className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isSettingsOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
@@ -3329,7 +3488,7 @@ export default function OwnerDashboardPage() {
                             {item.label}
                           </span>
                           <span
-                            className={`block text-xs font-semibold mt-0.5 ${isSettingsOpen ? "text-green-100" : "text-gray-400"}`}
+                            className={`block text-xs font-semibold mt-0.5 ${isSettingsOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
                           >
                             {isActive
                               ? activeSettings?.label || item.description
@@ -3344,7 +3503,7 @@ export default function OwnerDashboardPage() {
                       </button>
 
                       {isSettingsOpen && (
-                        <div className="ml-4 pl-4 border-l border-green-100 space-y-1.5">
+                        <div className="ml-4 pl-4 border-l border-[var(--accent-100)] space-y-1.5">
                           {settingsMenuItems.map((settingsItem) => {
                             const isSettingsActive =
                               activeSettingsTab === settingsItem.id;
@@ -3352,7 +3511,7 @@ export default function OwnerDashboardPage() {
                               <button
                                 key={settingsItem.id}
                                 onClick={() => changeSettingsTab(settingsItem.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
                               >
                                 <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
                                   {settingsItem.icon}
@@ -3366,7 +3525,7 @@ export default function OwnerDashboardPage() {
                                   </span>
                                 </span>
                                 {isSettingsActive && (
-                                  <span className="text-green-600 text-xs font-black">
+                                  <span className="text-[var(--accent-600)] text-xs font-black">
                                     ✓
                                   </span>
                                 )}
@@ -3383,7 +3542,7 @@ export default function OwnerDashboardPage() {
                   <button
                     key={item.id}
                     onClick={() => changeTab(item.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
                   >
                     <span
                       className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}
@@ -3395,7 +3554,7 @@ export default function OwnerDashboardPage() {
                         {item.label}
                       </span>
                       <span
-                        className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-green-100" : "text-gray-400"}`}
+                        className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}
                       >
                         {item.description}
                       </span>
@@ -3435,7 +3594,7 @@ export default function OwnerDashboardPage() {
                 value={newStaffNama}
                 onChange={(e) => setNewStaffNama(e.target.value)}
                 placeholder="cth: Ahmad bin Ali"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
             </div>
             <div className="mb-4">
@@ -3447,7 +3606,7 @@ export default function OwnerDashboardPage() {
                 value={newStaffUsername}
                 onChange={(e) => setNewStaffUsername(e.target.value)}
                 placeholder="cth: ahmad123"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
             </div>
             <div className="mb-4">
@@ -3462,7 +3621,7 @@ export default function OwnerDashboardPage() {
                   <button
                     key={r.id}
                     onClick={() => setNewStaffRole(r.id)}
-                    className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}
+                    className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
                   >
                     {r.label}
                   </button>
@@ -3476,14 +3635,14 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
             )}
-            <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4">
-              <div className="text-green-700 text-xs font-bold mb-1">
+            <div className="bg-[var(--accent-50)] border border-[var(--accent-200)] rounded-xl p-3 mb-4">
+              <div className="text-[var(--accent-700)] text-xs font-bold mb-1">
                 🔑 Credential Staff
               </div>
-              <div className="text-green-600 text-xs">
+              <div className="text-[var(--accent-600)] text-xs">
                 Username: <strong>{newStaffUsername || "..."}</strong>
               </div>
-              <div className="text-green-600 text-xs">
+              <div className="text-[var(--accent-600)] text-xs">
                 Password: <strong>abc123</strong> (default)
               </div>
             </div>
@@ -3499,7 +3658,7 @@ export default function OwnerDashboardPage() {
                 disabled={
                   saving || !newStaffNama.trim() || !newStaffUsername.trim()
                 }
-                className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
               >
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
@@ -3524,7 +3683,7 @@ export default function OwnerDashboardPage() {
                 value={produkNama}
                 onChange={(e) => setProdukNama(e.target.value)}
                 placeholder="cth: Nasi Lemak"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -3537,7 +3696,7 @@ export default function OwnerDashboardPage() {
                   value={produkHarga}
                   onChange={(e) => setProdukHarga(e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                 />
               </div>
               <div>
@@ -3549,7 +3708,7 @@ export default function OwnerDashboardPage() {
                   value={produkKos}
                   onChange={(e) => setProdukKos(e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                 />
               </div>
             </div>
@@ -3562,15 +3721,15 @@ export default function OwnerDashboardPage() {
                 value={produkStok}
                 onChange={(e) => setProdukStok(e.target.value)}
                 placeholder="0"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
             </div>
             {produkHarga && produkKos && (
               <div
-                className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}
+                className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-[var(--accent-50)] border border-[var(--accent-200)]" : "bg-amber-50 border border-amber-200"}`}
               >
                 <div
-                  className={`text-xs font-bold ${marginTambah >= 40 ? "text-green-700" : "text-amber-700"}`}
+                  className={`text-xs font-bold ${marginTambah >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                 >
                   💡 Margin: <strong>{marginTambah}%</strong>{" "}
                   {marginTambah >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
@@ -3587,7 +3746,7 @@ export default function OwnerDashboardPage() {
               <button
                 onClick={addProduk}
                 disabled={saving || !produkNama.trim()}
-                className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
               >
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
@@ -3626,7 +3785,7 @@ export default function OwnerDashboardPage() {
                   type="text"
                   value={editProdukNama}
                   onChange={(e) => setEditProdukNama(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -3638,7 +3797,7 @@ export default function OwnerDashboardPage() {
                     type="number"
                     value={editProdukHarga}
                     onChange={(e) => setEditProdukHarga(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
                   />
                 </div>
                 <div>
@@ -3649,16 +3808,16 @@ export default function OwnerDashboardPage() {
                     type="number"
                     value={editProdukKos}
                     onChange={(e) => setEditProdukKos(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
                   />
                 </div>
               </div>
               {editProdukHarga && editProdukKos && (
                 <div
-                  className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-green-100" : "bg-amber-100"}`}
+                  className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-[var(--accent-100)]" : "bg-amber-100"}`}
                 >
                   <div
-                    className={`text-xs font-bold ${marginEdit >= 40 ? "text-green-700" : "text-amber-700"}`}
+                    className={`text-xs font-bold ${marginEdit >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                   >
                     💡 Margin: <strong>{marginEdit}%</strong>{" "}
                     {marginEdit >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
@@ -3687,7 +3846,7 @@ export default function OwnerDashboardPage() {
                     setEditStokQty("");
                     setEditStokError("");
                   }}
-                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-green-50 border-green-500 text-green-700" : "bg-white border-gray-200 text-gray-400"}`}
+                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
                 >
                   ➕ Tambah Stok
                 </button>
@@ -3718,7 +3877,7 @@ export default function OwnerDashboardPage() {
                   }}
                   placeholder="0"
                   min="1"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500 bg-white text-center text-xl font-black"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white text-center text-xl font-black"
                 />
               </div>
               {editStokQty && (
@@ -3751,15 +3910,15 @@ export default function OwnerDashboardPage() {
                       value={editStokReason}
                       onChange={(e) => setEditStokReason(e.target.value)}
                       placeholder="Atau taip reason sendiri..."
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-green-500 bg-white"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
                     />
                   </div>
                   {previewStokBaru !== null && (
                     <div
-                      className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-green-50 border border-green-200"}`}
+                      className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-[var(--accent-50)] border border-[var(--accent-200)]"}`}
                     >
                       <div
-                        className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-green-700"}`}
+                        className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-[var(--accent-700)]"}`}
                       >
                         {previewStokBaru < 0
                           ? `⚠️ Stok tidak cukup! Akan jadi ${previewStokBaru} unit.`
@@ -3789,7 +3948,7 @@ export default function OwnerDashboardPage() {
               <button
                 onClick={submitEditProduk}
                 disabled={saving || !editProdukNama.trim()}
-                className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
               >
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
@@ -3857,7 +4016,7 @@ export default function OwnerDashboardPage() {
                 value={newStaffPassword}
                 onChange={(e) => setNewStaffPassword(e.target.value)}
                 placeholder="cth: newpass123"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
             </div>
             <div className="flex gap-3">
@@ -3870,7 +4029,7 @@ export default function OwnerDashboardPage() {
               <button
                 onClick={resetPasswordStaff}
                 disabled={!newStaffPassword.trim()}
-                className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
               >
                 Reset
               </button>

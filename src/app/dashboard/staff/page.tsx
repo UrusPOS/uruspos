@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type TouchEvent } from "react";
+import { useEffect, useState, type CSSProperties, type TouchEvent } from "react";
 import { supabase } from "@/lib/supabase";
 
 type Produk = {
@@ -39,7 +39,7 @@ export default function StaffDashboardPage() {
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [staffNama, setStaffNama] = useState("Staff");
-  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; logo_url?: string | null } | null>(null);
+  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; logo_url?: string | null; accent_color?: string | null } | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
@@ -407,7 +407,7 @@ export default function StaffDashboardPage() {
 
     const { data: kedaiData } = await supabase
       .from("kedai")
-      .select("nama, table_count, duitnow_qr_url, logo_url")
+      .select("nama, table_count, duitnow_qr_url, logo_url, accent_color")
       .eq("id", kId)
       .single() as any;
 
@@ -417,6 +417,7 @@ export default function StaffDashboardPage() {
     setKedaiInfo({
       nama: kedaiData?.nama || "Kedai Saya",
       logo_url: kedaiData?.logo_url || null,
+      accent_color: kedaiData?.accent_color || "green",
     });
 
     let resolvedMeja = currentMeja;
@@ -744,6 +745,166 @@ export default function StaffDashboardPage() {
   }
 
 
+  const accentThemeMap: Record<string, Record<string, string>> = {
+    green: {
+      "50": "#f0fdf4",
+      "100": "#dcfce7",
+      "200": "#bbf7d0",
+      "300": "#86efac",
+      "500": "#22c55e",
+      "600": "#16a34a",
+      "700": "#15803d",
+      "800": "#166534",
+      "900": "#14532d",
+      gradientFrom: "#166534",
+      gradientTo: "#22c55e",
+      textOnAccent: "#ffffff",
+    },
+    blue: {
+      "50": "#eff6ff",
+      "100": "#dbeafe",
+      "200": "#bfdbfe",
+      "300": "#93c5fd",
+      "500": "#3b82f6",
+      "600": "#2563eb",
+      "700": "#1d4ed8",
+      "800": "#1e40af",
+      "900": "#1e3a8a",
+      gradientFrom: "#1e40af",
+      gradientTo: "#3b82f6",
+      textOnAccent: "#ffffff",
+    },
+    purple: {
+      "50": "#faf5ff",
+      "100": "#f3e8ff",
+      "200": "#e9d5ff",
+      "300": "#d8b4fe",
+      "500": "#a855f7",
+      "600": "#9333ea",
+      "700": "#7e22ce",
+      "800": "#6b21a8",
+      "900": "#581c87",
+      gradientFrom: "#6b21a8",
+      gradientTo: "#a855f7",
+      textOnAccent: "#ffffff",
+    },
+    red: {
+      "50": "#fef2f2",
+      "100": "#fee2e2",
+      "200": "#fecaca",
+      "300": "#fca5a5",
+      "500": "#ef4444",
+      "600": "#dc2626",
+      "700": "#b91c1c",
+      "800": "#991b1b",
+      "900": "#7f1d1d",
+      gradientFrom: "#991b1b",
+      gradientTo: "#ef4444",
+      textOnAccent: "#ffffff",
+    },
+    orange: {
+      "50": "#fff7ed",
+      "100": "#ffedd5",
+      "200": "#fed7aa",
+      "300": "#fdba74",
+      "500": "#f97316",
+      "600": "#ea580c",
+      "700": "#c2410c",
+      "800": "#9a3412",
+      "900": "#7c2d12",
+      gradientFrom: "#9a3412",
+      gradientTo: "#f97316",
+      textOnAccent: "#ffffff",
+    },
+    amber: {
+      "50": "#fffbeb",
+      "100": "#fef3c7",
+      "200": "#fde68a",
+      "300": "#fcd34d",
+      "500": "#f59e0b",
+      "600": "#d97706",
+      "700": "#b45309",
+      "800": "#92400e",
+      "900": "#78350f",
+      gradientFrom: "#92400e",
+      gradientTo: "#f59e0b",
+      textOnAccent: "#ffffff",
+    },
+    pink: {
+      "50": "#fdf2f8",
+      "100": "#fce7f3",
+      "200": "#fbcfe8",
+      "300": "#f9a8d4",
+      "500": "#ec4899",
+      "600": "#db2777",
+      "700": "#be185d",
+      "800": "#9d174d",
+      "900": "#831843",
+      gradientFrom: "#9d174d",
+      gradientTo: "#ec4899",
+      textOnAccent: "#ffffff",
+    },
+    teal: {
+      "50": "#f0fdfa",
+      "100": "#ccfbf1",
+      "200": "#99f6e4",
+      "300": "#5eead4",
+      "500": "#14b8a6",
+      "600": "#0d9488",
+      "700": "#0f766e",
+      "800": "#115e59",
+      "900": "#134e4a",
+      gradientFrom: "#115e59",
+      gradientTo: "#14b8a6",
+      textOnAccent: "#ffffff",
+    },
+    indigo: {
+      "50": "#eef2ff",
+      "100": "#e0e7ff",
+      "200": "#c7d2fe",
+      "300": "#a5b4fc",
+      "500": "#6366f1",
+      "600": "#4f46e5",
+      "700": "#4338ca",
+      "800": "#3730a3",
+      "900": "#312e81",
+      gradientFrom: "#3730a3",
+      gradientTo: "#6366f1",
+      textOnAccent: "#ffffff",
+    },
+    slate: {
+      "50": "#f8fafc",
+      "100": "#f1f5f9",
+      "200": "#e2e8f0",
+      "300": "#cbd5e1",
+      "500": "#64748b",
+      "600": "#475569",
+      "700": "#334155",
+      "800": "#1e293b",
+      "900": "#0f172a",
+      gradientFrom: "#1e293b",
+      gradientTo: "#64748b",
+      textOnAccent: "#ffffff",
+    },
+  };
+
+  const selectedAccentColor = kedaiInfo?.accent_color || "green";
+  const accentTheme = accentThemeMap[selectedAccentColor] || accentThemeMap.green;
+  const accentStyle = {
+    "--accent-50": accentTheme["50"],
+    "--accent-100": accentTheme["100"],
+    "--accent-200": accentTheme["200"],
+    "--accent-300": accentTheme["300"],
+    "--accent-500": accentTheme["500"],
+    "--accent-600": accentTheme["600"],
+    "--accent-700": accentTheme["700"],
+    "--accent-800": accentTheme["800"],
+    "--accent-900": accentTheme["900"],
+    "--accent-gradient-from": accentTheme.gradientFrom,
+    "--accent-gradient-to": accentTheme.gradientTo,
+    "--accent-text": accentTheme.textOnAccent,
+  } as CSSProperties;
+
   const navItems = [
     { id: "pos", label: "Sistem POS", icon: "🛒", description: "Ambil order & hantar dapur" },
     { id: "rekod", label: "Rekod Jualan", icon: "📋", description: "Semak order terkini" },
@@ -758,7 +919,7 @@ export default function StaffDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={accentStyle}>
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
         <div className="flex items-center gap-3 min-w-0">
@@ -770,7 +931,7 @@ export default function StaffDashboardPage() {
             ☰
           </button>
           <div className="min-w-0">
-            <span className="text-gray-900 font-bold text-lg leading-none block">Urus<span className="text-green-600">POS</span></span>
+            <span className="text-gray-900 font-bold text-lg leading-none block">Urus<span className="text-[var(--accent-600)]">POS</span></span>
             <div className="text-gray-400 text-xs font-bold mt-1 truncate">{activeNav.label}</div>
           </div>
         </div>
@@ -788,8 +949,8 @@ export default function StaffDashboardPage() {
           <div className="relative h-full w-[84%] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-green-600">POS</span></div>
-                <div className="text-green-600 text-xs font-black mt-1 uppercase tracking-wide">Staff Menu</div>
+                <div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-[var(--accent-600)]">POS</span></div>
+                <div className="text-[var(--accent-600)] text-xs font-black mt-1 uppercase tracking-wide">Staff Menu</div>
               </div>
               <button
                 onClick={() => setShowMenu(false)}
@@ -800,7 +961,7 @@ export default function StaffDashboardPage() {
               </button>
             </div>
 
-            <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-5 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-3xl p-5 mb-5 text-white shadow-lg">
               <div className="flex items-center gap-3">
                 {kedaiInfo?.logo_url ? (
                   <img
@@ -831,12 +992,12 @@ export default function StaffDashboardPage() {
                   <button
                     key={item.id}
                     onClick={() => changeTab(item.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-gray-900 border-gray-900 text-white shadow-lg shadow-gray-900/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
                   >
                     <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}>{item.icon}</span>
                     <span className="flex-1 min-w-0">
                       <span className="block font-black text-sm">{item.label}</span>
-                      <span className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-gray-200" : "text-gray-400"}`}>{item.description}</span>
+                      <span className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}>{item.description}</span>
                     </span>
                     {isActive && <span className="font-black">✓</span>}
                   </button>
@@ -872,7 +1033,7 @@ export default function StaffDashboardPage() {
                   value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
                   placeholder="Nama produk"
-                  className="w-full bg-white border border-gray-200 text-gray-900 rounded-2xl pl-11 pr-11 py-3.5 text-sm font-bold outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all shadow-sm"
+                  className="w-full bg-white border border-gray-200 text-gray-900 rounded-2xl pl-11 pr-11 py-3.5 text-sm font-bold outline-none focus:border-[var(--accent-500)] focus:ring-4 focus:ring-[var(--accent-100)] transition-all shadow-sm"
                 />
                 {productSearch && (
                   <button
@@ -905,16 +1066,16 @@ export default function StaffDashboardPage() {
               <div className="grid grid-cols-3 gap-3">
                 {filteredProduk.map((item) => (
                   <button key={item.id} onClick={() => addToCart(item)} disabled={item.stok === 0}
-                    className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-green-500 bg-green-50" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
+                    className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
                   >
                     {cart[item.id]?.qty > 0 && (
-                      <div className="absolute top-2 right-2 bg-green-600 text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
+                      <div className="absolute top-2 right-2 bg-[var(--accent-600)] text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
                         {cart[item.id].qty}
                       </div>
                     )}
                     <div className="text-2xl mb-1">🍽️</div>
                     <div className="text-gray-900 text-xs font-bold leading-tight">{item.nama}</div>
-                    <div className="text-green-600 text-xs font-black mt-1">RM {item.harga_jual.toFixed(2)}</div>
+                    <div className="text-[var(--accent-600)] text-xs font-black mt-1">RM {item.harga_jual.toFixed(2)}</div>
                     {item.stok <= 5 && item.stok > 0 && <div className="text-amber-500 text-xs mt-0.5">Tinggal {item.stok}</div>}
                     {item.stok === 0 && <div className="text-red-400 text-xs mt-0.5">Habis</div>}
                   </button>
@@ -950,7 +1111,7 @@ export default function StaffDashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-gray-900 font-black text-sm">Pesanan</span>
                   {cartCount > 0 && (
-                    <span className="bg-green-100 text-green-700 text-[11px] font-black px-2 py-0.5 rounded-full">{cartCount} item</span>
+                    <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-[11px] font-black px-2 py-0.5 rounded-full">{cartCount} item</span>
                   )}
                 </div>
                 <div className="text-gray-400 text-xs font-bold mt-0.5 truncate">
@@ -980,7 +1141,7 @@ export default function StaffDashboardPage() {
                       value={currentMeja}
                       onChange={(e) => handleChangeMeja(e.target.value)}
                       disabled={loadingTableOrder}
-                      className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-black outline-none focus:border-green-500 focus:bg-white transition-all disabled:opacity-60"
+                      className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-black outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
                     >
                       {mejaList.map((meja) => (
                         <option key={meja} value={meja}>{displayMejaLabel(meja)}</option>
@@ -1023,7 +1184,7 @@ export default function StaffDashboardPage() {
                             value={item.nota}
                             onChange={(e) => updateNota(item.id, e.target.value)}
                             placeholder="cth: tak pedas, kurang ais, asing kuah"
-                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-green-500"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-[var(--accent-500)]"
                           />
                         </div>
                       </div>
@@ -1043,7 +1204,7 @@ export default function StaffDashboardPage() {
                 </div>
 
                 {!orderSent ? (
-                  <button onClick={sendOrder} disabled={cartItems.length === 0 || saving} className="w-full bg-gray-900 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all">
+                  <button onClick={sendOrder} disabled={cartItems.length === 0 || saving} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all">
                     {saving ? "Menghantar..." : cartItems.length === 0 ? "Hantar ke Dapur" : currentOrderId ? `Update Pesanan • RM ${total.toFixed(2)} 🍳` : `Hantar ke Dapur • RM ${total.toFixed(2)} 🍳`}
                   </button>
                 ) : (
@@ -1058,7 +1219,7 @@ export default function StaffDashboardPage() {
                     <button
                       onClick={openCheckout}
                       disabled={saving}
-                      className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                      className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
                     >
                       Bayar • RM {total.toFixed(2)}
                     </button>
@@ -1082,9 +1243,9 @@ export default function StaffDashboardPage() {
             <div className="relative">
               <button
                 onClick={openRekodFilterModal}
-                className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
+                className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-600)]">
                   <path d="M7 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
                   <path d="M17 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
                   <path d="M4 9H20" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
@@ -1112,7 +1273,7 @@ export default function StaffDashboardPage() {
                       <button
                         key={item.id}
                         onClick={() => applyRekodDropdownFilter(item.id as RekodFilterType)}
-                        className={`w-full text-left px-4 py-3 text-sm font-bold border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-green-600 bg-green-50" : "text-gray-700"}`}
+                        className={`w-full text-left px-4 py-3 text-sm font-bold border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-[var(--accent-600)] bg-[var(--accent-50)]" : "text-gray-700"}`}
                       >
                         {item.label}
                       </button>
@@ -1156,7 +1317,7 @@ export default function StaffDashboardPage() {
                           <div className="text-gray-400 text-xs mt-1">{receipt.payment_method || "Belum direkod"}</div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="text-green-600 text-sm font-black whitespace-nowrap mr-1">{formatRM(receipt.total)}</div>
+                          <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">{formatRM(receipt.total)}</div>
                           <button
                             onClick={() => setSelectedReceipt(receipt)}
                             className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
@@ -1169,7 +1330,7 @@ export default function StaffDashboardPage() {
                           </button>
                           <button
                             onClick={() => downloadReceipt(order)}
-                            className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                            className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
                             aria-label="Download receipt"
                           >
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
@@ -1201,23 +1362,23 @@ export default function StaffDashboardPage() {
             <h3 className="text-gray-900 font-bold text-sm mb-4">🔑 Tukar Password</h3>
             <div className="mb-3">
               <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
-              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             <div className="mb-3">
               <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label>
-              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             <div className="mb-4">
               <label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
-              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             {passwordMsgStaff && (
-              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
+              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
             )}
             <button
               onClick={tukarPasswordStaff}
               disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff}
-              className="w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+              className="w-full bg-[var(--accent-600)] text-white font-bold py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
             >
               Tukar Password
             </button>
@@ -1250,7 +1411,7 @@ export default function StaffDashboardPage() {
                     type="date"
                     value={pendingRekodCustomFrom}
                     onChange={(e) => setPendingRekodCustomFrom(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div>
@@ -1259,7 +1420,7 @@ export default function StaffDashboardPage() {
                     type="date"
                     value={pendingRekodCustomTo}
                     onChange={(e) => setPendingRekodCustomTo(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
               </div>
@@ -1275,7 +1436,7 @@ export default function StaffDashboardPage() {
               <button
                 onClick={applyRekodFilterModal}
                 disabled={!pendingRekodCustomFrom || !pendingRekodCustomTo}
-                className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+                className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
               >
                 Apply
               </button>
@@ -1324,7 +1485,7 @@ export default function StaffDashboardPage() {
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4">
               <button onClick={() => setSelectedReceipt(null)} className="bg-gray-100 text-gray-600 font-black py-3 rounded-2xl text-sm">Tutup</button>
-              <button onClick={() => downloadReceipt(selectedReceipt)} className="bg-green-600 text-white font-black py-3 rounded-2xl text-sm">Download</button>
+              <button onClick={() => downloadReceipt(selectedReceipt)} className="bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm">Download</button>
             </div>
           </div>
         </div>
@@ -1364,11 +1525,11 @@ export default function StaffDashboardPage() {
               <>
                 <div className="text-gray-500 text-xs font-black uppercase tracking-wide mb-2">Pilih Kaedah Bayaran</div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <button onClick={() => selectPaymentMode("tunai")} disabled={saving} className="bg-green-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
+                  <button onClick={() => selectPaymentMode("tunai")} disabled={saving} className="bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
                     <div className="text-2xl mb-1">💵</div>
                     Tunai
                   </button>
-                  <button onClick={() => selectPaymentMode("duitnow")} disabled={saving} className="bg-blue-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
+                  <button onClick={() => selectPaymentMode("duitnow")} disabled={saving} className="bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
                     <div className="text-2xl mb-1">📱</div>
                     DuitNow
                   </button>
@@ -1378,19 +1539,19 @@ export default function StaffDashboardPage() {
 
             {paymentMode === "tunai" && (
               <div className="mb-3">
-                <div className="bg-green-50 border border-green-100 rounded-3xl p-4 mb-3">
+                <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-3xl p-4 mb-3">
                   <div className="flex justify-between items-start gap-3 mb-3">
                     <div>
-                      <div className="text-green-700 text-xs font-black uppercase tracking-wide">Tunai Diterima</div>
+                      <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide">Tunai Diterima</div>
                       <div className="text-gray-900 text-3xl font-black mt-1">RM {cashReceivedNumber.toFixed(2)}</div>
                     </div>
-                    <button onClick={setExactCashAmount} className="bg-white border border-green-200 text-green-700 text-xs font-black px-3 py-2 rounded-2xl active:scale-95 transition-all">Exact</button>
+                    <button onClick={setExactCashAmount} className="bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-3 py-2 rounded-2xl active:scale-95 transition-all">Exact</button>
                   </div>
 
-                  <div className={`rounded-2xl p-3 ${cashReceived ? cashBalance >= 0 ? "bg-white border border-green-200" : "bg-red-50 border border-red-100" : "bg-white border border-gray-100"}`}>
+                  <div className={`rounded-2xl p-3 ${cashReceived ? cashBalance >= 0 ? "bg-white border border-[var(--accent-200)]" : "bg-red-50 border border-red-100" : "bg-white border border-gray-100"}`}>
                     <div className="flex justify-between text-xs font-bold mb-1">
                       <span className="text-gray-500">Baki perlu diberi</span>
-                      <span className={cashReceived && cashBalance < 0 ? "text-red-600" : "text-green-700"}>
+                      <span className={cashReceived && cashBalance < 0 ? "text-red-600" : "text-[var(--accent-700)]"}>
                         {cashReceived ? cashBalance >= 0 ? `RM ${cashBalance.toFixed(2)}` : `Kurang RM ${Math.abs(cashBalance).toFixed(2)}` : "RM 0.00"}
                       </span>
                     </div>
@@ -1420,7 +1581,7 @@ export default function StaffDashboardPage() {
 
                 {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl p-3 mb-3">⚠️ {paymentError}</div>}
 
-                <button onClick={() => completePayment("tunai")} disabled={saving || !cashReceived || cashBalance < 0} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
+                <button onClick={() => completePayment("tunai")} disabled={saving || !cashReceived || cashBalance < 0} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
                   {saving ? "Mengesahkan..." : `Sahkan Tunai Diterima • Baki RM ${Math.max(0, cashBalance).toFixed(2)}`}
                 </button>
               </div>
@@ -1428,28 +1589,28 @@ export default function StaffDashboardPage() {
 
             {paymentMode === "duitnow" && (
               <div className="mb-3">
-                <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 mb-4 text-center">
-                  <div className="text-blue-700 text-xs font-black uppercase tracking-wide mb-3">DuitNow QR Kedai</div>
+                <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-3xl p-5 mb-4 text-center">
+                  <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide mb-3">DuitNow QR Kedai</div>
                   {duitNowQrUrl ? (
-                    <div className="bg-white rounded-3xl border border-blue-100 p-3 mx-auto w-fit shadow-sm">
+                    <div className="bg-white rounded-3xl border border-[var(--accent-100)] p-3 mx-auto w-fit shadow-sm">
                       <img src={duitNowQrUrl} alt="DuitNow QR kedai" className="w-52 h-52 object-contain rounded-2xl mx-auto" />
                     </div>
                   ) : (
-                    <div className="w-52 h-52 rounded-3xl bg-white border-2 border-dashed border-blue-200 mx-auto flex flex-col items-center justify-center p-4">
+                    <div className="w-52 h-52 rounded-3xl bg-white border-2 border-dashed border-[var(--accent-200)] mx-auto flex flex-col items-center justify-center p-4">
                       <div className="text-5xl mb-3">📱</div>
                       <div className="text-gray-900 text-sm font-black">QR DuitNow belum diset</div>
                       <div className="text-gray-400 text-xs mt-1 leading-relaxed">Owner perlu upload QR di Owner Dashboard → Tetapan → Setup Kedai.</div>
                     </div>
                   )}
                   <div className="text-gray-900 text-3xl font-black mt-4">RM {total.toFixed(2)}</div>
-                  <div className="text-blue-600 text-xs font-bold mt-1">
+                  <div className="text-[var(--accent-600)] text-xs font-bold mt-1">
                     {duitNowQrUrl ? "Minta customer scan dan bayar jumlah ini." : "DuitNow belum boleh digunakan selagi QR belum diset."}
                   </div>
                 </div>
 
                 {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl p-3 mb-3">⚠️ {paymentError}</div>}
 
-                <button onClick={() => completePayment("duitnow")} disabled={saving || !duitNowQrUrl} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
+                <button onClick={() => completePayment("duitnow")} disabled={saving || !duitNowQrUrl} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
                   {saving ? "Mengesahkan..." : "Sahkan DuitNow Diterima"}
                 </button>
               </div>
@@ -1469,21 +1630,21 @@ export default function StaffDashboardPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <div className="text-5xl mb-3">✅</div>
             <h3 className="text-gray-900 font-bold text-xl">Bayaran Berjaya!</h3>
-            <div className="text-green-600 text-3xl font-black my-4">RM {lastTotal.toFixed(2)}</div>
+            <div className="text-[var(--accent-600)] text-3xl font-black my-4">RM {lastTotal.toFixed(2)}</div>
             <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left">
               <div className="flex justify-between text-xs text-gray-500 py-1"><span>Kaedah bayaran</span><span className="text-gray-900 font-bold">{lastPaymentMethod || "-"}</span></div>
               {lastPaymentMethod === "Tunai" && (
                 <>
                   <div className="flex justify-between text-xs text-gray-500 py-1"><span>Tunai diterima</span><span className="text-gray-900 font-bold">RM {lastCashReceived.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-xs text-gray-500 py-1"><span>Baki diberi</span><span className="text-green-600 font-bold">RM {lastCashChange.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-xs text-gray-500 py-1"><span>Baki diberi</span><span className="text-[var(--accent-600)] font-bold">RM {lastCashChange.toFixed(2)}</span></div>
                 </>
               )}
               <div className="border-t border-gray-200 my-2"></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Stok dikemaskini</span><span className="text-green-600">✓</span></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>COGS direkod</span><span className="text-green-600">✓</span></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Laporan dikemaskini</span><span className="text-green-600">✓</span></div>
+              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Stok dikemaskini</span><span className="text-[var(--accent-600)]">✓</span></div>
+              <div className="flex justify-between text-xs text-gray-500 py-1"><span>COGS direkod</span><span className="text-[var(--accent-600)]">✓</span></div>
+              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Laporan dikemaskini</span><span className="text-[var(--accent-600)]">✓</span></div>
             </div>
-            <button onClick={() => { setShowSuccess(false); clearCart(); }} className="w-full bg-green-600 text-white font-bold py-4 rounded-2xl text-sm mb-3">Jualan Baru</button>
+            <button onClick={() => { setShowSuccess(false); clearCart(); }} className="w-full bg-[var(--accent-600)] text-white font-bold py-4 rounded-2xl text-sm mb-3">Jualan Baru</button>
             <button className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl text-sm">📱 Resit WhatsApp</button>
           </div>
         </div>
@@ -1496,22 +1657,22 @@ export default function StaffDashboardPage() {
             <h3 className="text-gray-900 font-bold text-lg mb-6">🔑 Tukar Password</h3>
             <div className="mb-3">
               <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
-              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             <div className="mb-3">
               <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label>
-              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             <div className="mb-4">
               <label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
-              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500" />
+              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
             </div>
             {passwordMsgStaff && (
-              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
+              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
             )}
             <div className="flex gap-3">
               <button onClick={() => { setShowTukarPassword(false); setOldPassword(""); setNewPasswordStaff(""); setConfirmPasswordStaff(""); setPasswordMsgStaff(""); }} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
-              <button onClick={tukarPasswordStaff} disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl disabled:opacity-50">Tukar</button>
+              <button onClick={tukarPasswordStaff} disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff} className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50">Tukar</button>
             </div>
           </div>
         </div>
