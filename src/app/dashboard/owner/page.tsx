@@ -1357,8 +1357,8 @@ export default function OwnerDashboardPage() {
   function downloadReceipt(receipt: RecentReceipt) {
     const receiptNo = receipt.id.slice(0, 8).toUpperCase();
     const lines = [
-      "URUSPOS RECEIPT",
       kedaiInfo?.nama || "Kedai Saya",
+      "Powered by UrusPOS",
       "",
       `Receipt: #${receiptNo}`,
       `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
@@ -1610,6 +1610,7 @@ export default function OwnerDashboardPage() {
   const activeNav = navItems.find((item) => item.id === activeTab);
   const activeReport = reportMenuItems.find((item) => item.id === activeReportTab);
   const activeSettings = settingsMenuItems.find((item) => item.id === activeSettingsTab);
+  const kedaiLogoUrl = String(kedaiInfo?.logo_url || "").trim();
 
   const FilterBar = () => (
     <div className="relative inline-block mb-4">
@@ -1719,8 +1720,8 @@ export default function OwnerDashboardPage() {
           <div>
             <div className="mb-4">
               <div className="text-gray-400 text-sm">Selamat datang 👋</div>
-              <div className="text-gray-900 text-xl font-black">
-                {kedaiInfo?.nama || "Kedai Saya"}
+              <div className="text-gray-900 text-xl font-black truncate">
+                {sessionUser?.nama || "Owner"}
               </div>
             </div>
             <FilterBar />
@@ -3113,9 +3114,20 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="border border-gray-200 rounded-2xl p-5 bg-white">
               <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                <div className="text-gray-900 font-black text-xl">UrusPOS</div>
-                <div className="text-gray-500 text-sm font-bold">
+                {kedaiLogoUrl && (
+                  <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 overflow-hidden flex items-center justify-center mx-auto mb-3">
+                    <img
+                      src={kedaiLogoUrl}
+                      alt={kedaiInfo?.nama || "Logo kedai"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="text-gray-900 font-black text-xl">
                   {kedaiInfo?.nama || "Kedai Saya"}
+                </div>
+                <div className="text-gray-400 text-xs font-bold mt-1">
+                  Powered by UrusPOS
                 </div>
                 <div className="text-gray-400 text-xs mt-2">
                   {formatReceiptDate(selectedReceipt.created_at)}
@@ -3208,17 +3220,32 @@ export default function OwnerDashboardPage() {
               </button>
             </div>
             <div className="bg-gradient-to-br from-green-700 to-green-500 rounded-3xl p-5 mb-5 text-white shadow-lg shadow-green-600/20">
-              <div className="text-green-100 text-xs font-bold mb-1">KEDAI</div>
-              <div className="font-black text-lg leading-tight truncate">
-                {kedaiInfo?.nama || "Kedai Saya"}
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
-                  👑 Owner
-                </span>
-                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
-                  {planInfo.label}
-                </span>
+              <div className="flex items-center gap-3">
+                {kedaiLogoUrl && (
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <img
+                      src={kedaiLogoUrl}
+                      alt={kedaiInfo?.nama || "Logo kedai"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-green-100 text-xs font-bold mb-1">
+                    KEDAI
+                  </div>
+                  <div className="font-black text-lg leading-tight truncate">
+                    {kedaiInfo?.nama || "Kedai Saya"}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
+                      👑 Owner
+                    </span>
+                    <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
+                      {planInfo.label}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="space-y-2 flex-1 overflow-y-auto pr-1">
