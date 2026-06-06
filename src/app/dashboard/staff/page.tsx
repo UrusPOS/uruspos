@@ -77,7 +77,7 @@ export default function StaffDashboardPage() {
   const [lastPaymentMethod, setLastPaymentMethod] = useState("");
   const [lastCashReceived, setLastCashReceived] = useState(0);
   const [lastCashChange, setLastCashChange] = useState(0);
-  const [duitNowQrUrl] = useState("");
+  const [duitNowQrUrl, setDuitNowQrUrl] = useState("");
 
   const normalizedTableCount = Math.min(20, Math.max(1, Number(tableCount) || 6));
   const mejaList = [
@@ -406,12 +406,13 @@ export default function StaffDashboardPage() {
 
     const { data: kedaiData } = await supabase
       .from("kedai")
-      .select("table_count")
+      .select("table_count, duitnow_qr_url")
       .eq("id", kId)
       .single() as any;
 
     const savedTableCount = Math.min(20, Math.max(1, Number(kedaiData?.table_count) || 6));
     setTableCount(savedTableCount);
+    setDuitNowQrUrl(kedaiData?.duitnow_qr_url || "");
 
     let resolvedMeja = currentMeja;
     if (resolvedMeja !== "Bungkus") {
@@ -1407,23 +1408,27 @@ export default function StaffDashboardPage() {
             {paymentMode === "duitnow" && (
               <div className="mb-3">
                 <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5 mb-4 text-center">
-                  <div className="text-blue-700 text-xs font-black uppercase tracking-wide mb-3">DuitNow QR</div>
+                  <div className="text-blue-700 text-xs font-black uppercase tracking-wide mb-3">DuitNow QR Kedai</div>
                   {duitNowQrUrl ? (
-                    <img src={duitNowQrUrl} alt="DuitNow QR" className="w-52 h-52 object-contain rounded-3xl bg-white border border-blue-100 mx-auto" />
+                    <div className="bg-white rounded-3xl border border-blue-100 p-3 mx-auto w-fit shadow-sm">
+                      <img src={duitNowQrUrl} alt="DuitNow QR kedai" className="w-52 h-52 object-contain rounded-2xl mx-auto" />
+                    </div>
                   ) : (
                     <div className="w-52 h-52 rounded-3xl bg-white border-2 border-dashed border-blue-200 mx-auto flex flex-col items-center justify-center p-4">
                       <div className="text-5xl mb-3">📱</div>
                       <div className="text-gray-900 text-sm font-black">QR DuitNow belum diset</div>
-                      <div className="text-gray-400 text-xs mt-1 leading-relaxed">Nanti QR owner akan dipaparkan di sini selepas setup upload QR dibuat.</div>
+                      <div className="text-gray-400 text-xs mt-1 leading-relaxed">Owner perlu upload QR di Owner Dashboard → Tetapan → Setup Kedai.</div>
                     </div>
                   )}
                   <div className="text-gray-900 text-3xl font-black mt-4">RM {total.toFixed(2)}</div>
-                  <div className="text-blue-600 text-xs font-bold mt-1">Minta customer scan dan bayar jumlah ini.</div>
+                  <div className="text-blue-600 text-xs font-bold mt-1">
+                    {duitNowQrUrl ? "Minta customer scan dan bayar jumlah ini." : "DuitNow belum boleh digunakan selagi QR belum diset."}
+                  </div>
                 </div>
 
                 {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl p-3 mb-3">⚠️ {paymentError}</div>}
 
-                <button onClick={() => completePayment("duitnow")} disabled={saving} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
+                <button onClick={() => completePayment("duitnow")} disabled={saving || !duitNowQrUrl} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
                   {saving ? "Mengesahkan..." : "Sahkan DuitNow Diterima"}
                 </button>
               </div>

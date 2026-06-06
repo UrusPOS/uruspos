@@ -391,6 +391,10 @@ export default function OwnerDashboardPage() {
     nama: string;
     status: string;
     table_count?: number | null;
+    logo_url?: string | null;
+    duitnow_qr_url?: string | null;
+    accent_color?: string | null;
+    theme_mode?: string | null;
   } | null>(null);
 
   const [stats, setStats] = useState({
@@ -434,6 +438,12 @@ export default function OwnerDashboardPage() {
   const [resetMsg, setResetMsg] = useState("");
   const [tableCountInput, setTableCountInput] = useState(6);
   const [tableMsg, setTableMsg] = useState("");
+  const [storeSetupMsg, setStoreSetupMsg] = useState("");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const [selectedAccentColor, setSelectedAccentColor] = useState("green");
+  const [selectedThemeMode, setSelectedThemeMode] = useState("light");
+  const [themeMsg, setThemeMsg] = useState("");
   const [billingStatus, setBillingStatus] = useState<{
     status: string;
     fee: number;
@@ -491,14 +501,14 @@ export default function OwnerDashboardPage() {
     if (resolvedKedaiId) {
       const { data, error } = (await supabase
         .from("kedai")
-        .select("nama, status, table_count")
+        .select("nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode")
         .eq("id", resolvedKedaiId)
         .single()) as any;
       let kedaiData = data || null;
       if (error) {
         const fallback = (await supabase
           .from("kedai")
-          .select("nama, status")
+          .select("nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode")
           .eq("id", resolvedKedaiId)
           .single()) as any;
         kedaiData = fallback.data ? { ...fallback.data, table_count: 6 } : null;
@@ -507,6 +517,8 @@ export default function OwnerDashboardPage() {
       setTableCountInput(
         Math.min(Math.max(Number(kedaiData?.table_count || 6), 1), 20),
       );
+      setSelectedAccentColor(kedaiData?.accent_color || "green");
+      setSelectedThemeMode(kedaiData?.theme_mode || "light");
 
       fetchAllData(resolvedKedaiId);
       fetchBillingStatus(resolvedKedaiId);
@@ -1148,6 +1160,119 @@ export default function OwnerDashboardPage() {
     setTableCountInput(Math.min(Math.max(value, 1), 20));
   }
 
+  function sanitizeFileName(fileName: string) {
+    return fileName
+      .toLowerCase()
+      .replace(/[^a-z0-9.]+/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 80);
+  }
+
+  async function uploadKedaiAsset(
+    file: File | null,
+    assetType: "logo" | "duitnow_qr",
+  ) {
+    if (!file || !sessionUser?.kedai_id) return;
+
+    const isLogo = assetType === "logo";
+    if (!file.type.startsWith("image/")) {
+      setStoreSetupMsg("❌ Sila upload fail gambar sahaja.");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      setStoreSetupMsg("❌ Saiz gambar maksimum 3MB sahaja.");
+      return;
+    }
+
+    setStoreSetupMsg("");
+    if (isLogo) setUploadingLogo(true);
+    else setUploadingQr(true);
+
+    try {
+      const safeName = sanitizeFileName(file.name);
+      const path = `${sessionUser.kedai_id}/${assetType}-${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("kedai-assets")
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        setStoreSetupMsg(`❌ Upload gagal: ${uploadError.message}`);
+        return;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("kedai-assets")
+        .getPublicUrl(path);
+
+      const publicUrl = publicUrlData?.publicUrl;
+      if (!publicUrl) {
+        setStoreSetupMsg("❌ Gagal dapatkan URL gambar.");
+        return;
+      }
+
+      const columnName = isLogo ? "logo_url" : "duitnow_qr_url";
+      const { error: updateError } = await supabase
+        .from("kedai")
+        .update({ [columnName]: publicUrl } as any)
+        .eq("id", sessionUser.kedai_id);
+
+      if (updateError) {
+        setStoreSetupMsg(`❌ Gagal simpan gambar: ${updateError.message}`);
+        return;
+      }
+
+      setKedaiInfo((prev) =>
+        prev ? { ...prev, [columnName]: publicUrl } : prev,
+      );
+      setStoreSetupMsg(
+        isLogo
+          ? "✅ Logo kedai berjaya disimpan."
+          : "✅ QR DuitNow berjaya disimpan.",
+      );
+      setTimeout(() => setStoreSetupMsg(""), 3000);
+    } catch (error) {
+      console.error("Upload kedai asset error:", error);
+      setStoreSetupMsg("❌ Upload gagal. Sila cuba lagi.");
+    } finally {
+      if (isLogo) setUploadingLogo(false);
+      else setUploadingQr(false);
+    }
+  }
+
+  async function saveThemeSetting() {
+    if (!sessionUser?.kedai_id) return;
+    setSaving(true);
+    setThemeMsg("");
+
+    const { error } = await supabase
+      .from("kedai")
+      .update({
+        accent_color: selectedAccentColor,
+        theme_mode: selectedThemeMode,
+      } as any)
+      .eq("id", sessionUser.kedai_id);
+
+    setSaving(false);
+
+    if (error) {
+      setThemeMsg(`❌ Gagal simpan theme: ${error.message}`);
+      return;
+    }
+
+    setKedaiInfo((prev) =>
+      prev
+        ? {
+            ...prev,
+            accent_color: selectedAccentColor,
+            theme_mode: selectedThemeMode,
+          }
+        : prev,
+    );
+    setThemeMsg("✅ Theme kedai berjaya disimpan.");
+    setTimeout(() => setThemeMsg(""), 3000);
+  }
+
   function formatDateLabel(date: string) {
     if (!date) return "";
     return new Date(date).toLocaleDateString("ms-MY", {
@@ -1334,6 +1459,23 @@ export default function OwnerDashboardPage() {
 
   const urusposFee = isActivePlan ? stats.jumlahJualan * 0.02 : 0;
 
+  const accentColorOptions = [
+    { id: "green", label: "Green", dot: "bg-green-600", ring: "border-green-500", sample: "bg-green-600" },
+    { id: "blue", label: "Blue", dot: "bg-blue-600", ring: "border-blue-500", sample: "bg-blue-600" },
+    { id: "purple", label: "Purple", dot: "bg-purple-600", ring: "border-purple-500", sample: "bg-purple-600" },
+    { id: "red", label: "Red", dot: "bg-red-600", ring: "border-red-500", sample: "bg-red-600" },
+    { id: "orange", label: "Orange", dot: "bg-orange-500", ring: "border-orange-400", sample: "bg-orange-500" },
+    { id: "amber", label: "Amber", dot: "bg-amber-500", ring: "border-amber-400", sample: "bg-amber-500" },
+    { id: "pink", label: "Pink", dot: "bg-pink-500", ring: "border-pink-400", sample: "bg-pink-500" },
+    { id: "teal", label: "Teal", dot: "bg-teal-500", ring: "border-teal-400", sample: "bg-teal-500" },
+    { id: "indigo", label: "Indigo", dot: "bg-indigo-600", ring: "border-indigo-500", sample: "bg-indigo-600" },
+    { id: "slate", label: "Slate", dot: "bg-slate-700", ring: "border-slate-500", sample: "bg-slate-700" },
+  ];
+
+  const selectedAccent =
+    accentColorOptions.find((color) => color.id === selectedAccentColor) ||
+    accentColorOptions[0];
+
   const navItems = [
     {
       id: "dashboard",
@@ -1408,6 +1550,18 @@ export default function OwnerDashboardPage() {
       icon: "🪑",
       label: "Setup Meja",
       description: "Bilangan meja POS",
+    },
+    {
+      id: "store-setup",
+      icon: "🏪",
+      label: "Setup Kedai",
+      description: "Logo & QR DuitNow",
+    },
+    {
+      id: "theme",
+      icon: "🎨",
+      label: "Theme",
+      description: "Warna & mode paparan",
     },
     {
       id: "password",
@@ -2547,6 +2701,265 @@ export default function OwnerDashboardPage() {
                   className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
                   {saving ? "Menyimpan..." : "Simpan Setup Meja"}
+                </button>
+              </div>
+            )}
+
+            {activeSettingsTab === "store-setup" && (
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div>
+                      <h3 className="text-gray-900 font-bold text-sm">
+                        🏪 Setup Kedai
+                      </h3>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Upload logo kedai dan QR DuitNow untuk digunakan di owner, staff dan kitchen.
+                      </p>
+                    </div>
+                    <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">
+                      Branding
+                    </span>
+                  </div>
+
+                  {storeSetupMsg && (
+                    <div
+                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${storeSetupMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                    >
+                      {storeSetupMsg}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-gray-900 text-sm font-black">
+                            Logo Kedai
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            Untuk header app
+                          </div>
+                        </div>
+                        <span className="text-xl">🖼️</span>
+                      </div>
+
+                      <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
+                        {kedaiInfo?.logo_url ? (
+                          <img
+                            src={kedaiInfo.logo_url}
+                            alt="Logo kedai"
+                            className="max-h-full max-w-full object-contain p-3"
+                          />
+                        ) : (
+                          <div className="text-center px-4">
+                            <div className="text-3xl mb-2">🏪</div>
+                            <div className="text-gray-400 text-xs font-bold">
+                              Belum ada logo
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            uploadKedaiAsset(e.target.files?.[0] || null, "logo")
+                          }
+                        />
+                        <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                          {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-gray-900 text-sm font-black">
+                            QR DuitNow
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            Untuk payment staff
+                          </div>
+                        </div>
+                        <span className="text-xl">💳</span>
+                      </div>
+
+                      <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
+                        {kedaiInfo?.duitnow_qr_url ? (
+                          <img
+                            src={kedaiInfo.duitnow_qr_url}
+                            alt="QR DuitNow"
+                            className="max-h-full max-w-full object-contain p-3"
+                          />
+                        ) : (
+                          <div className="text-center px-4">
+                            <div className="text-3xl mb-2">📱</div>
+                            <div className="text-gray-400 text-xs font-bold">
+                              Belum ada QR
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <label className="block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            uploadKedaiAsset(
+                              e.target.files?.[0] || null,
+                              "duitnow_qr",
+                            )
+                          }
+                        />
+                        <span className="w-full inline-flex items-center justify-center bg-green-600 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                          {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                    <div className="text-amber-700 text-xs font-bold">
+                      Nota: QR DuitNow akan digunakan di staff payment popup. Logo kedai akan digunakan untuk branding owner, staff dan kitchen selepas Phase B/C.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeSettingsTab === "theme" && (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <div className="flex items-start justify-between gap-3 mb-5">
+                  <div>
+                    <h3 className="text-gray-900 font-bold text-sm">
+                      🎨 Theme Kedai
+                    </h3>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Simpan pilihan warna dan mode untuk branding kedai.
+                    </p>
+                  </div>
+                  <span className={`${selectedAccent.sample} text-white text-xs font-black px-3 py-1.5 rounded-full`}>
+                    {selectedAccent.label}
+                  </span>
+                </div>
+
+                {themeMsg && (
+                  <div
+                    className={`text-xs font-bold mb-4 p-3 rounded-xl ${themeMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                  >
+                    {themeMsg}
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <label className="text-gray-500 text-xs font-black mb-3 block">
+                    ACCENT COLOR
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {accentColorOptions.map((color) => {
+                      const isSelected = selectedAccentColor === color.id;
+                      return (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelectedAccentColor(color.id)}
+                          className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all ${isSelected ? `${color.ring} bg-gray-50 shadow-sm` : "border-gray-100 bg-white hover:bg-gray-50"}`}
+                        >
+                          <span className={`w-4 h-4 rounded-full ${color.dot}`} />
+                          <span className="text-gray-800 text-xs font-black flex-1">
+                            {color.label}
+                          </span>
+                          {isSelected && (
+                            <span className="text-green-600 text-xs font-black">
+                              ✓
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mb-5">
+                  <label className="text-gray-500 text-xs font-black mb-3 block">
+                    APPEARANCE
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: "light", label: "Light", icon: "☀️", desc: "Paparan cerah" },
+                      { id: "dark", label: "Dark", icon: "🌙", desc: "Simpan untuk dark mode" },
+                    ].map((mode) => {
+                      const isSelected = selectedThemeMode === mode.id;
+                      return (
+                        <button
+                          key={mode.id}
+                          onClick={() => setSelectedThemeMode(mode.id)}
+                          className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-green-500 bg-green-50" : "border-gray-100 bg-gray-50"}`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xl">{mode.icon}</span>
+                            {isSelected && (
+                              <span className="text-green-600 text-xs font-black">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-gray-900 text-sm font-black">
+                            {mode.label}
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            {mode.desc}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+                  <div className="text-gray-500 text-xs font-black mb-3">
+                    PREVIEW
+                  </div>
+                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-11 h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}>
+                        {kedaiInfo?.logo_url ? (
+                          <img
+                            src={kedaiInfo.logo_url}
+                            alt="Logo preview"
+                            className="w-full h-full rounded-2xl object-cover"
+                          />
+                        ) : (
+                          "U"
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-gray-900 text-sm font-black">
+                          {kedaiInfo?.nama || "Kedai Saya"}
+                        </div>
+                        <div className="text-gray-400 text-xs font-bold">
+                          {selectedAccent.label} · {selectedThemeMode}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-black text-center`}>
+                      Contoh Button
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={saveThemeSetting}
+                  disabled={saving}
+                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                >
+                  {saving ? "Menyimpan..." : "Simpan Theme"}
                 </button>
               </div>
             )}
