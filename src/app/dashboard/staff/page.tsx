@@ -13,7 +13,7 @@ type Produk = {
 
 type CartItem = Produk & { qty: number; nota: string };
 
-type RekodFilterType = "daily" | "weekly" | "monthly" | "custom";
+type RekodFilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
 
 type ReceiptItem = {
   id?: string;
@@ -53,6 +53,7 @@ export default function StaffDashboardPage() {
   const [rekodFilter, setRekodFilter] = useState<RekodFilterType>("daily");
   const [rekodCustomFrom, setRekodCustomFrom] = useState("");
   const [rekodCustomTo, setRekodCustomTo] = useState("");
+  const [showRekodDropdown, setShowRekodDropdown] = useState(false);
   const [showRekodFilterModal, setShowRekodFilterModal] = useState(false);
   const [pendingRekodFilter, setPendingRekodFilter] = useState<RekodFilterType>("daily");
   const [pendingRekodCustomFrom, setPendingRekodCustomFrom] = useState("");
@@ -126,6 +127,15 @@ export default function StaffDashboardPage() {
       return { from: from.toISOString(), to: to.toISOString() };
     }
 
+    if (filterType === "yesterday") {
+      const from = new Date(now);
+      from.setDate(now.getDate() - 1);
+      from.setHours(0, 0, 0, 0);
+      const yesterdayTo = new Date(from);
+      yesterdayTo.setHours(23, 59, 59, 999);
+      return { from: from.toISOString(), to: yesterdayTo.toISOString() };
+    }
+
     if (filterType === "weekly") {
       const from = new Date(now);
       from.setDate(now.getDate() - 6);
@@ -154,7 +164,8 @@ export default function StaffDashboardPage() {
 
   function rekodFilterLabel() {
     if (rekodFilter === "daily") return "Hari Ini";
-    if (rekodFilter === "weekly") return "7 Hari";
+    if (rekodFilter === "yesterday") return "Semalam";
+    if (rekodFilter === "weekly") return "7 Hari Lepas";
     if (rekodFilter === "monthly") return "Bulan Ini";
     if (rekodFilter === "custom" && rekodCustomFrom && rekodCustomTo) {
       return `${formatShortDate(rekodCustomFrom)} — ${formatShortDate(rekodCustomTo)}`;
@@ -164,26 +175,37 @@ export default function StaffDashboardPage() {
 
   function rekodPendingFilterLabel(value: RekodFilterType) {
     if (value === "daily") return "Hari Ini";
-    if (value === "weekly") return "7 Hari";
+    if (value === "yesterday") return "Semalam";
+    if (value === "weekly") return "7 Hari Lepas";
     if (value === "monthly") return "Bulan Ini";
     return "Tarikh Custom";
   }
 
   function openRekodFilterModal() {
-    setPendingRekodFilter(rekodFilter);
-    setPendingRekodCustomFrom(rekodCustomFrom);
-    setPendingRekodCustomTo(rekodCustomTo);
-    setShowRekodFilterModal(true);
+    setShowRekodDropdown((prev) => !prev);
+  }
+
+  function applyRekodDropdownFilter(nextFilter: RekodFilterType) {
+    setShowRekodDropdown(false);
+
+    if (nextFilter === "custom") {
+      setPendingRekodFilter("custom");
+      setPendingRekodCustomFrom(rekodCustomFrom);
+      setPendingRekodCustomTo(rekodCustomTo);
+      setShowRekodFilterModal(true);
+      return;
+    }
+
+    setPendingRekodFilter(nextFilter);
+    setRekodFilter(nextFilter);
   }
 
   function applyRekodFilterModal() {
-    if (pendingRekodFilter === "custom" && (!pendingRekodCustomFrom || !pendingRekodCustomTo)) return;
+    if (!pendingRekodCustomFrom || !pendingRekodCustomTo) return;
 
-    setRekodFilter(pendingRekodFilter);
-    if (pendingRekodFilter === "custom") {
-      setRekodCustomFrom(pendingRekodCustomFrom);
-      setRekodCustomTo(pendingRekodCustomTo);
-    }
+    setRekodCustomFrom(pendingRekodCustomFrom);
+    setRekodCustomTo(pendingRekodCustomTo);
+    setRekodFilter("custom");
     setShowRekodFilterModal(false);
   }
 
@@ -1004,19 +1026,49 @@ export default function StaffDashboardPage() {
           </div>
 
           <div className="flex items-center justify-between gap-3 mb-4">
-            <button
-              onClick={openRekodFilterModal}
-              className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-green-600">
-                <path d="M7 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                <path d="M17 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                <path d="M4 9H20" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                <path d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round" />
-              </svg>
-              <span>{rekodFilterLabel()}</span>
-              <span className="text-gray-400 text-[10px]">▾</span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={openRekodFilterModal}
+                className="inline-flex items-center gap-2 bg-white border border-green-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-green-300 hover:bg-green-50 active:scale-95 transition-all"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-green-600">
+                  <path d="M7 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                  <path d="M17 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                  <path d="M4 9H20" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
+                  <path d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round" />
+                </svg>
+                <span>{rekodFilterLabel()}</span>
+                <span className="text-gray-400 text-[10px]">▾</span>
+              </button>
+
+              {showRekodDropdown && (
+                <>
+                  <button
+                    onClick={() => setShowRekodDropdown(false)}
+                    className="fixed inset-0 z-30 cursor-default"
+                    aria-label="Tutup filter rekod"
+                  />
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl z-40 overflow-hidden">
+                    {[
+                      { id: "daily", label: "Hari Ini" },
+                      { id: "yesterday", label: "Semalam" },
+                      { id: "monthly", label: "Bulan Ini" },
+                      { id: "weekly", label: "7 Hari Lepas" },
+                      { id: "custom", label: "Tarikh Custom" },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => applyRekodDropdownFilter(item.id as RekodFilterType)}
+                        className={`w-full text-left px-4 py-3 text-sm font-bold border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-green-600 bg-green-50" : "text-gray-700"}`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={fetchRekod}
               disabled={loadingRekod}
@@ -1120,14 +1172,14 @@ export default function StaffDashboardPage() {
         </div>
       )}
 
-      {/* Rekod Filter Modal */}
+      {/* Rekod Custom Date Modal */}
       {showRekodFilterModal && (
         <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
           <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-gray-900 font-black text-lg">Filter Tarikh</h3>
-                <p className="text-gray-400 text-xs font-bold mt-0.5">Pilih tempoh rekod jualan</p>
+                <h3 className="text-gray-900 font-black text-lg">Tarikh Custom</h3>
+                <p className="text-gray-400 text-xs font-bold mt-0.5">Pilih range rekod jualan</p>
               </div>
               <button
                 onClick={() => setShowRekodFilterModal(false)}
@@ -1137,42 +1189,28 @@ export default function StaffDashboardPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-5">
-              {(["daily", "weekly", "monthly", "custom"] as RekodFilterType[]).map((option) => (
-                <button
-                  key={option}
-                  onClick={() => setPendingRekodFilter(option)}
-                  className={`rounded-2xl border px-3 py-3 text-xs font-black transition-all ${pendingRekodFilter === option ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-500 hover:bg-gray-100"}`}
-                >
-                  {rekodPendingFilterLabel(option)}
-                </button>
-              ))}
-            </div>
-
-            {pendingRekodFilter === "custom" && (
-              <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="text-gray-500 text-xs font-black mb-2 block">START DATE</label>
-                    <input
-                      type="date"
-                      value={pendingRekodCustomFrom}
-                      onChange={(e) => setPendingRekodCustomFrom(e.target.value)}
-                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-gray-500 text-xs font-black mb-2 block">END DATE</label>
-                    <input
-                      type="date"
-                      value={pendingRekodCustomTo}
-                      onChange={(e) => setPendingRekodCustomTo(e.target.value)}
-                      className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
-                    />
-                  </div>
+            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="text-gray-500 text-xs font-black mb-2 block">START DATE</label>
+                  <input
+                    type="date"
+                    value={pendingRekodCustomFrom}
+                    onChange={(e) => setPendingRekodCustomFrom(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs font-black mb-2 block">END DATE</label>
+                  <input
+                    type="date"
+                    value={pendingRekodCustomTo}
+                    onChange={(e) => setPendingRekodCustomTo(e.target.value)}
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-green-500"
+                  />
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -1183,7 +1221,7 @@ export default function StaffDashboardPage() {
               </button>
               <button
                 onClick={applyRekodFilterModal}
-                disabled={pendingRekodFilter === "custom" && (!pendingRekodCustomFrom || !pendingRekodCustomTo)}
+                disabled={!pendingRekodCustomFrom || !pendingRekodCustomTo}
                 className="flex-1 bg-green-600 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
               >
                 Apply
