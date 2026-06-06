@@ -643,6 +643,35 @@ export default function StaffDashboardPage() {
     return !fallbackError;
   }
 
+  async function recordSalesStockMovements(orderId: string) {
+    if (!kedaiId || cartItems.length === 0) return;
+
+    await supabase
+      .from("stock_movements")
+      .delete()
+      .eq("order_id", orderId)
+      .eq("source", "sales");
+
+    const movements = cartItems
+      .filter((item) => Number(item.qty || 0) > 0)
+      .map((item) => ({
+        kedai_id: kedaiId,
+        produk_id: item.id,
+        produk_nama: item.nama,
+        type: "sold",
+        qty: Number(item.qty || 0),
+        reason: "Jualan POS",
+        source: "sales",
+        order_id: orderId,
+        created_by: staffNama,
+      }));
+
+    if (movements.length === 0) return;
+
+    const { error } = await supabase.from("stock_movements").insert(movements as any);
+    if (error) console.warn("Sales stock movement log failed:", error);
+  }
+
   async function completePayment(paymentMethod: "tunai" | "duitnow") {
     if (!currentOrderId) return;
 
@@ -667,6 +696,8 @@ export default function StaffDashboardPage() {
       setPaymentError("Gagal sahkan bayaran. Cuba sekali lagi.");
       return;
     }
+
+    await recordSalesStockMovements(currentOrderId);
 
     for (const item of cartItems) {
       const produkItem = produk.find((p) => p.id === item.id);
