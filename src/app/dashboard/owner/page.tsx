@@ -356,6 +356,8 @@ async function attachOrderItemsToOrders(rawOrders: any[]) {
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showReportSubmenu, setShowReportSubmenu] = useState(false);
+  const [showSettingsSubmenu, setShowSettingsSubmenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [produk, setProduk] = useState<Produk[]>([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
@@ -447,6 +449,8 @@ export default function OwnerDashboardPage() {
   const [pendingFilter, setPendingFilter] = useState<FilterType>("custom");
   const [pendingCustomFrom, setPendingCustomFrom] = useState("");
   const [pendingCustomTo, setPendingCustomTo] = useState("");
+  const [activeReportTab, setActiveReportTab] = useState("sales-summary");
+  const [activeSettingsTab, setActiveSettingsTab] = useState("table-setup");
 
   // useEffect 1 — fetch session & kedai info
   useEffect(() => {
@@ -1358,11 +1362,100 @@ export default function OwnerDashboardPage() {
     },
   ];
 
+  const reportMenuItems = [
+    {
+      id: "sales-summary",
+      icon: "💰",
+      label: "Ringkasan Jualan",
+      description: "Sales, order & margin",
+    },
+    {
+      id: "top-products",
+      icon: "🔥",
+      label: "Produk Terlaris",
+      description: "Top product terjual",
+    },
+    {
+      id: "payment-method",
+      icon: "💳",
+      label: "Kaedah Bayaran",
+      description: "Tunai / DuitNow",
+    },
+    {
+      id: "inventory-summary",
+      icon: "📊",
+      label: "Ringkasan Stok",
+      description: "Stock in & out",
+    },
+    {
+      id: "stock-movement",
+      icon: "📦",
+      label: "Rekod Stok",
+      description: "Audit pergerakan stok",
+    },
+    {
+      id: "receipts",
+      icon: "🧾",
+      label: "Receipt",
+      description: "View & download receipt",
+    },
+  ];
+
+
+  const settingsMenuItems = [
+    {
+      id: "table-setup",
+      icon: "🪑",
+      label: "Setup Meja",
+      description: "Bilangan meja POS",
+    },
+    {
+      id: "password",
+      icon: "🔐",
+      label: "Password",
+      description: "Tukar password owner",
+    },
+  ];
+
+
   function changeTab(tabId: string) {
+    if (tabId === "laporan") {
+      setShowReportSubmenu((prev) => !prev);
+      setShowSettingsSubmenu(false);
+      return;
+    }
+
+    if (tabId === "settings") {
+      setShowSettingsSubmenu((prev) => !prev);
+      setShowReportSubmenu(false);
+      return;
+    }
+
     setActiveTab(tabId);
+    setShowReportSubmenu(false);
+    setShowSettingsSubmenu(false);
     setShowMobileMenu(false);
   }
+
+  function changeReportTab(reportTabId: string) {
+    setActiveTab("laporan");
+    setActiveReportTab(reportTabId);
+    setShowReportSubmenu(true);
+    setShowSettingsSubmenu(false);
+    setShowMobileMenu(false);
+  }
+
+  function changeSettingsTab(settingsTabId: string) {
+    setActiveTab("settings");
+    setActiveSettingsTab(settingsTabId);
+    setShowSettingsSubmenu(true);
+    setShowReportSubmenu(false);
+    setShowMobileMenu(false);
+  }
+
   const activeNav = navItems.find((item) => item.id === activeTab);
+  const activeReport = reportMenuItems.find((item) => item.id === activeReportTab);
+  const activeSettings = settingsMenuItems.find((item) => item.id === activeSettingsTab);
 
   const FilterBar = () => (
     <div className="relative inline-block mb-4">
@@ -1729,10 +1822,10 @@ export default function OwnerDashboardPage() {
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-gray-900 font-black text-xl">
-                  Laporan Owner
+                  {activeReport?.label || "Laporan Owner"}
                 </h2>
                 <p className="text-gray-400 text-xs font-bold mt-1">
-                  Prestasi kedai ikut tempoh dipilih
+                  {activeReport?.description || "Prestasi kedai ikut tempoh dipilih"}
                 </p>
               </div>
               <button
@@ -1744,11 +1837,13 @@ export default function OwnerDashboardPage() {
               </button>
             </div>
             <FilterBar />
+            {activeReportTab === "sales-summary" && (
+              <>
             <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-4 text-white shadow-lg">
               <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
                   <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
-                    Jumlah Jualan — {filterLabel()}
+                    Jumlah Jualan
                   </div>
                   <div className="text-3xl sm:text-4xl font-black mt-1">
                     {formatRM(reportData.totalSales)}
@@ -1812,6 +1907,10 @@ export default function OwnerDashboardPage() {
                 <div className="text-gray-400 text-xs mt-1">Margin</div>
               </div>
             </div>
+              </>
+            )}
+            {activeReportTab === "top-products" && (
+              <>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-gray-900 font-black text-sm">
@@ -1854,6 +1953,10 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
+            {activeReportTab === "payment-method" && (
+              <>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-gray-900 font-black text-sm">
@@ -1903,6 +2006,10 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
+            {activeReportTab === "inventory-summary" && (
+              <>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -2012,7 +2119,11 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
 
+            {activeReportTab === "stock-movement" && (
+              <>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -2091,6 +2202,10 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
+            {activeReportTab === "receipts" && (
+              <>
             <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-gray-900 font-black text-sm">
@@ -2195,6 +2310,8 @@ export default function OwnerDashboardPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
         )}
 
@@ -2335,151 +2452,165 @@ export default function OwnerDashboardPage() {
         {/* SETTINGS */}
         {activeTab === "settings" && (
           <div>
-            <h2 className="text-gray-900 font-bold text-lg mb-4">⚙️ Tetapan</h2>
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                  <h3 className="text-gray-900 font-bold text-sm">
-                    🪑 Setup Meja Kedai
-                  </h3>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Default 6 meja. Bungkus akan kekal automatik.
-                  </p>
-                </div>
-                <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">
-                  Max 20
-                </span>
-              </div>
-              <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                <div className="flex items-center justify-between gap-4 mb-4">
-                  <button
-                    onClick={() => changeTableCount(tableCountInput - 1)}
-                    disabled={tableCountInput <= 1}
-                    className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
-                  >
-                    −
-                  </button>
-                  <div className="text-center">
-                    <div className="text-gray-900 text-4xl font-black leading-none">
-                      {tableCountInput}
-                    </div>
-                    <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">
-                      Meja
-                    </div>
+            <div className="mb-4">
+              <h2 className="text-gray-900 font-black text-xl">
+                {activeSettings?.icon || "⚙️"} {activeSettings?.label || "Tetapan"}
+              </h2>
+              <p className="text-gray-400 text-xs font-bold mt-1">
+                {activeSettings?.description || "Tetapan kedai"}
+              </p>
+            </div>
+
+            {activeSettingsTab === "table-setup" && (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-gray-900 font-bold text-sm">
+                      🪑 Setup Meja Kedai
+                    </h3>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Default 6 meja. Bungkus akan kekal automatik.
+                    </p>
                   </div>
-                  <button
-                    onClick={() => changeTableCount(tableCountInput + 1)}
-                    disabled={tableCountInput >= 20}
-                    className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
-                  >
-                    +
-                  </button>
+                  <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-100">
+                    Max 20
+                  </span>
                 </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={tableCountInput}
-                  onChange={(e) => changeTableCount(Number(e.target.value))}
-                  className="w-full accent-green-600"
-                />
-                <div className="mt-4 grid grid-cols-7 gap-1.5">
-                  {Array.from({ length: tableCountInput }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black"
+                <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <button
+                      onClick={() => changeTableCount(tableCountInput - 1)}
+                      disabled={tableCountInput <= 1}
+                      className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
                     >
-                      {index + 1}
+                      −
+                    </button>
+                    <div className="text-center">
+                      <div className="text-gray-900 text-4xl font-black leading-none">
+                        {tableCountInput}
+                      </div>
+                      <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">
+                        Meja
+                      </div>
                     </div>
-                  ))}
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
-                    🥡
+                    <button
+                      onClick={() => changeTableCount(tableCountInput + 1)}
+                      disabled={tableCountInput >= 20}
+                      className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={tableCountInput}
+                    onChange={(e) => changeTableCount(Number(e.target.value))}
+                    className="w-full accent-green-600"
+                  />
+                  <div className="mt-4 grid grid-cols-7 gap-1.5">
+                    {Array.from({ length: tableCountInput }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black"
+                      >
+                        {index + 1}
+                      </div>
+                    ))}
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
+                      🥡
+                    </div>
+                  </div>
+                  <div className="text-gray-400 text-xs mt-3">
+                    POS akan papar Meja 1 hingga Meja {tableCountInput}, dan
+                    pilihan Bungkus.
                   </div>
                 </div>
-                <div className="text-gray-400 text-xs mt-3">
-                  POS akan papar Meja 1 hingga Meja {tableCountInput}, dan
-                  pilihan Bungkus.
-                </div>
-              </div>
-              {tableMsg && (
-                <div
-                  className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                {tableMsg && (
+                  <div
+                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                  >
+                    {tableMsg}
+                  </div>
+                )}
+                <button
+                  onClick={saveTableCount}
+                  disabled={
+                    saving ||
+                    tableCountInput ===
+                      Math.min(
+                        Math.max(Number(kedaiInfo?.table_count || 6), 1),
+                        20,
+                      )
+                  }
+                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
-                  {tableMsg}
+                  {saving ? "Menyimpan..." : "Simpan Setup Meja"}
+                </button>
+              </div>
+            )}
+
+            {activeSettingsTab === "password" && (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                <h3 className="text-gray-900 font-bold text-sm mb-4">
+                  🔐 Tukar Password Saya
+                </h3>
+                <div className="mb-3">
+                  <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    PASSWORD SEMASA
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                  />
                 </div>
-              )}
-              <button
-                onClick={saveTableCount}
-                disabled={
-                  saving ||
-                  tableCountInput ===
-                    Math.min(
-                      Math.max(Number(kedaiInfo?.table_count || 6), 1),
-                      20,
-                    )
-                }
-                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
-              >
-                {saving ? "Menyimpan..." : "Simpan Setup Meja"}
-              </button>
-            </div>
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <h3 className="text-gray-900 font-bold text-sm mb-4">
-                🔐 Tukar Password Saya
-              </h3>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  PASSWORD SEMASA
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  PASSWORD BARU
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  CONFIRM PASSWORD BARU
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
-                />
-              </div>
-              {passwordMsg && (
-                <div
-                  className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                <div className="mb-3">
+                  <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    PASSWORD BARU
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    CONFIRM PASSWORD BARU
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-green-500"
+                  />
+                </div>
+                {passwordMsg && (
+                  <div
+                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}
+                  >
+                    {passwordMsg}
+                  </div>
+                )}
+                <button
+                  onClick={tukarPassword}
+                  disabled={!currentPassword || !newPassword || !confirmPassword}
+                  className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                 >
-                  {passwordMsg}
-                </div>
-              )}
-              <button
-                onClick={tukarPassword}
-                disabled={!currentPassword || !newPassword || !confirmPassword}
-                className="w-full bg-green-600 text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
-              >
-                Tukar Password
-              </button>
-            </div>
+                  Tukar Password
+                </button>
+              </div>
+            )}
           </div>
         )}
+
       </div>
 
       {/* Custom Date Modal */}
@@ -2677,9 +2808,146 @@ export default function OwnerDashboardPage() {
                 </span>
               </div>
             </div>
-            <div className="space-y-2 flex-1">
+            <div className="space-y-2 flex-1 overflow-y-auto pr-1">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id;
+
+                if (item.id === "laporan") {
+                  const isReportOpen = showReportSubmenu || isActive;
+
+                  return (
+                    <div key={item.id} className="space-y-2">
+                      <button
+                        onClick={() => changeTab(item.id)}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isReportOpen ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                      >
+                        <span
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isReportOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-black text-sm">
+                            {item.label}
+                          </span>
+                          <span
+                            className={`block text-xs font-semibold mt-0.5 ${isReportOpen ? "text-green-100" : "text-gray-400"}`}
+                          >
+                            {isActive
+                              ? activeReport?.label || item.description
+                              : isReportOpen
+                                ? "Pilih jenis laporan"
+                                : item.description}
+                          </span>
+                        </span>
+                        <span className="text-xl leading-none font-light">{isReportOpen ? "−" : "+"}</span>
+                      </button>
+
+                      {isReportOpen && (
+                        <div className="ml-4 pl-4 border-l border-green-100 space-y-1.5">
+                          {reportMenuItems.map((reportItem) => {
+                            const isReportActive =
+                              activeReportTab === reportItem.id;
+                            return (
+                              <button
+                                key={reportItem.id}
+                                onClick={() => changeReportTab(reportItem.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isReportActive ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}
+                              >
+                                <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
+                                  {reportItem.icon}
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-xs font-black truncate">
+                                    {reportItem.label}
+                                  </span>
+                                  <span className="block text-[11px] font-semibold text-gray-400 truncate">
+                                    {reportItem.description}
+                                  </span>
+                                </span>
+                                {isReportActive && (
+                                  <span className="text-green-600 text-xs font-black">
+                                    ✓
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (item.id === "settings") {
+                  const isSettingsOpen = showSettingsSubmenu || isActive;
+
+                  return (
+                    <div key={item.id} className="space-y-2">
+                      <button
+                        onClick={() => changeTab(item.id)}
+                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isSettingsOpen ? "bg-green-600 border-green-600 text-white shadow-lg shadow-green-600/20" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
+                      >
+                        <span
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isSettingsOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
+                        >
+                          {item.icon}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block font-black text-sm">
+                            {item.label}
+                          </span>
+                          <span
+                            className={`block text-xs font-semibold mt-0.5 ${isSettingsOpen ? "text-green-100" : "text-gray-400"}`}
+                          >
+                            {isActive
+                              ? activeSettings?.label || item.description
+                              : isSettingsOpen
+                                ? "Pilih tetapan"
+                                : item.description}
+                          </span>
+                        </span>
+                        <span className="text-xl leading-none font-light">
+                          {isSettingsOpen ? "−" : "+"}
+                        </span>
+                      </button>
+
+                      {isSettingsOpen && (
+                        <div className="ml-4 pl-4 border-l border-green-100 space-y-1.5">
+                          {settingsMenuItems.map((settingsItem) => {
+                            const isSettingsActive =
+                              activeSettingsTab === settingsItem.id;
+                            return (
+                              <button
+                                key={settingsItem.id}
+                                onClick={() => changeSettingsTab(settingsItem.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-green-50 text-green-700" : "text-gray-500 hover:bg-gray-50"}`}
+                              >
+                                <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
+                                  {settingsItem.icon}
+                                </span>
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-xs font-black truncate">
+                                    {settingsItem.label}
+                                  </span>
+                                  <span className="block text-[11px] font-semibold text-gray-400 truncate">
+                                    {settingsItem.description}
+                                  </span>
+                                </span>
+                                {isSettingsActive && (
+                                  <span className="text-green-600 text-xs font-black">
+                                    ✓
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={item.id}
