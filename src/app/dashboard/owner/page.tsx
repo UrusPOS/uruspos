@@ -19,6 +19,18 @@ type Produk = {
   kos_produk: number;
   stok: number;
   is_active: boolean;
+  kategori_id?: string | null;
+  kategori_nama?: string | null;
+  kategori_icon?: string | null;
+};
+
+type ProductCategory = {
+  id: string;
+  kedai_id: string;
+  nama: string;
+  icon: string;
+  sort_order: number;
+  is_active: boolean;
 };
 
 type ReportTopProduct = {
@@ -168,6 +180,22 @@ function getCookieSession() {
   } catch {
     return null;
   }
+}
+
+
+const DEFAULT_PRODUCT_CATEGORIES = [
+  { nama: "Makanan", icon: "🍽️", sort_order: 1 },
+  { nama: "Minuman", icon: "🥤", sort_order: 2 },
+  { nama: "Kuih Muih", icon: "🧁", sort_order: 3 },
+  { nama: "Set / Combo", icon: "🍱", sort_order: 4 },
+  { nama: "Add-on", icon: "➕", sort_order: 5 },
+  { nama: "Lain-lain", icon: "📦", sort_order: 6 },
+];
+
+const CATEGORY_ICON_OPTIONS = ["🍽️", "🥤", "🧁", "🍱", "➕", "📦", "☕", "🍰", "🍜", "🍗", "🍔", "🍟"];
+
+function getCategoryFallback() {
+  return { id: "", nama: "Lain-lain", icon: "📦" };
 }
 
 const SALES_STATUSES = new Set([
@@ -367,8 +395,10 @@ export default function OwnerDashboardPage() {
   const [showSettingsSubmenu, setShowSettingsSubmenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [produk, setProduk] = useState<Produk[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [showAddProduk, setShowAddProduk] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
   const [confirmDeleteProdukId, setConfirmDeleteProdukId] = useState<
     string | null
   >(null);
@@ -380,11 +410,18 @@ export default function OwnerDashboardPage() {
   const [produkHarga, setProdukHarga] = useState("");
   const [produkKos, setProdukKos] = useState("");
   const [produkStok, setProdukStok] = useState("");
+  const [produkKategoriId, setProdukKategoriId] = useState("");
+  const [categoryNama, setCategoryNama] = useState("");
+  const [categoryIcon, setCategoryIcon] = useState("🍽️");
+  const [categoryError, setCategoryError] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
+  const [showCategoryFilterDropdown, setShowCategoryFilterDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editProdukId, setEditProdukId] = useState<string | null>(null);
   const [editProdukNama, setEditProdukNama] = useState("");
   const [editProdukHarga, setEditProdukHarga] = useState("");
   const [editProdukKos, setEditProdukKos] = useState("");
+  const [editProdukKategoriId, setEditProdukKategoriId] = useState("");
   const [editStokSemasa, setEditStokSemasa] = useState(0);
   const [editStokMode, setEditStokMode] = useState<"tambah" | "tolak">(
     "tambah",
@@ -543,6 +580,7 @@ export default function OwnerDashboardPage() {
       fetchAllData(resolvedKedaiId);
       fetchBillingStatus(resolvedKedaiId);
       fetchStaff(resolvedKedaiId);
+      fetchCategories(resolvedKedaiId);
 
       if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
     } else {
@@ -938,6 +976,164 @@ export default function OwnerDashboardPage() {
     setStaff(data || []);
   }
 
+  async function ensureDefaultCategories(kedaiId: string) {
+    const { data } = (await supabase
+      .from("product_categories")
+      .select("id")
+      .eq("kedai_id", kedaiId)
+      .limit(1)) as any;
+
+    if (data && data.length > 0) return;
+
+    await supabase.from("product_categories").insert(
+      DEFAULT_PRODUCT_CATEGORIES.map((category) => ({
+        kedai_id: kedaiId,
+        nama: category.nama,
+        icon: category.icon,
+        sort_order: category.sort_order,
+        is_active: true,
+      })) as any,
+    );
+  }
+
+  async function fetchCategories(kedaiId?: string | null) {
+    const id = kedaiId || sessionUser?.kedai_id;
+    if (!id) return;
+
+    const { data, error } = (await supabase
+      .from("product_categories")
+      .select("*")
+      .eq("kedai_id", id)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })) as any;
+
+    if (error) {
+      console.warn("Fetch categories failed:", error);
+      setCategories([]);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      await ensureDefaultCategories(id);
+      const retry = (await supabase
+        .from("product_categories")
+        .select("*")
+        .eq("kedai_id", id)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })) as any;
+      setCategories(retry.data || []);
+      return;
+    }
+
+    setCategories(data || []);
+  }
+
+  async function addCategory() {
+    if (!sessionUser?.kedai_id) return;
+    const nama = categoryNama.trim();
+    if (!nama) {
+      setCategoryError("Sila isi nama kategori.");
+      return;
+    }
+
+    setSaving(true);
+    setCategoryError("");
+
+    const nextOrder =
+      categories.length > 0
+        ? Math.max(...categories.map((category) => Number(category.sort_order || 0))) + 1
+        : 1;
+
+    const { error } = await supabase.from("product_categories").insert({
+      kedai_id: sessionUser.kedai_id,
+      nama,
+      icon: categoryIcon,
+      sort_order: nextOrder,
+      is_active: true,
+    } as any);
+
+    setSaving(false);
+
+    if (error) {
+      setCategoryError("Gagal tambah kategori. Sila cuba lagi.");
+      return;
+    }
+
+    setCategoryNama("");
+    setCategoryIcon("🍽️");
+    setShowAddCategory(false);
+    fetchCategories(sessionUser.kedai_id);
+  }
+
+  async function toggleCategory(id: string, current: boolean) {
+    await supabase
+      .from("product_categories")
+      .update({ is_active: !current } as any)
+      .eq("id", id);
+
+    fetchCategories(sessionUser?.kedai_id);
+  }
+
+  async function removeCategory(category: ProductCategory) {
+    if (!sessionUser?.kedai_id) return;
+    const confirmRemove = window.confirm(
+      `Remove kategori "${category.nama}"? Produk yang guna kategori ini akan ditukar kepada Lain-lain.`,
+    );
+    if (!confirmRemove) return;
+
+    setSaving(true);
+    const fallback = getCategoryFallback();
+
+    await supabase
+      .from("produk")
+      .update({
+        kategori_id: null,
+        kategori_nama: fallback.nama,
+        kategori_icon: fallback.icon,
+      } as any)
+      .eq("kedai_id", sessionUser.kedai_id)
+      .eq("kategori_id", category.id);
+
+    await supabase.from("product_categories").delete().eq("id", category.id);
+
+    if (selectedCategoryFilter === category.id) setSelectedCategoryFilter("all");
+    setSaving(false);
+    fetchCategories(sessionUser.kedai_id);
+    fetchProduk(sessionUser.kedai_id);
+  }
+
+  function findCategoryById(categoryId?: string | null) {
+    return categories.find((category) => category.id === categoryId) || null;
+  }
+
+  function resolveProductCategory(product: Partial<Produk>) {
+    const category = findCategoryById(product.kategori_id || "");
+    if (category) return category;
+    if (product.kategori_nama || product.kategori_icon) {
+      return {
+        id: product.kategori_id || "",
+        kedai_id: sessionUser?.kedai_id || "",
+        nama: product.kategori_nama || "Lain-lain",
+        icon: product.kategori_icon || "📦",
+        sort_order: 999,
+        is_active: true,
+      };
+    }
+    const fallback = getCategoryFallback();
+    return {
+      id: "",
+      kedai_id: sessionUser?.kedai_id || "",
+      nama: fallback.nama,
+      icon: fallback.icon,
+      sort_order: 999,
+      is_active: true,
+    };
+  }
+
+  function activeCategories() {
+    return categories.filter((category) => category.is_active);
+  }
+
   async function fetchProduk(kedaiId?: string | null) {
     const id = kedaiId || sessionUser?.kedai_id;
     if (!id) return;
@@ -999,6 +1195,9 @@ export default function OwnerDashboardPage() {
   async function addProduk() {
     if (!produkNama.trim()) return;
     setSaving(true);
+    const selectedCategory = findCategoryById(produkKategoriId);
+    const fallbackCategory = getCategoryFallback();
+
     await supabase
       .from("produk")
       .insert({
@@ -1007,11 +1206,15 @@ export default function OwnerDashboardPage() {
         kos_produk: parseFloat(produkKos) || 0,
         stok: parseInt(produkStok) || 0,
         kedai_id: sessionUser?.kedai_id,
+        kategori_id: selectedCategory?.id || null,
+        kategori_nama: selectedCategory?.nama || fallbackCategory.nama,
+        kategori_icon: selectedCategory?.icon || fallbackCategory.icon,
       } as any);
     setProdukNama("");
     setProdukHarga("");
     setProdukKos("");
     setProdukStok("");
+    setProdukKategoriId("");
     setShowAddProduk(false);
     setSaving(false);
     fetchProduk(sessionUser?.kedai_id);
@@ -1030,6 +1233,7 @@ export default function OwnerDashboardPage() {
     setEditProdukNama(p.nama);
     setEditProdukHarga(p.harga_jual.toString());
     setEditProdukKos(p.kos_produk.toString());
+    setEditProdukKategoriId(p.kategori_id || "");
     setEditStokSemasa(p.stok);
     setEditStokMode("tambah");
     setEditStokQty("");
@@ -1042,6 +1246,7 @@ export default function OwnerDashboardPage() {
     setEditProdukNama("");
     setEditProdukHarga("");
     setEditProdukKos("");
+    setEditProdukKategoriId("");
     setEditStokSemasa(0);
     setEditStokQty("");
     setEditStokReason("");
@@ -1079,6 +1284,9 @@ export default function OwnerDashboardPage() {
         return;
       }
     }
+    const selectedCategory = findCategoryById(editProdukKategoriId);
+    const fallbackCategory = getCategoryFallback();
+
     const { error: updateProdukError } = await supabase
       .from("produk")
       .update({
@@ -1086,6 +1294,9 @@ export default function OwnerDashboardPage() {
         harga_jual: parseFloat(editProdukHarga) || 0,
         kos_produk: parseFloat(editProdukKos) || 0,
         stok: stokBaru,
+        kategori_id: selectedCategory?.id || null,
+        kategori_nama: selectedCategory?.nama || fallbackCategory.nama,
+        kategori_icon: selectedCategory?.icon || fallbackCategory.icon,
       } as any)
       .eq("id", editProdukId);
 
@@ -1534,6 +1745,23 @@ export default function OwnerDashboardPage() {
         ? editStokSemasa + parseInt(editStokQty)
         : editStokSemasa - parseInt(editStokQty)
       : null;
+
+  const filteredProduk =
+    selectedCategoryFilter === "all"
+      ? produk
+      : produk.filter((product) => product.kategori_id === selectedCategoryFilter);
+
+  function categoryFilterLabel() {
+    if (selectedCategoryFilter === "all") return "Semua Kategori";
+    const category = findCategoryById(selectedCategoryFilter);
+    return category ? `${category.icon} ${category.nama}` : "Kategori";
+  }
+
+  function applyCategoryFilter(categoryId: string) {
+    setSelectedCategoryFilter(categoryId);
+    setShowCategoryFilterDropdown(false);
+  }
+
 
   function normalizeKedaiStatus(status?: string | null) {
     return String(status || "")
@@ -2175,6 +2403,115 @@ export default function OwnerDashboardPage() {
                 + Tambah Produk
               </button>
             </div>
+            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-4">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <div className="text-gray-900 text-sm font-black">
+                    Kategori Produk
+                  </div>
+                  <div className="text-gray-400 text-xs font-bold">
+                    Filter & urus kategori produk
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setCategoryError("");
+                    setShowAddCategory(true);
+                  }}
+                  className="bg-[var(--accent-600)] text-white text-xs font-black px-3 py-2 rounded-full shadow-sm active:scale-95 transition-all"
+                >
+                  + Kategori
+                </button>
+              </div>
+
+              <div className="relative inline-block mb-4">
+                <button
+                  onClick={() => setShowCategoryFilterDropdown((value) => !value)}
+                  className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                >
+                  <span className="text-[var(--accent-600)]">🏷️</span>
+                  <span>{categoryFilterLabel()}</span>
+                  <span className="text-gray-400 text-[10px]">▾</span>
+                </button>
+
+                {showCategoryFilterDropdown && (
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
+                    <button
+                      onClick={() => applyCategoryFilter("all")}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${selectedCategoryFilter === "all" ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
+                    >
+                      <span>Semua Kategori</span>
+                      {selectedCategoryFilter === "all" && (
+                        <span className="text-[var(--accent-600)]">✓</span>
+                      )}
+                    </button>
+                    {categories.map((category) => (
+                      <button
+                        key={`filter-${category.id}`}
+                        onClick={() => applyCategoryFilter(category.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${selectedCategoryFilter === category.id ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : category.is_active ? "text-gray-600 hover:bg-gray-50" : "text-gray-300 hover:bg-gray-50"}`}
+                      >
+                        <span className="truncate">
+                          {category.icon} {category.nama}
+                        </span>
+                        {selectedCategoryFilter === category.id && (
+                          <span className="text-[var(--accent-600)]">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {categories.length > 0 && (
+                <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                  {categories.map((category) => (
+                    <div
+                      key={`manage-${category.id}`}
+                      className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl px-3 py-2"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg border ${category.is_active ? "bg-white border-gray-100" : "bg-gray-100 border-gray-200 grayscale opacity-60"}`}>
+                          {category.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-gray-900 text-sm font-black truncate">
+                            {category.nama}
+                          </div>
+                          <div className={`text-xs font-bold ${category.is_active ? "text-[var(--accent-600)]" : "text-gray-400"}`}>
+                            {category.is_active ? "Aktif" : "Tidak aktif"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => toggleCategory(category.id, category.is_active)}
+                          className={`w-10 h-10 rounded-2xl border flex items-center justify-center text-sm font-black active:scale-95 transition-all ${
+                            category.is_active
+                              ? "bg-amber-50 text-amber-600 border-amber-100"
+                              : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"
+                          }`}
+                          title={category.is_active ? "Nyahaktif kategori" : "Aktifkan kategori"}
+                          aria-label={category.is_active ? "Nyahaktif kategori" : "Aktifkan kategori"}
+                        >
+                          {category.is_active ? "⏸" : "▶"}
+                        </button>
+                        <button
+                          onClick={() => removeCategory(category)}
+                          disabled={saving}
+                          className="w-10 h-10 rounded-2xl border bg-red-50 text-red-500 border-red-100 flex items-center justify-center text-sm font-black active:scale-95 transition-all disabled:opacity-50"
+                          title="Remove kategori"
+                          aria-label="Remove kategori"
+                        >
+                          🗑
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {produk.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
                 <div className="text-4xl mb-3">📦</div>
@@ -2182,22 +2519,37 @@ export default function OwnerDashboardPage() {
                   Belum ada produk lagi
                 </div>
               </div>
+            ) : filteredProduk.length === 0 ? (
+              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+                <div className="text-4xl mb-3">🔎</div>
+                <div className="text-gray-400 text-sm">
+                  Tiada produk dalam kategori ini
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {produk.map((p) => {
+                {filteredProduk.map((p) => {
                   const m =
                     p.harga_jual > 0
                       ? Math.round(
                           ((p.harga_jual - p.kos_produk) / p.harga_jual) * 100,
                         )
                       : 0;
+                  const category = resolveProductCategory(p);
                   return (
                     <div
                       key={p.id}
                       className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-gray-900 font-bold">{p.nama}</div>
+                      <div className="flex items-start justify-between mb-3 gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-gray-900 font-bold truncate">
+                            {category.icon} {p.nama}
+                          </div>
+                          <div className="inline-flex mt-1 bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-2 py-1 rounded-full">
+                            {category.nama}
+                          </div>
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => openEditProduk(p)}
@@ -3983,6 +4335,87 @@ export default function OwnerDashboardPage() {
         </div>
       )}
 
+      {/* Add Category Modal */}
+      {showAddCategory && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-gray-900 font-bold text-lg">
+                  ➕ Tambah Kategori
+                </h3>
+                <p className="text-gray-400 text-xs font-bold mt-1">
+                  Kategori akan digunakan untuk produk & POS staff.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddCategory(false)}
+                className="text-gray-400 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs font-bold mb-2 block">
+                NAMA KATEGORI
+              </label>
+              <input
+                type="text"
+                value={categoryNama}
+                onChange={(e) => {
+                  setCategoryNama(e.target.value);
+                  setCategoryError("");
+                }}
+                placeholder="cth: Dessert"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs font-bold mb-2 block">
+                ICON
+              </label>
+              <div className="grid grid-cols-6 gap-2">
+                {CATEGORY_ICON_OPTIONS.map((icon) => (
+                  <button
+                    key={icon}
+                    onClick={() => setCategoryIcon(icon)}
+                    className={`h-11 rounded-xl border text-xl ${
+                      categoryIcon === icon
+                        ? "bg-[var(--accent-50)] border-[var(--accent-500)]"
+                        : "bg-white border-gray-200"
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {categoryError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                <div className="text-red-600 text-xs font-bold">
+                  ⚠️ {categoryError}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAddCategory(false)}
+                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+              >
+                Batal
+              </button>
+              <button
+                onClick={addCategory}
+                disabled={saving || !categoryNama.trim()}
+                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+              >
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Produk Modal */}
       {showAddProduk && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
@@ -4001,6 +4434,23 @@ export default function OwnerDashboardPage() {
                 placeholder="cth: Nasi Lemak"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
               />
+            </div>
+            <div className="mb-4">
+              <label className="text-gray-500 text-xs font-bold mb-2 block">
+                KATEGORI
+              </label>
+              <select
+                value={produkKategoriId}
+                onChange={(e) => setProdukKategoriId(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+              >
+                <option value="">📦 Lain-lain</option>
+                {activeCategories().map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.icon} {category.nama}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
@@ -4103,6 +4553,23 @@ export default function OwnerDashboardPage() {
                   onChange={(e) => setEditProdukNama(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
                 />
+              </div>
+              <div className="mb-3">
+                <label className="text-gray-500 text-xs font-bold mb-1 block">
+                  KATEGORI
+                </label>
+                <select
+                  value={editProdukKategoriId}
+                  onChange={(e) => setEditProdukKategoriId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                >
+                  <option value="">📦 Lain-lain</option>
+                  {activeCategories().map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.icon} {category.nama}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
