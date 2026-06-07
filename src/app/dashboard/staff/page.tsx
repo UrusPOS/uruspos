@@ -9,6 +9,20 @@ type Produk = {
   harga_jual: number;
   kos_produk: number;
   stok: number;
+  kategori_id?: string | null;
+  kategori_nama?: string | null;
+  kategori_icon?: string | null;
+  category_id?: string | null;
+  category_name?: string | null;
+  category_icon?: string | null;
+};
+
+type ProductCategory = {
+  id: string;
+  nama: string;
+  icon: string;
+  is_active?: boolean;
+  sort_order?: number | null;
 };
 
 type CartItem = Produk & { qty: number; nota: string };
@@ -42,6 +56,9 @@ type RecentReceipt = {
 
 export default function StaffDashboardPage() {
   const [produk, setProduk] = useState<Produk[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [cart, setCart] = useState<{ [id: string]: CartItem }>({});
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
@@ -101,12 +118,58 @@ export default function StaffDashboardPage() {
     "Bungkus",
   ];
 
-  const filteredProduk = produk.filter((item) =>
-    item.nama.toLowerCase().includes(productSearch.trim().toLowerCase())
-  );
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const selectedCategoryLabel =
+    selectedCategoryId === "all" ? "Semua Kategori" : selectedCategory?.nama || "Kategori";
+  const selectedCategoryIcon = selectedCategoryId === "all" ? "📦" : selectedCategory?.icon || "📦";
+
+  const filteredProduk = produk.filter((item) => {
+    const searchMatch = item.nama
+      .toLowerCase()
+      .includes(productSearch.trim().toLowerCase());
+
+    const itemCategoryId = getProductCategoryId(item);
+    const categoryMatch =
+      selectedCategoryId === "all" || itemCategoryId === selectedCategoryId;
+
+    return searchMatch && categoryMatch;
+  });
+
+  function getProductCategoryId(item: Produk) {
+    return item.kategori_id || item.category_id || "";
+  }
+
+  function getProductCategory(item: Produk) {
+    const itemCategoryId = getProductCategoryId(item);
+    const matchedCategory = categories.find((category) => category.id === itemCategoryId);
+
+    return {
+      icon:
+        item.kategori_icon ||
+        item.category_icon ||
+        matchedCategory?.icon ||
+        "📦",
+      nama:
+        item.kategori_nama ||
+        item.category_name ||
+        matchedCategory?.nama ||
+        "Lain-lain",
+    };
+  }
 
   function clearProductSearch() {
     setProductSearch("");
+  }
+
+  function resetProductFilters() {
+    setProductSearch("");
+    setSelectedCategoryId("all");
+    setShowCategoryDropdown(false);
+  }
+
+  function selectCategory(categoryId: string) {
+    setSelectedCategoryId(categoryId);
+    setShowCategoryDropdown(false);
   }
 
   function handleOrderPanelTouchStart(e: TouchEvent<HTMLDivElement>) {
@@ -572,6 +635,21 @@ export default function StaffDashboardPage() {
       resolvedMeja = tableNumber >= 1 && tableNumber <= savedTableCount ? `Meja ${tableNumber}` : "Meja 1";
     }
     setCurrentMeja(resolvedMeja);
+
+    const { data: categoryData, error: categoryError } = await supabase
+      .from("product_categories")
+      .select("id, nama, icon, is_active, sort_order")
+      .eq("kedai_id", kId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("nama", { ascending: true }) as any;
+
+    if (!categoryError) {
+      setCategories(categoryData || []);
+    } else {
+      console.error("Fetch product categories error:", categoryError);
+      setCategories([]);
+    }
 
     const { data } = await supabase.from("produk").select("*").eq("is_active", true).eq("kedai_id", kId).order("nama");
     const produkList = data || [];
@@ -1213,7 +1291,7 @@ export default function StaffDashboardPage() {
                 <label className="text-gray-500 text-[11px] font-black uppercase tracking-wide">Cari Produk</label>
                 {!loading && produk.length > 0 && (
                   <div className="text-gray-400 text-[11px] font-bold text-right whitespace-nowrap">
-                    {productSearch.trim() ? `${filteredProduk.length}/${produk.length} dijumpai` : `${produk.length} produk tersedia`}
+                    {productSearch.trim() || selectedCategoryId !== "all" ? `${filteredProduk.length}/${produk.length} dijumpai` : `${produk.length} produk tersedia`}
                   </div>
                 )}
               </div>
@@ -1239,6 +1317,63 @@ export default function StaffDashboardPage() {
                   </button>
                 )}
               </div>
+
+              <div className="relative mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryDropdown((prev) => !prev)}
+                  className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                >
+                  <span>{selectedCategoryIcon}</span>
+                  <span>{selectedCategoryLabel}</span>
+                  <span className="text-gray-400 text-[10px]">{showCategoryDropdown ? "−" : "+"}</span>
+                </button>
+
+                {showCategoryDropdown && (
+                  <div className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-gray-100 rounded-3xl shadow-xl z-30 p-2">
+                    <button
+                      type="button"
+                      onClick={() => selectCategory("all")}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-black transition-all ${
+                        selectedCategoryId === "all"
+                          ? "bg-[var(--accent-600)] text-white"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>📦</span>
+                        <span>Semua Kategori</span>
+                      </span>
+                      {selectedCategoryId === "all" && <span>✓</span>}
+                    </button>
+
+                    {categories.length === 0 ? (
+                      <div className="px-4 py-3 text-xs font-bold text-gray-400">
+                        Belum ada kategori aktif
+                      </div>
+                    ) : (
+                      categories.map((category) => (
+                        <button
+                          key={category.id}
+                          type="button"
+                          onClick={() => selectCategory(category.id)}
+                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-black transition-all ${
+                            selectedCategoryId === category.id
+                              ? "bg-[var(--accent-600)] text-white"
+                              : "text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span>{category.icon || "📦"}</span>
+                            <span className="truncate">{category.nama}</span>
+                          </span>
+                          {selectedCategoryId === category.id && <span>✓</span>}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {loading ? (
@@ -1254,26 +1389,31 @@ export default function StaffDashboardPage() {
                 <div className="text-4xl mb-3">🔎</div>
                 <div className="text-gray-900 text-sm font-black">Produk tak dijumpai</div>
                 <div className="text-gray-400 text-xs mt-1">Cuba cari nama menu lain.</div>
-                <button onClick={clearProductSearch} className="mt-4 bg-gray-900 text-white text-xs font-black px-4 py-2.5 rounded-2xl active:scale-95 transition-all">Reset Carian</button>
+                <button onClick={resetProductFilters} className="mt-4 bg-gray-900 text-white text-xs font-black px-4 py-2.5 rounded-2xl active:scale-95 transition-all">Reset Filter</button>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {filteredProduk.map((item) => (
-                  <button key={item.id} onClick={() => addToCart(item)} disabled={item.stok === 0}
-                    className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
-                  >
-                    {cart[item.id]?.qty > 0 && (
-                      <div className="absolute top-2 right-2 bg-[var(--accent-600)] text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
-                        {cart[item.id].qty}
-                      </div>
-                    )}
-                    <div className="text-2xl mb-1">🍽️</div>
-                    <div className="text-gray-900 text-xs font-bold leading-tight">{item.nama}</div>
-                    <div className="text-[var(--accent-600)] text-xs font-black mt-1">RM {item.harga_jual.toFixed(2)}</div>
-                    {item.stok <= 5 && item.stok > 0 && <div className="text-amber-500 text-xs mt-0.5">Tinggal {item.stok}</div>}
-                    {item.stok === 0 && <div className="text-red-400 text-xs mt-0.5">Habis</div>}
-                  </button>
-                ))}
+                {filteredProduk.map((item) => {
+                  const category = getProductCategory(item);
+
+                  return (
+                    <button key={item.id} onClick={() => addToCart(item)} disabled={item.stok === 0}
+                      className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
+                    >
+                      {cart[item.id]?.qty > 0 && (
+                        <div className="absolute top-2 right-2 bg-[var(--accent-600)] text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
+                          {cart[item.id].qty}
+                        </div>
+                      )}
+                      <div className="text-2xl mb-1">{category.icon}</div>
+                      <div className="text-gray-900 text-xs font-bold leading-tight">{item.nama}</div>
+                      <div className="text-gray-400 text-[10px] font-bold mt-0.5 truncate">{category.nama}</div>
+                      <div className="text-[var(--accent-600)] text-xs font-black mt-1">RM {item.harga_jual.toFixed(2)}</div>
+                      {item.stok <= 5 && item.stok > 0 && <div className="text-amber-500 text-xs mt-0.5">Tinggal {item.stok}</div>}
+                      {item.stok === 0 && <div className="text-red-400 text-xs mt-0.5">Habis</div>}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
