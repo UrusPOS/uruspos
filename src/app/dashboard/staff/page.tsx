@@ -28,6 +28,13 @@ type RecentReceipt = {
   created_at: string;
   meja: string | null;
   status: string;
+  subtotal: number;
+  service_charge_enabled: boolean;
+  service_charge_rate: number;
+  service_charge_amount: number;
+  sst_enabled: boolean;
+  sst_rate: number;
+  sst_amount: number;
   total: number;
   payment_method?: string | null;
   order_items: ReceiptItem[];
@@ -39,7 +46,15 @@ export default function StaffDashboardPage() {
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [staffNama, setStaffNama] = useState("Staff");
-  const [kedaiInfo, setKedaiInfo] = useState<{ nama: string; logo_url?: string | null; accent_color?: string | null } | null>(null);
+  const [kedaiInfo, setKedaiInfo] = useState<{
+    nama: string;
+    logo_url?: string | null;
+    accent_color?: string | null;
+    service_charge_enabled?: boolean;
+    service_charge_rate?: number;
+    sst_enabled?: boolean;
+    sst_rate?: number;
+  } | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
@@ -234,17 +249,64 @@ export default function StaffDashboardPage() {
     return `RM ${Number(value || 0).toFixed(2)}`;
   }
 
-  function getOrderTotal(order: any) {
-    const possibleTotals = [order?.total, order?.jumlah, order?.jumlah_bayaran, order?.grand_total, order?.total_amount, order?.amount, order?.subtotal];
-    for (const value of possibleTotals) {
-      const numberValue = Number(value);
-      if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
-    }
+  function getOrderLineSubtotal(order: any) {
+    const subtotalValue = Number(order?.subtotal);
+    if (!Number.isNaN(subtotalValue) && subtotalValue > 0) return subtotalValue;
+
     return (order?.order_items || []).reduce((sum: number, item: any) => {
       const qty = Number(item?.qty || item?.quantity || 0);
       const harga = Number(item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0);
       return sum + qty * harga;
     }, 0);
+  }
+
+  function getOrderServiceChargeRate(order: any) {
+    const rate = Number(order?.service_charge_rate ?? order?.serviceChargeRate ?? 0);
+    return Number.isNaN(rate) ? 0 : rate;
+  }
+
+  function getOrderServiceChargeAmount(order: any) {
+    const amount = Number(order?.service_charge_amount ?? order?.serviceChargeAmount ?? 0);
+    if (!Number.isNaN(amount) && amount > 0) return amount;
+
+    const enabled = Boolean(order?.service_charge_enabled ?? order?.serviceChargeEnabled);
+    const rate = getOrderServiceChargeRate(order);
+    if (!enabled || rate <= 0) return 0;
+
+    return (getOrderLineSubtotal(order) * rate) / 100;
+  }
+
+  function getOrderSstRate(order: any) {
+    const rate = Number(order?.sst_rate ?? order?.sstRate ?? 0);
+    return Number.isNaN(rate) ? 0 : rate;
+  }
+
+  function getOrderSstAmount(order: any) {
+    const amount = Number(order?.sst_amount ?? order?.sstAmount ?? 0);
+    if (!Number.isNaN(amount) && amount > 0) return amount;
+
+    const enabled = Boolean(order?.sst_enabled ?? order?.sstEnabled);
+    const rate = getOrderSstRate(order);
+    if (!enabled || rate <= 0) return 0;
+
+    return ((getOrderLineSubtotal(order) + getOrderServiceChargeAmount(order)) * rate) / 100;
+  }
+
+  function hasReceiptCaj(receipt: RecentReceipt) {
+    return (
+      Number(receipt.service_charge_amount || 0) > 0 ||
+      Number(receipt.sst_amount || 0) > 0
+    );
+  }
+
+  function getOrderTotal(order: any) {
+    const possibleTotals = [order?.total, order?.jumlah, order?.jumlah_bayaran, order?.grand_total, order?.total_amount, order?.amount];
+    for (const value of possibleTotals) {
+      const numberValue = Number(value);
+      if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
+    }
+
+    return getOrderLineSubtotal(order) + getOrderServiceChargeAmount(order) + getOrderSstAmount(order);
   }
 
   function getPaymentMethod(order: any) {
@@ -269,6 +331,13 @@ export default function StaffDashboardPage() {
       created_at: getOrderSalesDate(order) || order.created_at,
       meja: order.meja || order.table_no || order.tableNo || null,
       status: order.status,
+      subtotal: getOrderLineSubtotal(order),
+      service_charge_enabled: Boolean(order?.service_charge_enabled ?? order?.serviceChargeEnabled),
+      service_charge_rate: getOrderServiceChargeRate(order),
+      service_charge_amount: getOrderServiceChargeAmount(order),
+      sst_enabled: Boolean(order?.sst_enabled ?? order?.sstEnabled),
+      sst_rate: getOrderSstRate(order),
+      sst_amount: getOrderSstAmount(order),
       total: getOrderTotal(order),
       payment_method: getPaymentMethod(order),
       order_items: (order.order_items || []).map((item: any) => ({
@@ -299,6 +368,17 @@ export default function StaffDashboardPage() {
         return item.nota ? [line, `Nota: ${item.nota}`] : [line];
       }),
       "",
+      ...(hasReceiptCaj(receipt)
+        ? [
+            `Subtotal: ${formatRM(receipt.subtotal)}`,
+            ...(receipt.service_charge_amount > 0
+              ? [`Service Charge (${receipt.service_charge_rate}%): ${formatRM(receipt.service_charge_amount)}`]
+              : []),
+            ...(receipt.sst_amount > 0
+              ? [`SST (${receipt.sst_rate}%): ${formatRM(receipt.sst_amount)}`]
+              : []),
+          ]
+        : []),
       `TOTAL: ${formatRM(receipt.total)}`,
       "",
       "Terima kasih.",
@@ -346,28 +426,89 @@ export default function StaffDashboardPage() {
 
     setLoadingTableOrder(true);
 
-    const { data } = await supabase
-      .from("orders")
-      .select("*, order_items(*)")
-      .eq("kedai_id", kId)
-      .eq("meja", meja)
-      .in("status", ["pending", "preparing", "ready", "done"])
-      .order("created_at", { ascending: false })
-      .limit(1) as any;
+    try {
+      const { data } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("kedai_id", kId)
+        .eq("meja", meja)
+        .in("status", ["pending", "preparing", "ready", "done"])
+        .order("created_at", { ascending: false })
+        .limit(10) as any;
 
-    const openOrder = data?.[0];
+      const openOrder = (data || []).find((order: any) => {
+        const status = String(order?.status || "").trim().toLowerCase();
+        const paymentStatus = String(
+          order?.payment_status || order?.paymentStatus || order?.status_bayaran || "",
+        )
+          .trim()
+          .toLowerCase();
+        const paymentMethod = String(
+          order?.payment_method || order?.paymentMethod || order?.payment || order?.bayaran || order?.kaedah_bayaran || "",
+        )
+          .trim()
+          .toLowerCase();
 
-    if (openOrder) {
-      setCurrentOrderId(openOrder.id);
-      setOrderSent(true);
-      setCart(buildCartFromOrder(openOrder, produkSource));
-    } else {
-      setCurrentOrderId(null);
-      setOrderSent(false);
-      setCart({});
+        const closedStatuses = new Set([
+          "cancelled",
+          "canceled",
+          "paid",
+          "completed",
+          "complete",
+          "closed",
+          "settled",
+        ]);
+
+        const paidStatuses = new Set([
+          "paid",
+          "completed",
+          "complete",
+          "success",
+          "successful",
+          "settled",
+          "selesai",
+        ]);
+
+        const validPaymentMethods = new Set([
+          "cash",
+          "tunai",
+          "duitnow",
+          "qr",
+          "qrcode",
+          "qr code",
+          "online",
+          "transfer",
+          "bank_transfer",
+          "bank transfer",
+          "card",
+          "kad",
+        ]);
+
+        const hasPaidTimestamp = Boolean(order?.paid_at || order?.paidAt || order?.completed_at || order?.completedAt);
+        const hasPaymentMethod = validPaymentMethods.has(paymentMethod);
+
+        // "done" is still allowed here because kitchen may use it to mean siap masak.
+        // But anything with payment_status/payment_method/paid timestamp must not be restored into the cart.
+        return (
+          !closedStatuses.has(status) &&
+          !paidStatuses.has(paymentStatus) &&
+          !hasPaidTimestamp &&
+          !hasPaymentMethod
+        );
+      });
+
+      if (openOrder) {
+        setCurrentOrderId(openOrder.id);
+        setOrderSent(true);
+        setCart(buildCartFromOrder(openOrder, produkSource));
+      } else {
+        setCurrentOrderId(null);
+        setOrderSent(false);
+        setCart({});
+      }
+    } finally {
+      setLoadingTableOrder(false);
     }
-
-    setLoadingTableOrder(false);
   }
 
   async function handleChangeMeja(nextMeja: string) {
@@ -408,7 +549,7 @@ export default function StaffDashboardPage() {
 
     const { data: kedaiData } = await supabase
       .from("kedai")
-      .select("nama, table_count, duitnow_qr_url, logo_url, accent_color")
+      .select("nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate")
       .eq("id", kId)
       .single() as any;
 
@@ -419,6 +560,10 @@ export default function StaffDashboardPage() {
       nama: kedaiData?.nama || "Kedai Saya",
       logo_url: kedaiData?.logo_url || null,
       accent_color: kedaiData?.accent_color || "green",
+      service_charge_enabled: Boolean(kedaiData?.service_charge_enabled),
+      service_charge_rate: Number(kedaiData?.service_charge_rate || 0),
+      sst_enabled: Boolean(kedaiData?.sst_enabled),
+      sst_rate: Number(kedaiData?.sst_rate || 0),
     });
 
     let resolvedMeja = currentMeja;
@@ -540,7 +685,18 @@ export default function StaffDashboardPage() {
   }
 
   const cartItems = Object.values(cart);
-  const total = cartItems.reduce((s, i) => s + i.harga_jual * i.qty, 0);
+  const subtotal = cartItems.reduce((s, i) => s + i.harga_jual * i.qty, 0);
+  const serviceChargeRate = Number(kedaiInfo?.service_charge_rate || 0);
+  const serviceChargeAmount =
+    kedaiInfo?.service_charge_enabled && serviceChargeRate > 0
+      ? (subtotal * serviceChargeRate) / 100
+      : 0;
+  const sstRate = Number(kedaiInfo?.sst_rate || 0);
+  const sstAmount =
+    kedaiInfo?.sst_enabled && sstRate > 0
+      ? ((subtotal + serviceChargeAmount) * sstRate) / 100
+      : 0;
+  const total = subtotal + serviceChargeAmount + sstAmount;
   const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
   const cashReceivedNumber = Number(cashReceived || 0);
   const cashBalance = cashReceivedNumber - total;
@@ -554,7 +710,7 @@ export default function StaffDashboardPage() {
     if (!orderId) {
       const { data: order } = await supabase
         .from("orders")
-        .insert({ meja: currentMeja, status: "pending", total, kedai_id: kedaiId })
+        .insert({ meja: currentMeja, status: "pending", subtotal, service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled), service_charge_rate: serviceChargeRate, service_charge_amount: serviceChargeAmount, sst_enabled: Boolean(kedaiInfo?.sst_enabled), sst_rate: sstRate, sst_amount: sstAmount, total, kedai_id: kedaiId } as any)
         .select()
         .single() as any;
 
@@ -579,7 +735,7 @@ export default function StaffDashboardPage() {
     }));
 
     await supabase.from("order_items").insert(items);
-    await supabase.from("orders").update({ meja: currentMeja, status: "preparing", total } as any).eq("id", orderId);
+    await supabase.from("orders").update({ meja: currentMeja, status: "preparing", subtotal, service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled), service_charge_rate: serviceChargeRate, service_charge_amount: serviceChargeAmount, sst_enabled: Boolean(kedaiInfo?.sst_enabled), sst_rate: sstRate, sst_amount: sstAmount, total } as any).eq("id", orderId);
 
     setCurrentOrderId(orderId);
     setOrderSent(true);
@@ -631,21 +787,58 @@ export default function StaffDashboardPage() {
   async function updateOrderAsPaid(paymentMethod: "tunai" | "duitnow", cashInfo?: { received: number; change: number }) {
     if (!currentOrderId) return false;
 
+    const now = new Date().toISOString();
+
     const fullPayload: any = {
       status: "paid",
+      payment_status: "paid",
       payment_method: paymentMethod,
       cash_received: cashInfo?.received ?? null,
       cash_change: cashInfo?.change ?? null,
+      subtotal,
+      service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
+      service_charge_rate: serviceChargeRate,
+      service_charge_amount: serviceChargeAmount,
+      sst_enabled: Boolean(kedaiInfo?.sst_enabled),
+      sst_rate: sstRate,
+      sst_amount: sstAmount,
+      total,
+      paid_at: now,
+      completed_at: now,
+      cashier_name: staffNama,
     };
 
     const { error: fullError } = await supabase.from("orders").update(fullPayload).eq("id", currentOrderId);
     if (!fullError) return true;
 
+    console.warn("Full paid update failed, trying safe fallback:", fullError);
+
+    // Fallback 1: only the core payment fields. This avoids failing the payment flow
+    // if a newly-added optional column is missing in Supabase.
+    const { error: coreError } = await supabase
+      .from("orders")
+      .update({
+        status: "paid",
+        payment_status: "paid",
+        payment_method: paymentMethod,
+        total,
+        paid_at: now,
+        completed_at: now,
+      } as any)
+      .eq("id", currentOrderId);
+    if (!coreError) return true;
+
+    console.warn("Core paid update failed, trying minimal fallback:", coreError);
+
+    // Fallback 2: older schema support. payment_method is important because
+    // loadOpenOrderForMeja will also treat valid payment_method as closed/paid.
     const { error: methodError } = await supabase
       .from("orders")
       .update({ status: "paid", payment_method: paymentMethod } as any)
       .eq("id", currentOrderId);
     if (!methodError) return true;
+
+    console.warn("Minimal payment method update failed, trying status-only fallback:", methodError);
 
     const { error: fallbackError } = await supabase.from("orders").update({ status: "paid" } as any).eq("id", currentOrderId);
     return !fallbackError;
@@ -1480,7 +1673,28 @@ export default function StaffDashboardPage() {
                   </div>
                 ))}
               </div>
-              <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
+              <div className="border-t border-dashed border-gray-300 mt-4 pt-4 space-y-2">
+                {hasReceiptCaj(selectedReceipt) && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500 font-bold">Subtotal</span>
+                      <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.subtotal)}</span>
+                    </div>
+                    {selectedReceipt.service_charge_amount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 font-bold">Service Charge ({selectedReceipt.service_charge_rate}%)</span>
+                        <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.service_charge_amount)}</span>
+                      </div>
+                    )}
+                    {selectedReceipt.sst_amount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500 font-bold">SST ({selectedReceipt.sst_rate}%)</span>
+                        <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.sst_amount)}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-dashed border-gray-300 my-2"></div>
+                  </>
+                )}
                 <div className="flex justify-between items-center"><span className="text-gray-900 font-black">TOTAL</span><span className="text-gray-900 font-black text-xl">{formatRM(selectedReceipt.total)}</span></div>
               </div>
               <div className="text-center text-gray-400 text-xs mt-5">Terima kasih.</div>
@@ -1517,9 +1731,27 @@ export default function StaffDashboardPage() {
                   <span className="text-gray-900 font-bold whitespace-nowrap">RM {(item.harga_jual * item.qty).toFixed(2)}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-sm pt-3 mt-2 border-t border-gray-200">
-                <span className="text-gray-900 font-black">Jumlah</span>
-                <span className="text-gray-900 font-black text-lg">RM {total.toFixed(2)}</span>
+              <div className="space-y-1 text-sm pt-3 mt-2 border-t border-gray-200">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-bold">Subtotal</span>
+                  <span className="text-gray-900 font-bold">{formatRM(subtotal)}</span>
+                </div>
+                {serviceChargeAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-bold">Service Charge ({serviceChargeRate}%)</span>
+                    <span className="text-gray-900 font-bold">{formatRM(serviceChargeAmount)}</span>
+                  </div>
+                )}
+                {sstAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-bold">SST ({sstRate}%)</span>
+                    <span className="text-gray-900 font-bold">{formatRM(sstAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 border-t border-gray-200">
+                  <span className="text-gray-900 font-black">Jumlah</span>
+                  <span className="text-gray-900 font-black text-lg">{formatRM(total)}</span>
+                </div>
               </div>
             </div>
 
@@ -1604,7 +1836,7 @@ export default function StaffDashboardPage() {
                       <div className="text-gray-400 text-xs mt-1 leading-relaxed">Owner perlu upload QR di Owner Dashboard → Tetapan → Setup Kedai.</div>
                     </div>
                   )}
-                  <div className="text-gray-900 text-3xl font-black mt-4">RM {total.toFixed(2)}</div>
+                  <div className="text-gray-900 text-3xl font-black mt-4">{formatRM(total)}</div>
                   <div className="text-[var(--accent-600)] text-xs font-bold mt-1">
                     {duitNowQrUrl ? "Minta customer scan dan bayar jumlah ini." : "DuitNow belum boleh digunakan selagi QR belum diset."}
                   </div>
@@ -1632,7 +1864,7 @@ export default function StaffDashboardPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <div className="text-5xl mb-3">✅</div>
             <h3 className="text-gray-900 font-bold text-xl">Bayaran Berjaya!</h3>
-            <div className="text-[var(--accent-600)] text-3xl font-black my-4">RM {lastTotal.toFixed(2)}</div>
+            <div className="text-[var(--accent-600)] text-3xl font-black my-4">{formatRM(lastTotal)}</div>
             <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left">
               <div className="flex justify-between text-xs text-gray-500 py-1"><span>Kaedah bayaran</span><span className="text-gray-900 font-bold">{lastPaymentMethod || "-"}</span></div>
               {lastPaymentMethod === "Tunai" && (

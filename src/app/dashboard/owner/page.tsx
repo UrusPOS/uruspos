@@ -76,6 +76,13 @@ type RecentReceipt = {
   created_at: string;
   meja: string | null;
   status: string;
+  subtotal: number;
+  service_charge_enabled?: boolean | null;
+  service_charge_rate?: number | null;
+  service_charge_amount?: number | null;
+  sst_enabled?: boolean | null;
+  sst_rate?: number | null;
+  sst_amount?: number | null;
   total: number;
   payment_method?: string | null;
   order_items: ReceiptItem[];
@@ -809,6 +816,15 @@ export default function OwnerDashboardPage() {
           created_at: getOrderSalesDate(order) || order.created_at,
           meja: order.meja || order.table_no || order.tableNo || null,
           status: order.status,
+          subtotal: Number(order.subtotal || 0),
+          service_charge_enabled: Boolean(
+            order.service_charge_enabled || Number(order.service_charge_amount || 0) > 0,
+          ),
+          service_charge_rate: Number(order.service_charge_rate || 0),
+          service_charge_amount: Number(order.service_charge_amount || 0),
+          sst_enabled: Boolean(order.sst_enabled || Number(order.sst_amount || 0) > 0),
+          sst_rate: Number(order.sst_rate || 0),
+          sst_amount: Number(order.sst_amount || 0),
           total: getOrderTotal(order),
           payment_method: getPaymentMethod(order),
           order_items: (order.order_items || []).map((item: any) => ({
@@ -1385,6 +1401,43 @@ export default function OwnerDashboardPage() {
     return `RM ${Number(value || 0).toFixed(2)}`;
   }
 
+  function getReceiptItemsSubtotal(receipt: RecentReceipt) {
+    return (receipt.order_items || []).reduce(
+      (sum, item) => sum + Number(item.qty || 0) * Number(item.harga || 0),
+      0,
+    );
+  }
+
+  function getReceiptSubtotal(receipt: RecentReceipt) {
+    const subtotal = Number(receipt.subtotal || 0);
+    if (subtotal > 0) return subtotal;
+
+    const itemsSubtotal = getReceiptItemsSubtotal(receipt);
+    if (itemsSubtotal > 0) return itemsSubtotal;
+
+    const total = Number(receipt.total || 0);
+    const serviceCharge = Number(receipt.service_charge_amount || 0);
+    const sst = Number(receipt.sst_amount || 0);
+    return Math.max(total - serviceCharge - sst, 0);
+  }
+
+  function getReceiptServiceCharge(receipt: RecentReceipt) {
+    return Number(receipt.service_charge_amount || 0);
+  }
+
+  function getReceiptSst(receipt: RecentReceipt) {
+    return Number(receipt.sst_amount || 0);
+  }
+
+  function shouldShowReceiptCaj(receipt: RecentReceipt) {
+    return getReceiptServiceCharge(receipt) > 0 || getReceiptSst(receipt) > 0;
+  }
+
+  function formatReceiptRate(value?: number | null) {
+    const rate = Number(value || 0);
+    return Number.isInteger(rate) ? String(rate) : rate.toFixed(2);
+  }
+
   function formatReceiptDate(dateValue: string) {
     if (!dateValue) return "-";
     return new Date(dateValue).toLocaleString("ms-MY", {
@@ -1427,6 +1480,21 @@ export default function OwnerDashboardPage() {
         return item.nota ? [baseLine, `Nota: ${item.nota}`] : [baseLine];
       }),
       "",
+      ...(shouldShowReceiptCaj(receipt)
+        ? [
+            `Subtotal: ${formatRM(getReceiptSubtotal(receipt))}`,
+            ...(getReceiptServiceCharge(receipt) > 0
+              ? [
+                  `Service Charge (${formatReceiptRate(receipt.service_charge_rate)}%): ${formatRM(
+                    getReceiptServiceCharge(receipt),
+                  )}`,
+                ]
+              : []),
+            ...(getReceiptSst(receipt) > 0
+              ? [`SST (${formatReceiptRate(receipt.sst_rate)}%): ${formatRM(getReceiptSst(receipt))}`]
+              : []),
+          ]
+        : []),
       `TOTAL: ${formatRM(receipt.total)}`,
       "",
       "Terima kasih.",
@@ -3550,6 +3618,27 @@ export default function OwnerDashboardPage() {
                 ))}
               </div>
               <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
+                {shouldShowReceiptCaj(selectedReceipt) && (
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-xs text-gray-500 font-black">
+                      <span>Subtotal</span>
+                      <span>{formatRM(getReceiptSubtotal(selectedReceipt))}</span>
+                    </div>
+                    {getReceiptServiceCharge(selectedReceipt) > 0 && (
+                      <div className="flex justify-between text-xs text-gray-500 font-black">
+                        <span>Service Charge ({formatReceiptRate(selectedReceipt.service_charge_rate)}%)</span>
+                        <span>{formatRM(getReceiptServiceCharge(selectedReceipt))}</span>
+                      </div>
+                    )}
+                    {getReceiptSst(selectedReceipt) > 0 && (
+                      <div className="flex justify-between text-xs text-gray-500 font-black">
+                        <span>SST ({formatReceiptRate(selectedReceipt.sst_rate)}%)</span>
+                        <span>{formatRM(getReceiptSst(selectedReceipt))}</span>
+                      </div>
+                    )}
+                    <div className="border-t border-dashed border-gray-300 pt-2" />
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-900 font-black">TOTAL</span>
                   <span className="text-gray-900 font-black text-xl">
