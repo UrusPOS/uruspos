@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  LayoutDashboard, Store, CreditCard, BarChart2, Settings,
+  ChevronLeft, ChevronRight, X, Menu, LogOut, Plus,
+  CheckCircle, Clock, Ban, Trash2, Key, Users, TrendingUp,
+  AlertCircle, Check
+} from "lucide-react";
 
 type Kedai = {
   id: string;
@@ -54,229 +60,34 @@ function getCurrentBulan() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const SALES_STATUSES = new Set([
-  "paid",
-  "done",
-  "completed",
-  "complete",
-  "selesai",
-  "closed",
-  "settled",
-]);
+const SALES_STATUSES = new Set(["paid", "done", "completed", "complete", "selesai", "closed", "settled"]);
+const PAID_PAYMENT_STATUSES = new Set(["paid", "completed", "complete", "success", "successful", "settled", "received", "diterima", "selesai"]);
+const NON_SALES_STATUSES = new Set(["cancelled", "canceled", "void", "refund", "refunded", "unpaid", "pending", "draft"]);
+const VALID_PAYMENT_METHODS = new Set(["cash", "tunai", "duitnow", "qr", "qrpay", "qr pay", "transfer", "bank_transfer", "bank transfer", "card", "kad"]);
 
-const PAID_PAYMENT_STATUSES = new Set([
-  "paid",
-  "completed",
-  "complete",
-  "success",
-  "successful",
-  "settled",
-  "received",
-  "diterima",
-  "selesai",
-]);
-
-const NON_SALES_STATUSES = new Set([
-  "cancelled",
-  "canceled",
-  "void",
-  "refund",
-  "refunded",
-  "unpaid",
-  "pending",
-  "draft",
-]);
-
-const VALID_PAYMENT_METHODS = new Set([
-  "cash",
-  "tunai",
-  "duitnow",
-  "qr",
-  "qrpay",
-  "qr pay",
-  "transfer",
-  "bank_transfer",
-  "bank transfer",
-  "card",
-  "kad",
-]);
-
-function normalizeText(value: any) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase();
-}
-
-function getNumberValue(...values: any[]) {
-  for (const value of values) {
-    const numberValue = Number(value);
-    if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
-  }
-  return 0;
-}
-
-function getOrderItemsSubtotal(order: any) {
-  return (order?.order_items || []).reduce((sum: number, item: any) => {
-    const qty = Number(item?.qty || item?.quantity || 0);
-    const harga = Number(
-      item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0,
-    );
-    return sum + qty * harga;
-  }, 0);
-}
-
-function getOrderSubtotal(order: any) {
-  return getNumberValue(
-    order?.subtotal,
-    order?.sub_total,
-    order?.items_subtotal,
-    order?.item_total,
-    order?.jumlah_item,
-  ) || getOrderItemsSubtotal(order);
-}
-
-function getOrderServiceChargeAmount(order: any) {
-  const explicitAmount = getNumberValue(
-    order?.service_charge_amount,
-    order?.serviceChargeAmount,
-    order?.service_charge,
-    order?.serviceCharge,
-    order?.caj_servis_amount,
-    order?.caj_servis,
-  );
-  if (explicitAmount > 0) return explicitAmount;
-
-  const rate = getNumberValue(
-    order?.service_charge_rate,
-    order?.serviceChargeRate,
-    order?.caj_servis_rate,
-  );
-  if (!rate) return 0;
-  return getOrderSubtotal(order) * (rate / 100);
-}
-
-function getOrderSstAmount(order: any) {
-  const explicitAmount = getNumberValue(
-    order?.sst_amount,
-    order?.sstAmount,
-    order?.tax_amount,
-    order?.taxAmount,
-    order?.cukai_amount,
-  );
-  if (explicitAmount > 0) return explicitAmount;
-
-  const rate = getNumberValue(order?.sst_rate, order?.sstRate, order?.tax_rate, order?.taxRate);
-  if (!rate) return 0;
-  const taxableAmount = getOrderSubtotal(order) + getOrderServiceChargeAmount(order);
-  return taxableAmount * (rate / 100);
-}
-
-function getOrderTotal(order: any) {
-  const explicitTotal = getNumberValue(
-    order?.total,
-    order?.jumlah,
-    order?.jumlah_bayaran,
-    order?.grand_total,
-    order?.total_amount,
-    order?.amount,
-  );
-  if (explicitTotal > 0) return explicitTotal;
-
-  const subtotal = getOrderSubtotal(order);
-  const serviceCharge = getOrderServiceChargeAmount(order);
-  const sst = getOrderSstAmount(order);
-  return subtotal + serviceCharge + sst;
-}
-
-function getPaymentMethod(order: any) {
-  return (
-    order?.payment_method ||
-    order?.paymentMethod ||
-    order?.payment ||
-    order?.bayaran ||
-    order?.kaedah_bayaran ||
-    order?.method ||
-    null
-  );
-}
-
-function isPaidSalesOrder(order: any) {
-  const status = normalizeText(order?.status);
-  const paymentStatus = normalizeText(
-    order?.payment_status || order?.paymentStatus || order?.status_bayaran,
-  );
-  const paymentMethod = normalizeText(getPaymentMethod(order));
-  const total = getOrderTotal(order);
-
-  if (total <= 0) return false;
-  if (SALES_STATUSES.has(status)) return true;
-  if (PAID_PAYMENT_STATUSES.has(paymentStatus)) return true;
-  if (VALID_PAYMENT_METHODS.has(paymentMethod) && !NON_SALES_STATUSES.has(status)) return true;
-
-  return false;
-}
-
-function getOrderSalesDate(order: any) {
-  return (
-    order?.paid_at ||
-    order?.paidAt ||
-    order?.completed_at ||
-    order?.completedAt ||
-    order?.created_at ||
-    order?.createdAt ||
-    order?.updated_at ||
-    order?.updatedAt ||
-    null
-  );
-}
-
-function isOrderInDateRange(order: any, from: string, to: string) {
-  const rawDate = getOrderSalesDate(order);
-  if (!rawDate) return true;
-  const time = new Date(rawDate).getTime();
-  if (Number.isNaN(time)) return true;
-  return time >= new Date(from).getTime() && time <= new Date(to).getTime();
-}
+function normalizeText(value: any) { return String(value ?? "").trim().toLowerCase(); }
+function getNumberValue(...values: any[]) { for (const value of values) { const n = Number(value); if (!Number.isNaN(n) && n > 0) return n; } return 0; }
+function getOrderItemsSubtotal(order: any) { return (order?.order_items || []).reduce((sum: number, item: any) => { const qty = Number(item?.qty || item?.quantity || 0); const harga = Number(item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0); return sum + qty * harga; }, 0); }
+function getOrderSubtotal(order: any) { return getNumberValue(order?.subtotal, order?.sub_total, order?.items_subtotal, order?.item_total, order?.jumlah_item) || getOrderItemsSubtotal(order); }
+function getOrderServiceChargeAmount(order: any) { const e = getNumberValue(order?.service_charge_amount, order?.serviceChargeAmount, order?.service_charge, order?.serviceCharge, order?.caj_servis_amount, order?.caj_servis); if (e > 0) return e; const rate = getNumberValue(order?.service_charge_rate, order?.serviceChargeRate, order?.caj_servis_rate); if (!rate) return 0; return getOrderSubtotal(order) * (rate / 100); }
+function getOrderSstAmount(order: any) { const e = getNumberValue(order?.sst_amount, order?.sstAmount, order?.tax_amount, order?.taxAmount, order?.cukai_amount); if (e > 0) return e; const rate = getNumberValue(order?.sst_rate, order?.sstRate, order?.tax_rate, order?.taxRate); if (!rate) return 0; return (getOrderSubtotal(order) + getOrderServiceChargeAmount(order)) * (rate / 100); }
+function getOrderTotal(order: any) { const e = getNumberValue(order?.total, order?.jumlah, order?.jumlah_bayaran, order?.grand_total, order?.total_amount, order?.amount); if (e > 0) return e; return getOrderSubtotal(order) + getOrderServiceChargeAmount(order) + getOrderSstAmount(order); }
+function getPaymentMethod(order: any) { return order?.payment_method || order?.paymentMethod || order?.payment || order?.bayaran || order?.kaedah_bayaran || order?.method || null; }
+function isPaidSalesOrder(order: any) { const status = normalizeText(order?.status); const paymentStatus = normalizeText(order?.payment_status || order?.paymentStatus || order?.status_bayaran); const paymentMethod = normalizeText(getPaymentMethod(order)); const total = getOrderTotal(order); if (total <= 0) return false; if (SALES_STATUSES.has(status)) return true; if (PAID_PAYMENT_STATUSES.has(paymentStatus)) return true; if (VALID_PAYMENT_METHODS.has(paymentMethod) && !NON_SALES_STATUSES.has(status)) return true; return false; }
+function getOrderSalesDate(order: any) { return order?.paid_at || order?.paidAt || order?.completed_at || order?.completedAt || order?.created_at || order?.createdAt || order?.updated_at || order?.updatedAt || null; }
+function isOrderInDateRange(order: any, from: string, to: string) { const rawDate = getOrderSalesDate(order); if (!rawDate) return true; const time = new Date(rawDate).getTime(); if (Number.isNaN(time)) return true; return time >= new Date(from).getTime() && time <= new Date(to).getTime(); }
 
 async function attachOrderItemsToOrders(rawOrders: any[]) {
   const orders = rawOrders || [];
   if (orders.length === 0) return [];
-
-  const orderIds = orders.map((order: any) => order.id).filter(Boolean);
-  if (orderIds.length === 0) {
-    return orders.map((order: any) => ({
-      ...order,
-      order_items: order.order_items || [],
-    }));
-  }
-
-  const itemQueries = [
-    supabase.from("order_items").select("*").in("order_id", orderIds),
-    supabase.from("order_items").select("*").in("orderId", orderIds),
-    supabase.from("order_items").select("*").in("orders_id", orderIds),
-  ];
-
+  const orderIds = orders.map((o: any) => o.id).filter(Boolean);
+  if (orderIds.length === 0) return orders.map((o: any) => ({ ...o, order_items: o.order_items || [] }));
+  const itemQueries = [supabase.from("order_items").select("*").in("order_id", orderIds), supabase.from("order_items").select("*").in("orderId", orderIds), supabase.from("order_items").select("*").in("orders_id", orderIds)];
   let itemsData: any[] = [];
-  for (const query of itemQueries) {
-    const { data, error } = (await query) as any;
-    if (!error && data) {
-      itemsData = data;
-      break;
-    }
-  }
-
+  for (const query of itemQueries) { const { data, error } = await query as any; if (!error && data) { itemsData = data; break; } }
   const itemMap: Record<string, any[]> = {};
-  (itemsData || []).forEach((item: any) => {
-    const orderId = item.order_id || item.orderId || item.orders_id;
-    if (!orderId) return;
-    if (!itemMap[orderId]) itemMap[orderId] = [];
-    itemMap[orderId].push(item);
-  });
-
-  return orders.map((order: any) => ({
-    ...order,
-    order_items: order.order_items || itemMap[order.id] || [],
-  }));
+  (itemsData || []).forEach((item: any) => { const orderId = item.order_id || item.orderId || item.orders_id; if (!orderId) return; if (!itemMap[orderId]) itemMap[orderId] = []; itemMap[orderId].push(item); });
+  return orders.map((order: any) => ({ ...order, order_items: order.order_items || itemMap[order.id] || [] }));
 }
 
 export default function SuperadminDashboardPage() {
@@ -297,7 +108,7 @@ export default function SuperadminDashboardPage() {
   const [newKedaiOwnerNama, setNewKedaiOwnerNama] = useState("");
   const [newKedaiTelefon, setNewKedaiTelefon] = useState("");
   const [generatedCreds, setGeneratedCreds] = useState<{ username: string; password: string; kedaiNama: string } | null>(null);
-  const [activeTab, setActiveTab] = useState("dash");
+  const [activeTab, setActiveTab] = useState("utama");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showCredentials, setShowCredentials] = useState<string | null>(null);
   const [credentialsList, setCredentialsList] = useState<any[]>([]);
@@ -313,7 +124,7 @@ export default function SuperadminDashboardPage() {
   const [tempCustomTo, setTempCustomTo] = useState("");
 
   useEffect(() => { fetchKedai(); }, [filter, customFrom, customTo]);
-  useEffect(() => { if (activeTab === "billing" && kedaiList.length > 0) fetchBilling(); }, [activeTab, kedaiList, billingBulan]);
+  useEffect(() => { if (activeTab === "langganan" && kedaiList.length > 0) fetchBilling(); }, [activeTab, kedaiList, billingBulan]);
 
   async function fetchKedai() {
     const { data } = await supabase.from("kedai").select("*").order("created_at", { ascending: false });
@@ -325,37 +136,11 @@ export default function SuperadminDashboardPage() {
   async function fetchAllStats(kedais: Kedai[]) {
     const { from, to } = getDateRange(filter, customFrom, customTo);
     const statsMap: { [id: string]: KedaiStats } = {};
-
-    kedais.forEach((kedai) => {
-      statsMap[kedai.id] = {
-        kedai_id: kedai.id,
-        jualan: 0,
-        fee: 0,
-        staff: 0,
-        serviceCharge: 0,
-        sst: 0,
-      };
-    });
-
+    kedais.forEach((kedai) => { statsMap[kedai.id] = { kedai_id: kedai.id, jualan: 0, fee: 0, staff: 0, serviceCharge: 0, sst: 0 }; });
     try {
-      // Superadmin perlu baca order dengan cara yang sama macam owner dashboard.
-      // Jangan filter status/date terus di Supabase sebab field sales dalam staff flow mungkin berbeza
-      // seperti payment_status, completed_at, paid_at, atau payment_method.
-      const { data: rawOrders, error: ordersError } = (await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5000)) as any;
-
-      if (ordersError) {
-        console.error("Superadmin orders query error:", ordersError);
-      }
-
+      const { data: rawOrders } = await supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(5000) as any;
       const ordersWithItems = await attachOrderItemsToOrders(rawOrders || []);
-      const paidOrders = (ordersWithItems || [])
-        .filter(isPaidSalesOrder)
-        .filter((order: any) => isOrderInDateRange(order, from, to));
-
+      const paidOrders = ordersWithItems.filter(isPaidSalesOrder).filter((o: any) => isOrderInDateRange(o, from, to));
       paidOrders.forEach((order: any) => {
         const kedaiId = order.kedai_id || order.kedaiId || order.store_id || order.storeId;
         if (!kedaiId || !statsMap[kedaiId]) return;
@@ -363,34 +148,10 @@ export default function SuperadminDashboardPage() {
         statsMap[kedaiId].serviceCharge += getOrderServiceChargeAmount(order);
         statsMap[kedaiId].sst += getOrderSstAmount(order);
       });
-
-      const { data: staffData, error: staffError } = (await supabase
-        .from("users")
-        .select("id, kedai_id, role")
-        .neq("role", "superadmin")) as any;
-
-      if (staffError) {
-        console.error("Superadmin staff query error:", staffError);
-      }
-
-      (staffData || []).forEach((user: any) => {
-        const kedaiId = user.kedai_id || user.kedaiId;
-        if (!kedaiId || !statsMap[kedaiId]) return;
-        statsMap[kedaiId].staff += 1;
-      });
-
-      kedais.forEach((kedai) => {
-        const jualan = statsMap[kedai.id]?.jualan || 0;
-        statsMap[kedai.id] = {
-          ...statsMap[kedai.id],
-          jualan,
-          fee: kedai.status === "beta" ? 0 : jualan * 0.02,
-        };
-      });
-    } catch (error) {
-      console.error("Superadmin fetchAllStats error:", error);
-    }
-
+      const { data: staffData } = await supabase.from("users").select("id, kedai_id, role").neq("role", "superadmin") as any;
+      (staffData || []).forEach((user: any) => { const kedaiId = user.kedai_id || user.kedaiId; if (!kedaiId || !statsMap[kedaiId]) return; statsMap[kedaiId].staff += 1; });
+      kedais.forEach((kedai) => { const jualan = statsMap[kedai.id]?.jualan || 0; statsMap[kedai.id] = { ...statsMap[kedai.id], jualan, fee: kedai.status === "beta" ? 0 : jualan * 0.02 }; });
+    } catch (error) { console.error("fetchAllStats error:", error); }
     setKedaiStats(statsMap);
   }
 
@@ -398,44 +159,26 @@ export default function SuperadminDashboardPage() {
     setLoadingBilling(true);
     const bulan = billingBulan;
     const isCurrentMonth = bulan === getCurrentBulan();
-
     const { data } = await supabase.from("billing").select("*").eq("bulan", bulan) as any;
     const map: { [kedai_id: string]: BillingRecord } = {};
     (data || []).forEach((r: BillingRecord) => { map[r.kedai_id] = r; });
-
-    // Buang record yang tersalah masuk (beta/suspended kedai)
     for (const record of (data || [])) {
       const kedai = kedaiList.find(k => k.id === record.kedai_id);
-      if (kedai && kedai.status !== "active") {
-        await supabase.from("billing").delete().eq("id", record.id);
-        delete map[record.kedai_id];
-      }
+      if (kedai && kedai.status !== "active") { await supabase.from("billing").delete().eq("id", record.id); delete map[record.kedai_id]; }
     }
-
-    // Auto-create billing record untuk bulan semasa je, active kedai je
     if (isCurrentMonth) {
       const activeKedai = kedaiList.filter(k => k.status === "active");
       for (const kedai of activeKedai) {
         if (!map[kedai.id]) {
           const s = kedaiStats[kedai.id];
-          const { data: newRecord } = await supabase.from("billing").insert({
-            kedai_id: kedai.id,
-            bulan,
-            jualan: s?.jualan || 0,
-            fee: s?.fee || 0,
-            status: "unpaid",
-          }).select().single() as any;
+          const { data: newRecord } = await supabase.from("billing").insert({ kedai_id: kedai.id, bulan, jualan: s?.jualan || 0, fee: s?.fee || 0, status: "unpaid" }).select().single() as any;
           if (newRecord) map[kedai.id] = newRecord;
         } else {
           const s = kedaiStats[kedai.id];
-          if (s) {
-            await supabase.from("billing").update({ jualan: s.jualan, fee: s.fee }).eq("id", map[kedai.id].id);
-            map[kedai.id] = { ...map[kedai.id], jualan: s.jualan, fee: s.fee };
-          }
+          if (s) { await supabase.from("billing").update({ jualan: s.jualan, fee: s.fee }).eq("id", map[kedai.id].id); map[kedai.id] = { ...map[kedai.id], jualan: s.jualan, fee: s.fee }; }
         }
       }
     }
-
     setBillingMap(map);
     setLoadingBilling(false);
   }
@@ -504,36 +247,16 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
-  function openCustomDateModal() {
-    setTempFilter("custom");
-    setTempCustomFrom(customFrom);
-    setTempCustomTo(customTo);
-    setShowFilterDropdown(false);
-    setShowFilterModal(true);
-  }
-
-  function selectDateFilter(nextFilter: FilterType) {
-    if (nextFilter === "custom") {
-      openCustomDateModal();
-      return;
-    }
-    setFilter(nextFilter);
-    setCustomFrom("");
-    setCustomTo("");
-    setShowFilterDropdown(false);
-  }
+  function openFilterModal() { setTempFilter(filter); setTempCustomFrom(customFrom); setTempCustomTo(customTo); setShowFilterModal(true); }
 
   function applyDateFilter() {
-    if (!tempCustomFrom || !tempCustomTo) return;
-    setFilter("custom");
-    setCustomFrom(tempCustomFrom);
-    setCustomTo(tempCustomTo);
+    if (tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)) return;
+    setFilter(tempFilter);
+    if (tempFilter === "custom") { setCustomFrom(tempCustomFrom); setCustomTo(tempCustomTo); }
     setShowFilterModal(false);
   }
 
-  function formatDateLabel(date: string) {
-    return new Date(date).toLocaleDateString("ms-MY", { day: "2-digit", month: "short", year: "numeric" });
-  }
+  function formatDateLabel(date: string) { return new Date(date).toLocaleDateString("ms-MY", { day: "2-digit", month: "short", year: "numeric" }); }
 
   function filterLabel() {
     if (filter === "daily") return "Hari Ini";
@@ -552,95 +275,81 @@ export default function SuperadminDashboardPage() {
   function navigateBulan(direction: number) {
     const [y, m] = billingBulan.split("-").map(Number);
     const d = new Date(y, m - 1 + direction, 1);
-    const newBulan = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    setBillingBulan(newBulan);
+    setBillingBulan(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     setBillingMap({});
   }
 
   function isCurrentBulan() { return billingBulan === getCurrentBulan(); }
+  function formatRM(value: number) { return `RM ${Number(value || 0).toFixed(2)}`; }
 
   const kedaiStatsList = Object.values(kedaiStats) as KedaiStats[];
   const billingList = Object.values(billingMap) as BillingRecord[];
   const totalJualan = kedaiStatsList.reduce((s, k) => s + k.jualan, 0);
   const totalFee = kedaiStatsList.reduce((s, k) => s + k.fee, 0);
-  const totalServiceCharge = kedaiStatsList.reduce((s, k) => s + (k.serviceCharge || 0), 0);
-  const totalSst = kedaiStatsList.reduce((s, k) => s + (k.sst || 0), 0);
-  const stats = {
-    total: kedaiList.length,
-    active: kedaiList.filter((k) => k.status === "active").length,
-    beta: kedaiList.filter((k) => k.status === "beta").length,
-    suspended: kedaiList.filter((k) => k.status === "suspended").length,
-  };
+  const stats = { total: kedaiList.length, active: kedaiList.filter(k => k.status === "active").length, beta: kedaiList.filter(k => k.status === "beta").length, suspended: kedaiList.filter(k => k.status === "suspended").length };
 
-  // Kira billing untuk active kedai je — exclude beta & suspended
-  const billingPaid = billingList.filter(b => {
-    const kedai = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "paid" && kedai?.status === "active";
-  }).length;
-  const billingUnpaid = billingList.filter(b => {
-    const kedai = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "unpaid" && kedai?.status === "active";
-  }).length;
-  const totalFeePaid = billingList.filter(b => {
-    const kedai = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "paid" && kedai?.status === "active";
-  }).reduce((s, b) => s + Number(b.fee), 0);
-  const totalFeeUnpaid = billingList.filter(b => {
-    const kedai = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "unpaid" && kedai?.status === "active";
-  }).reduce((s, b) => s + Number(b.fee), 0);
+  const billingPaid = billingList.filter(b => { const k = kedaiList.find(k => k.id === b.kedai_id); return b.status === "paid" && k?.status === "active"; }).length;
+  const billingUnpaid = billingList.filter(b => { const k = kedaiList.find(k => k.id === b.kedai_id); return b.status === "unpaid" && k?.status === "active"; }).length;
+  const totalFeePaid = billingList.filter(b => { const k = kedaiList.find(k => k.id === b.kedai_id); return b.status === "paid" && k?.status === "active"; }).reduce((s, b) => s + Number(b.fee), 0);
+  const totalFeeUnpaid = billingList.filter(b => { const k = kedaiList.find(k => k.id === b.kedai_id); return b.status === "unpaid" && k?.status === "active"; }).reduce((s, b) => s + Number(b.fee), 0);
 
-  const menuItems = [
-    { id: "dash", label: "Dashboard", icon: "📊", description: "Ringkasan semua kedai" },
-    { id: "kedai", label: "Kedai", icon: "🏪", description: "Senarai & status kedai" },
-    { id: "billing", label: "Billing", icon: "💰", description: "Fee & langganan" },
+  const navItems = [
+    { id: "utama", label: "Utama", icon: LayoutDashboard },
+    { id: "klien", label: "Klien", icon: Store },
+    { id: "langganan", label: "Langganan", icon: CreditCard },
+    { id: "laporan", label: "Laporan", icon: BarChart2 },
+    { id: "tetapan", label: "Tetapan", icon: Settings },
   ];
 
-  function activeMenuLabel() { return menuItems.find((item) => item.id === activeTab)?.label || "Dashboard"; }
   function handleChangeTab(tabId: string) { setActiveTab(tabId); setShowMobileMenu(false); }
+  const activeNav = navItems.find(n => n.id === activeTab);
 
-  const FilterBar = ({ compact = false }: { compact?: boolean } = {}) => {
+  const FilterButton = () => {
     const filterOptions: { value: FilterType; label: string }[] = [
       { value: "daily", label: "Hari Ini" },
       { value: "yesterday", label: "Semalam" },
-      { value: "monthly", label: "Bulan Ini" },
       { value: "weekly", label: "7 Hari Lepas" },
+      { value: "monthly", label: "Bulan Ini" },
       { value: "custom", label: "Tarikh Custom" },
     ];
 
     return (
-      <div className={`relative inline-block ${compact ? "" : "mb-4 mt-4"}`}>
+      <div className="relative">
         <button
-          onClick={() => setShowFilterDropdown((value) => !value)}
-          className="inline-flex items-center gap-2 rounded-full bg-purple-700/20 border border-purple-500/40 text-white px-4 py-2.5 text-sm font-black shadow-lg shadow-black/10 hover:bg-purple-700/30 hover:border-purple-400 transition-all whitespace-nowrap"
+          onClick={() => setShowFilterDropdown(v => !v)}
+          className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-green-400 hover:text-green-700 transition-all"
         >
-          <span className="text-base">📅</span>
           <span>{filterLabel()}</span>
-          <span className="text-purple-300 text-xs">▾</span>
+          <ChevronRight size={14} className={`text-gray-400 transition-transform ${showFilterDropdown ? "-rotate-90" : "rotate-90"}`} />
         </button>
 
         {showFilterDropdown && (
           <>
-            <button
-              aria-label="Tutup filter tarikh"
-              onClick={() => setShowFilterDropdown(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-            <div className="absolute left-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-purple-500/30 bg-[#160b2e] shadow-2xl shadow-black/40">
+            <button aria-label="Tutup filter" onClick={() => setShowFilterDropdown(false)} className="fixed inset-0 z-40 cursor-default" />
+            <div className="absolute right-0 top-full z-50 mt-1 w-48 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
               {filterOptions.map((option) => {
-                const active = filter === option.value;
+                const isActive = filter === option.value;
                 return (
                   <button
                     key={option.value}
-                    onClick={() => selectDateFilter(option.value)}
-                    className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm font-bold transition-all ${
-                      active
-                        ? "bg-purple-700 text-white"
-                        : "text-purple-200 hover:bg-purple-900/50"
-                    }`}
+                    onClick={() => {
+                      if (option.value === "custom") {
+                        setTempFilter("custom");
+                        setTempCustomFrom(customFrom);
+                        setTempCustomTo(customTo);
+                        setShowFilterModal(true);
+                        setShowFilterDropdown(false);
+                      } else {
+                        setFilter(option.value);
+                        setCustomFrom("");
+                        setCustomTo("");
+                        setShowFilterDropdown(false);
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-left transition-all ${isActive ? "bg-green-50 text-green-700" : "text-gray-600 hover:bg-gray-50"}`}
                   >
                     <span>{option.label}</span>
-                    {active && <span className="text-white">✓</span>}
+                    {isActive && <Check size={14} className="text-green-600" />}
                   </button>
                 );
               })}
@@ -651,309 +360,346 @@ export default function SuperadminDashboardPage() {
     );
   };
 
-  const MenuDrawer = () => (
-    <>
+  return (
+    <div className={`min-h-screen bg-gray-50 flex`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}>
+
+      {/* Drawer — mobile & desktop */}
       {showMobileMenu && (
         <div className="fixed inset-0 z-50">
-          <button aria-label="Tutup menu" onClick={() => setShowMobileMenu(false)} className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
-          <div className="relative h-full w-[84%] max-w-sm bg-[#0f0a1e] border-r border-purple-900/40 shadow-2xl animate-[slideInLeft_0.25s_ease-out] overflow-y-auto">
-            <div className="p-5 border-b border-purple-900/30 bg-[#1a0e35]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-white font-black text-xl">Urus<span className="text-purple-400">POS</span></div>
-                  <div className="text-purple-300 text-xs font-bold mt-1 tracking-wider">SUPERADMIN MENU</div>
-                </div>
-                <button onClick={() => setShowMobileMenu(false)} className="w-10 h-10 rounded-2xl bg-purple-900/50 border border-purple-700/60 text-purple-200 font-black">✕</button>
+          <button onClick={() => setShowMobileMenu(false)} className="absolute inset-0 bg-black/40" />
+          <div className="relative h-full w-72 bg-white shadow-xl flex flex-col animate-[slideInLeft_0.2s_ease-out]">
+            <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
+              <div>
+                <div className="text-gray-900 font-bold text-lg tracking-tight">Urus<span className="text-green-600">POS</span></div>
+                <div className="text-gray-400 text-xs font-medium tracking-widest uppercase mt-0.5">Superadmin</div>
               </div>
+              <button onClick={() => setShowMobileMenu(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
             </div>
-            <div className="p-5">
-              <div className="bg-[#1a0e35] border border-purple-900/40 rounded-3xl p-4 mb-5">
-                <div className="text-purple-400 text-xs font-bold uppercase tracking-wider mb-1">Sedang Dibuka</div>
-                <div className="text-white text-lg font-black">{activeMenuLabel()}</div>
-              </div>
-              <div className="text-purple-400 text-xs font-black uppercase tracking-[0.18em] mb-3 px-1">Navigasi</div>
-              <div className="space-y-3">
-                {menuItems.map((item) => {
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button key={item.id} onClick={() => handleChangeTab(item.id)} className={`w-full flex items-center gap-4 rounded-3xl p-4 text-left border transition-all ${isActive ? "bg-purple-700 border-purple-500 text-white shadow-lg shadow-purple-950/30" : "bg-[#1a0e35] border-purple-900/40 text-purple-200 hover:border-purple-600 hover:bg-purple-950/50"}`}>
-                      <span className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-purple-900/50"}`}>{item.icon}</span>
-                      <span className="flex-1"><span className="block font-black text-sm">{item.label}</span><span className={`block text-xs mt-1 ${isActive ? "text-purple-100" : "text-purple-400"}`}>{item.description}</span></span>
-                      {isActive && <span className="text-white font-black">✓</span>}
+            <nav className="flex-1 px-4 py-4">
+              <div className="text-gray-300 text-[10px] font-semibold tracking-widest uppercase px-2 mb-2">Menu</div>
+              {navItems.map((item, index) => {
+                const isActive = activeTab === item.id;
+                const isLast = index === navItems.length - 1;
+                return (
+                  <div key={item.id}>
+                    <button onClick={() => handleChangeTab(item.id)} className={`w-full text-left py-3 px-2 text-sm font-medium transition-all ${isActive ? "text-green-700" : "text-gray-600 hover:text-gray-900"}`}>
+                      {item.label}
                     </button>
-                  );
-                })}
-              </div>
+                    {!isLast && <div className="border-b border-gray-100 mx-2" />}
+                  </div>
+                );
+              })}
+            </nav>
+            <div className="px-4 py-4 border-t border-gray-100">
+              <a href="/auth/logout" className="flex items-center gap-2 py-2.5 px-2 text-sm text-gray-400 hover:text-red-500 transition-all">
+                <LogOut size={15} strokeWidth={1.8} />
+                <span>Log Keluar</span>
+              </a>
             </div>
           </div>
         </div>
       )}
-    </>
-  );
 
-  return (
-    <div className="min-h-screen bg-[#0f0a1e]">
-      <div className="bg-[#1a0e35] border-b border-purple-900/30 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setShowMobileMenu(true)} className="w-11 h-11 rounded-2xl bg-[#0f0a1e] border border-purple-800/60 text-white text-xl font-black flex items-center justify-center shadow-lg" aria-label="Buka menu">☰</button>
-          <div>
-            <span className="text-white font-bold text-xl">Urus<span className="text-purple-400">POS</span></span>
-            <span className="hidden sm:inline-block ml-3 bg-purple-700 text-white text-xs font-bold px-3 py-1 rounded-full">SUPERADMIN</span>
-            <div className="text-purple-400 text-xs font-bold mt-0.5">{activeMenuLabel()}</div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Top bar */}
+        <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowMobileMenu(true)} className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50">
+              <Menu size={20} />
+            </button>
+            <div className="text-gray-900 font-semibold text-sm">{activeNav?.label || "Utama"}</div>
           </div>
-        </div>
-        <a href="/auth/logout" className="text-purple-400 text-sm font-semibold hover:text-white">Log Keluar</a>
-      </div>
+          <div className="hidden md:block text-gray-900 font-bold text-base tracking-tight font-sans">Urus<span className="text-green-600">POS</span></div>
+          <a href="/auth/logout" className="md:hidden text-gray-400 text-sm hover:text-gray-600">Keluar</a>
+        </header>
 
-      <MenuDrawer />
+        <main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full">
 
-      <div className="p-4 max-w-2xl mx-auto">
+          {/* UTAMA */}
+          {activeTab === "utama" && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-gray-900 font-semibold text-xl">Ringkasan</h1>
+                  <p className="text-gray-400 text-sm mt-0.5">Semua kedai aktif</p>
+                </div>
+                <FilterButton />
+              </div>
 
-        {/* DASHBOARD TAB */}
-        {activeTab === "dash" && (
-          <div>
-            <FilterBar />
-            <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-6 mb-4">
-              <div className="text-purple-200 text-sm font-medium">Fee Terkumpul — {filterLabel()}</div>
-              <div className="text-white text-4xl font-black mt-1">RM {totalFee.toFixed(2)}</div>
-              <div className="flex gap-3 mt-3 flex-wrap">
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">📊 Jualan RM {totalJualan.toFixed(2)}</span>
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🧾 Caj RM {totalServiceCharge.toFixed(2)}</span>
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🏛️ SST RM {totalSst.toFixed(2)}</span>
-                <span className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1 rounded-full">✓ {stats.active} Aktif</span>
+              {/* Hero stat */}
+              <div className="bg-green-600 rounded-2xl p-6 mb-4 text-white">
+                <div className="text-green-100 text-sm font-medium">Fee Terkumpul — {filterLabel()}</div>
+                <div className="text-4xl font-bold mt-1 tracking-tight">{formatRM(totalFee)}</div>
+                <div className="flex gap-4 mt-3 text-sm text-green-100">
+                  <span>Jualan {formatRM(totalJualan)}</span>
+                  <span>·</span>
+                  <span>{stats.active} kedai aktif</span>
+                </div>
+              </div>
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="text-gray-400 text-xs font-medium mb-1">Jumlah Kedai</div>
+                  <div className="text-gray-900 text-2xl font-bold">{stats.total}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="text-gray-400 text-xs font-medium mb-1">Aktif</div>
+                  <div className="text-green-600 text-2xl font-bold">{stats.active}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="text-gray-400 text-xs font-medium mb-1">Beta</div>
+                  <div className="text-amber-500 text-2xl font-bold">{stats.beta}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="text-gray-400 text-xs font-medium mb-1">Suspended</div>
+                  <div className="text-red-500 text-2xl font-bold">{stats.suspended}</div>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-[#1a0e35] rounded-2xl p-4 border border-purple-900/30"><div className="text-2xl mb-2">🏪</div><div className="text-white text-xl font-black">{stats.total}</div><div className="text-purple-400 text-xs mt-1">Jumlah Kedai</div></div>
-              <div className="bg-[#1a0e35] rounded-2xl p-4 border border-purple-900/30"><div className="text-2xl mb-2">💰</div><div className="text-white text-xl font-black">RM {totalJualan.toFixed(0)}</div><div className="text-purple-400 text-xs mt-1">Jualan Semua Kedai</div></div>
-              <div className="bg-[#1a0e35] rounded-2xl p-4 border border-purple-900/30"><div className="text-2xl mb-2">⏳</div><div className="text-yellow-400 text-xl font-black">{stats.beta}</div><div className="text-purple-400 text-xs mt-1">Beta (Free)</div></div>
-              <div className="bg-[#1a0e35] rounded-2xl p-4 border border-purple-900/30"><div className="text-2xl mb-2">⊘</div><div className="text-red-400 text-xl font-black">{stats.suspended}</div><div className="text-purple-400 text-xs mt-1">Suspended</div></div>
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* KEDAI TAB */}
-        {activeTab === "kedai" && (
-          <div className="mt-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-              <div className="text-white font-bold text-lg">Senarai Kedai ({kedaiList.length})</div>
-              <div className="flex items-center justify-between sm:justify-end gap-2">
-                <FilterBar compact />
-                <button onClick={() => setShowAddKedai(true)} className="bg-purple-700 text-white text-xs font-bold px-4 py-2.5 rounded-full hover:bg-purple-600 transition-all whitespace-nowrap">+ Kedai Baru</button>
+          {/* KLIEN */}
+          {activeTab === "klien" && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-gray-900 font-semibold text-xl">Klien</h1>
+                  <p className="text-gray-400 text-sm mt-0.5">{kedaiList.length} kedai berdaftar</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FilterButton />
+                  <button onClick={() => setShowAddKedai(true)} className="flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-all">
+                    <Plus size={15} />
+                    <span className="hidden sm:inline">Kedai Baru</span>
+                  </button>
+                </div>
               </div>
-            </div>
-            {loading ? (
-              <div className="text-center text-purple-400 py-10">Loading...</div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {kedaiList.map((kedai) => {
-                  const s = kedaiStats[kedai.id];
-                  return (
-                    <div key={kedai.id} className="bg-[#1a0e35] rounded-2xl p-4 border border-purple-900/30">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="min-w-0">
-                          <div className="text-white font-bold leading-tight break-words">{kedai.nama}</div>
-                          <div className="text-purple-400 text-xs mt-1">ID: {kedai.id.slice(0, 8)}...</div>
+
+              {loading ? (
+                <div className="text-center text-gray-400 py-12 text-sm">Memuatkan...</div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {kedaiList.map((kedai) => {
+                    const s = kedaiStats[kedai.id];
+                    return (
+                      <div key={kedai.id} className="bg-white rounded-xl p-5 border border-gray-100">
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <div className="text-gray-900 font-semibold">{kedai.nama}</div>
+                            <div className="text-gray-400 text-xs mt-0.5">{kedai.id.slice(0, 8)}...</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${kedai.status === "active" ? "bg-green-50 text-green-700 border-green-100" : kedai.status === "beta" ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-red-50 text-red-600 border-red-100"}`}>
+                              {statusLabel(kedai.status)}
+                            </span>
+                            <button onClick={() => setConfirmDelete(kedai.id)} className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all">
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${kedai.status === "active" ? "bg-green-500/20 text-green-300" : kedai.status === "beta" ? "bg-yellow-500/20 text-yellow-300" : "bg-red-500/20 text-red-300"}`}>
-                            {kedai.status === "active" ? "Aktif" : kedai.status === "beta" ? "Beta" : "Suspended"}
-                          </span>
-                          <button onClick={() => setConfirmDelete(kedai.id)} className="flex items-center justify-center w-8 h-8 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 rounded-full bg-red-500/20 text-red-300 text-xs font-bold border border-red-500/30 hover:bg-red-500/30 transition-all" title="Buang Kedai">
-                            <span>🗑</span><span className="hidden sm:inline ml-1.5">Buang</span>
+
+                        <div className="grid grid-cols-3 gap-3 pb-4 border-b border-gray-50 mb-4">
+                          <div>
+                            <div className="text-gray-400 text-xs mb-0.5">Jualan</div>
+                            <div className="text-gray-900 text-sm font-semibold">{formatRM(s?.jualan || 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-0.5">Fee (2%)</div>
+                            <div className="text-gray-900 text-sm font-semibold">{kedai.status === "beta" ? <span className="text-amber-500">—</span> : formatRM(s?.fee || 0)}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-400 text-xs mb-0.5">Staff</div>
+                            <div className="text-gray-900 text-sm font-semibold">{s?.staff || 0}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap">
+                          {kedai.status !== "active" && <button onClick={() => requestStatusChange(kedai, "active")} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all">Aktifkan</button>}
+                          {kedai.status !== "beta" && <button onClick={() => requestStatusChange(kedai, "beta")} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-all">Beta</button>}
+                          {kedai.status !== "suspended" && <button onClick={() => requestStatusChange(kedai, "suspended")} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all">Suspend</button>}
+                          <button onClick={() => fetchCredentials(kedai.id)} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all flex items-center gap-1">
+                            <Key size={12} /> Credentials
                           </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 py-3 border-t border-purple-900/30 mb-3">
-                        <div className="text-center"><div className="text-white text-sm font-black">RM {s?.jualan.toFixed(2) || "0.00"}</div><div className="text-purple-400 text-xs">Jualan</div></div>
-                        <div className="text-center">
-                          <div className="text-purple-300 text-sm font-black">{kedai.status === "beta" ? <span className="text-yellow-400">—</span> : `RM ${s?.fee.toFixed(2) || "0.00"}`}</div>
-                          <div className="text-purple-400 text-xs">{kedai.status === "beta" ? "Beta (Free)" : "Fee (2%)"}</div>
-                        </div>
-                        <div className="text-center"><div className="text-green-300 text-sm font-black">{s?.staff || 0}</div><div className="text-purple-400 text-xs">Staff</div></div>
-                      </div>
-                      {((s?.serviceCharge || 0) > 0 || (s?.sst || 0) > 0) && (
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="bg-purple-950/40 rounded-xl p-2 text-center border border-purple-900/30">
-                            <div className="text-purple-200 text-xs font-black">RM {(s?.serviceCharge || 0).toFixed(2)}</div>
-                            <div className="text-purple-500 text-[10px] font-bold">Service Charge</div>
-                          </div>
-                          <div className="bg-purple-950/40 rounded-xl p-2 text-center border border-purple-900/30">
-                            <div className="text-purple-200 text-xs font-black">RM {(s?.sst || 0).toFixed(2)}</div>
-                            <div className="text-purple-500 text-[10px] font-bold">SST</div>
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex gap-2 flex-wrap">
-                        {kedai.status !== "active" && <button onClick={() => requestStatusChange(kedai, "active")} className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-2 rounded-xl border border-green-500/30">✓ Aktifkan</button>}
-                        {kedai.status !== "beta" && <button onClick={() => requestStatusChange(kedai, "beta")} className="bg-yellow-500/20 text-yellow-300 text-xs font-bold px-3 py-2 rounded-xl border border-yellow-500/30">⏳ Beta</button>}
-                        {kedai.status !== "suspended" && <button onClick={() => requestStatusChange(kedai, "suspended")} className="bg-orange-500/20 text-orange-300 text-xs font-bold px-3 py-2 rounded-xl border border-orange-500/30">⊘ Suspend</button>}
-                        <button onClick={() => fetchCredentials(kedai.id)} className="bg-blue-500/20 text-blue-300 text-xs font-bold px-3 py-2 rounded-xl border border-blue-500/30">🔑 Credentials</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* BILLING TAB */}
-        {activeTab === "billing" && (
-          <div className="mt-4">
-            {/* Month Navigator */}
-            <div className="flex items-center justify-between mb-4">
-              <button onClick={() => navigateBulan(-1)} className="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-700/50 text-purple-300 font-black flex items-center justify-center hover:bg-purple-700/40 transition-all">‹</button>
-              <div className="text-center">
-                <div className="text-white font-black text-base">{bulanLabel()}</div>
-                {isCurrentBulan() && <div className="text-purple-400 text-xs font-bold mt-0.5">Bulan Semasa</div>}
-                {!isCurrentBulan() && <div className="text-yellow-400 text-xs font-bold mt-0.5">Bulan Lepas</div>}
-              </div>
-              <button onClick={() => navigateBulan(1)} disabled={isCurrentBulan()} className="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-700/50 text-purple-300 font-black flex items-center justify-center hover:bg-purple-700/40 transition-all disabled:opacity-30 disabled:cursor-not-allowed">›</button>
-            </div>
-
-            {/* Summary header */}
-            <div className="bg-gradient-to-br from-[#3b0764] to-[#7c3aed] rounded-2xl p-5 mb-4">
-              <div className="text-purple-200 text-xs font-bold mb-1">BILLING — {bulanLabel().toUpperCase()}</div>
-              <div className="text-white text-3xl font-black mt-1">RM {(totalFeePaid + totalFeeUnpaid).toFixed(2)}</div>
-              <div className="text-purple-200 text-xs mt-1">Jumlah fee bulan ini ({stats.active} kedai aktif)</div>
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <div className="bg-green-500/20 rounded-2xl p-3">
-                  <div className="text-green-300 text-xs font-bold">✅ Dah Bayar</div>
-                  <div className="text-white text-lg font-black mt-1">RM {totalFeePaid.toFixed(2)}</div>
-                  <div className="text-green-400 text-xs mt-0.5">{billingPaid} kedai</div>
+                    );
+                  })}
                 </div>
-                <div className="bg-red-500/20 rounded-2xl p-3">
-                  <div className="text-red-300 text-xs font-bold">⏳ Belum Bayar</div>
-                  <div className="text-white text-lg font-black mt-1">RM {totalFeeUnpaid.toFixed(2)}</div>
-                  <div className="text-red-400 text-xs mt-0.5">{billingUnpaid} kedai</div>
+              )}
+            </div>
+          )}
+
+          {/* LANGGANAN */}
+          {activeTab === "langganan" && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h1 className="text-gray-900 font-semibold text-xl">Langganan</h1>
+                  <p className="text-gray-400 text-sm mt-0.5">Status bayaran bulanan</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => navigateBulan(-1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="text-sm font-medium text-gray-700 min-w-[110px] text-center">{bulanLabel()}</div>
+                  <button onClick={() => navigateBulan(1)} disabled={isCurrentBulan()} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {loadingBilling ? (
-              <div className="text-center text-purple-400 py-10">Loading billing...</div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {kedaiList.map((kedai) => {
-                  const s = kedaiStats[kedai.id];
-                  const billing = billingMap[kedai.id];
-                  const isActive = kedai.status === "active";
-                  const isPaid = billing?.status === "paid";
+              {/* Summary cards */}
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="text-gray-400 text-xs mb-1">Jumlah Fee</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalFeePaid + totalFeeUnpaid)}</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-green-100">
+                  <div className="text-green-600 text-xs mb-1 font-medium">Dah Bayar</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalFeePaid)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{billingPaid} kedai</div>
+                </div>
+                <div className="bg-white rounded-xl p-4 border border-red-100">
+                  <div className="text-red-500 text-xs mb-1 font-medium">Belum Bayar</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalFeeUnpaid)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{billingUnpaid} kedai</div>
+                </div>
+              </div>
 
-                  return (
-                    <div key={kedai.id} className={`bg-[#1a0e35] rounded-2xl p-4 border ${isActive && isPaid ? "border-green-500/30" : isActive && !isPaid ? "border-red-500/30" : kedai.status === "beta" ? "border-yellow-500/20" : "border-purple-900/30"}`}>
-                      <div className="flex items-start justify-between gap-3">
+              {loadingBilling ? (
+                <div className="text-center text-gray-400 py-10 text-sm">Memuatkan...</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {kedaiList.map((kedai) => {
+                    const s = kedaiStats[kedai.id];
+                    const billing = billingMap[kedai.id];
+                    const isActive = kedai.status === "active";
+                    const isPaid = billing?.status === "paid";
+
+                    return (
+                      <div key={kedai.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="text-white font-bold text-sm break-words">{kedai.nama}</div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${kedai.status === "active" ? "bg-green-500/20 text-green-300" : kedai.status === "beta" ? "bg-yellow-500/20 text-yellow-300" : "bg-red-500/20 text-red-300"}`}>
-                              {kedai.status === "active" ? "✓ Aktif" : kedai.status === "beta" ? "⏳ Beta" : "⊘ Suspended"}
+                          <div className="text-gray-900 text-sm font-medium truncate">{kedai.nama}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${kedai.status === "active" ? "bg-green-50 text-green-700 border-green-100" : kedai.status === "beta" ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-red-50 text-red-600 border-red-100"}`}>
+                              {statusLabel(kedai.status)}
                             </span>
                             {isActive && (
-                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isPaid ? "bg-green-500/20 text-green-300" : "bg-red-500/20 text-red-300"}`}>
-                                {isPaid ? "✅ Dah Bayar" : "⏳ Belum Bayar"}
+                              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${isPaid ? "bg-green-50 text-green-700 border-green-100" : "bg-red-50 text-red-500 border-red-100"}`}>
+                                {isPaid ? "Dah Bayar" : "Belum Bayar"}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
-                            {isActive ? (
-                              <div className="text-white text-sm font-black">RM {s?.fee.toFixed(2) || "0.00"}</div>
-                            ) : kedai.status === "beta" ? (
-                              <div className="text-yellow-400 text-sm font-black">Free</div>
-                            ) : (
-                              <div className="text-red-400 text-sm font-black">—</div>
-                            )}
-                            <div className="text-purple-400 text-xs mt-0.5">
-                              {isActive ? `Jualan RM ${s?.jualan.toFixed(2) || "0.00"}` : kedai.status === "beta" ? "Beta" : "Suspended"}
+                            <div className="text-gray-900 text-sm font-semibold">
+                              {isActive ? formatRM(s?.fee || 0) : kedai.status === "beta" ? <span className="text-amber-500 text-xs">Free</span> : <span className="text-gray-300">—</span>}
                             </div>
+                            {isActive && <div className="text-gray-400 text-xs">Jualan {formatRM(s?.jualan || 0)}</div>}
                           </div>
                           {isActive && (
                             <button
                               onClick={() => setConfirmBilling({ kedaiId: kedai.id, nama: kedai.nama, currentStatus: billing?.status || "unpaid" })}
                               disabled={updatingBilling === kedai.id}
-                              title={isPaid ? "Tukar kepada belum bayar" : "Tandakan dah bayar"}
-                              aria-label={isPaid ? "Tukar kepada belum bayar" : "Tandakan dah bayar"}
-                              className={`w-9 h-9 rounded-xl text-sm font-black border transition-all disabled:opacity-50 flex items-center justify-center shrink-0 ${isPaid ? "bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" : "bg-green-500/10 border-green-500/30 text-green-300 hover:bg-green-500/20"}`}
+                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all disabled:opacity-50 ${isPaid ? "bg-red-50 border-red-100 text-red-400 hover:bg-red-100" : "bg-green-50 border-green-100 text-green-600 hover:bg-green-100"}`}
                             >
-                              {updatingBilling === kedai.id ? "..." : isPaid ? "↩" : "✓"}
+                              {updatingBilling === kedai.id ? <span className="text-xs">...</span> : isPaid ? <X size={14} /> : <Check size={14} />}
                             </button>
                           )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Custom Date Modal */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
-          <div className="bg-[#160b2e] w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] border border-purple-500/30 shadow-2xl overflow-hidden animate-[filterSheetUp_0.22s_ease-out]">
-            <div className="p-5 border-b border-purple-900/40">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-white font-black text-lg">Tarikh Custom</div>
-                  <div className="text-purple-400 text-xs font-semibold mt-1">Pilih julat tarikh laporan superadmin</div>
+                    );
+                  })}
                 </div>
-                <button onClick={() => setShowFilterModal(false)} className="w-9 h-9 rounded-full bg-purple-900/50 border border-purple-700/50 text-purple-200 font-black" aria-label="Tutup filter">×</button>
+              )}
+            </div>
+          )}
+
+          {/* LAPORAN */}
+          {activeTab === "laporan" && (
+            <div>
+              <div className="mb-6">
+                <h1 className="text-gray-900 font-semibold text-xl">Laporan</h1>
+                <p className="text-gray-400 text-sm mt-0.5">Coming soon — laporan per kedai</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
+                <BarChart2 size={32} className="text-gray-200 mx-auto mb-3" />
+                <div className="text-gray-400 text-sm">Laporan per kedai akan dibangunkan.</div>
               </div>
             </div>
-            <div className="p-5">
-              <div className="bg-[#0f0a1e] border border-purple-900/60 rounded-3xl p-4 mb-5">
-                <div className="text-purple-300 text-xs font-black uppercase tracking-wider mb-3">Julat Tarikh</div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="block">
-                    <span className="text-purple-400 text-xs font-bold mb-2 block">Start Date</span>
-                    <input type="date" value={tempCustomFrom} onChange={(e) => setTempCustomFrom(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
-                  </label>
-                  <label className="block">
-                    <span className="text-purple-400 text-xs font-bold mb-2 block">End Date</span>
-                    <input type="date" value={tempCustomTo} onChange={(e) => setTempCustomTo(e.target.value)} className="w-full bg-[#160b2e] border border-purple-700 rounded-2xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" />
-                  </label>
-                </div>
-                {tempCustomFrom && tempCustomTo && <div className="mt-3 text-xs text-purple-300 font-semibold">{formatDateLabel(tempCustomFrom)} — {formatDateLabel(tempCustomTo)}</div>}
+          )}
+
+          {/* TETAPAN */}
+          {activeTab === "tetapan" && (
+            <div>
+              <div className="mb-6">
+                <h1 className="text-gray-900 font-semibold text-xl">Tetapan</h1>
+                <p className="text-gray-400 text-sm mt-0.5">Konfigurasi sistem</p>
               </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowFilterModal(false)} className="flex-1 bg-purple-900/40 text-purple-300 font-black py-3 rounded-2xl border border-purple-700/60">Batal</button>
-                <button onClick={applyDateFilter} disabled={!tempCustomFrom || !tempCustomTo} className="flex-1 bg-purple-700 text-white font-black py-3 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed">Apply</button>
+              <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
+                <Settings size={32} className="text-gray-200 mx-auto mb-3" />
+                <div className="text-gray-400 text-sm">Tetapan sistem akan ditambah.</div>
+              </div>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
+          <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-gray-100 shadow-xl">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="text-gray-900 font-semibold">Tempoh Laporan</div>
+              <button onClick={() => setShowFilterModal(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5">
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {([{ value: "daily", label: "Hari Ini" }, { value: "yesterday", label: "Semalam" }, { value: "weekly", label: "7 Hari Lepas" }, { value: "monthly", label: "Bulan Ini" }, { value: "custom", label: "Tarikh Custom" }] as { value: FilterType; label: string }[]).map((option) => (
+                  <button key={option.value} onClick={() => setTempFilter(option.value)} className={`py-2.5 px-3 rounded-lg text-sm font-medium border transition-all text-left ${tempFilter === option.value ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100"}`}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {tempFilter === "custom" && (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="text-gray-400 text-xs font-medium mb-1 block">Dari</label>
+                    <input type="date" value={tempCustomFrom} onChange={(e) => setTempCustomFrom(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm outline-none focus:border-green-400" />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-xs font-medium mb-1 block">Hingga</label>
+                    <input type="date" value={tempCustomTo} onChange={(e) => setTempCustomTo(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm outline-none focus:border-green-400" />
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setShowFilterModal(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50">Batal</button>
+                <button onClick={applyDateFilter} disabled={tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-40 hover:bg-green-700 transition-all">Guna</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirm Billing Status */}
+      {/* Confirm Billing */}
       {confirmBilling && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
-            <div className="text-3xl text-center mb-3">💳</div>
-            <h3 className="text-white font-bold text-lg text-center mb-2">Tukar Status Bayaran?</h3>
-            <p className="text-purple-300 text-sm text-center mb-5 leading-relaxed">
-              <span className="text-white font-bold">{confirmBilling.nama}</span>
-              <br />
-              <span className={`font-bold ${confirmBilling.currentStatus === "paid" ? "text-green-300" : "text-red-300"}`}>
-                {confirmBilling.currentStatus === "paid" ? "✅ Dah Bayar" : "⏳ Belum Bayar"}
-              </span>
-              <span className="text-purple-400"> → </span>
-              <span className={`font-bold ${confirmBilling.currentStatus === "paid" ? "text-red-300" : "text-green-300"}`}>
-                {confirmBilling.currentStatus === "paid" ? "⏳ Belum Bayar" : "✅ Dah Bayar"}
-              </span>
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmBilling(null)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
-              <button
-                onClick={() => { toggleBillingStatus(confirmBilling.kedaiId); setConfirmBilling(null); }}
-                className={`flex-1 text-white font-bold py-3 rounded-xl ${confirmBilling.currentStatus === "paid" ? "bg-red-600" : "bg-green-600"}`}
-              >
-                Ya, Tukar
-              </button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
+            <div className="text-gray-900 font-semibold mb-1">Tukar Status Bayaran</div>
+            <p className="text-gray-500 text-sm mb-5">{confirmBilling.nama} — {confirmBilling.currentStatus === "paid" ? "Dah Bayar → Belum Bayar" : "Belum Bayar → Dah Bayar"}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmBilling(null)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Batal</button>
+              <button onClick={() => { toggleBillingStatus(confirmBilling.kedaiId); setConfirmBilling(null); }} className={`flex-1 py-2.5 rounded-lg text-white text-sm font-medium ${confirmBilling.currentStatus === "paid" ? "bg-red-500" : "bg-green-600"}`}>Confirm</button>
             </div>
           </div>
         </div>
@@ -961,28 +707,14 @@ export default function SuperadminDashboardPage() {
 
       {/* Confirm Status Change */}
       {confirmStatusChange && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30">
-            <div className="text-3xl text-center mb-3">⚙️</div>
-            <h3 className="text-white font-bold text-lg text-center mb-2">Tukar Status Kedai?</h3>
-            <p className="text-purple-300 text-sm text-center mb-5 leading-relaxed">
-              Anda pasti nak tukar status <span className="text-white font-bold">{confirmStatusChange.nama}</span> daripada
-              <span className="text-yellow-300 font-bold"> {statusLabel(confirmStatusChange.currentStatus)}</span> kepada
-              <span className="text-green-300 font-bold"> {statusLabel(confirmStatusChange.targetStatus)}</span>?
-            </p>
-            <div className="bg-[#0f0a1e] border border-purple-900/50 rounded-2xl p-4 mb-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-center flex-1"><div className="text-purple-400 text-xs font-bold mb-1">SEKARANG</div><div className="text-white text-sm font-black">{statusLabel(confirmStatusChange.currentStatus)}</div></div>
-                <div className="text-purple-500 font-black">→</div>
-                <div className="text-center flex-1"><div className="text-purple-400 text-xs font-bold mb-1">BARU</div><div className="text-white text-sm font-black">{statusLabel(confirmStatusChange.targetStatus)}</div></div>
-              </div>
-            </div>
-            {confirmStatusChange.targetStatus === "suspended" && <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-3 mb-5"><div className="text-orange-300 text-xs font-bold leading-relaxed">Kedai yang disuspend tidak boleh beroperasi sehingga diaktifkan semula.</div></div>}
-            {confirmStatusChange.targetStatus === "active" && <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-3 mb-5"><div className="text-green-300 text-xs font-bold leading-relaxed">Status aktif akan mengira fee berdasarkan jualan kedai.</div></div>}
-            {confirmStatusChange.targetStatus === "beta" && <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-3 mb-5"><div className="text-yellow-300 text-xs font-bold leading-relaxed">Status beta tidak akan mengenakan fee kepada kedai ini.</div></div>}
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmStatusChange(null)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
-              <button onClick={() => updateStatus(confirmStatusChange.id, confirmStatusChange.targetStatus)} className={`flex-1 text-white font-bold py-3 rounded-xl ${confirmStatusChange.targetStatus === "suspended" ? "bg-orange-600" : confirmStatusChange.targetStatus === "beta" ? "bg-yellow-600" : "bg-green-600"}`}>Ya, Tukar</button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
+            <div className="text-gray-900 font-semibold mb-1">Tukar Status Kedai</div>
+            <p className="text-gray-500 text-sm mb-1">{confirmStatusChange.nama}</p>
+            <p className="text-gray-400 text-sm mb-5">{statusLabel(confirmStatusChange.currentStatus)} → {statusLabel(confirmStatusChange.targetStatus)}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmStatusChange(null)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Batal</button>
+              <button onClick={() => updateStatus(confirmStatusChange.id, confirmStatusChange.targetStatus)} className={`flex-1 py-2.5 rounded-lg text-white text-sm font-medium ${confirmStatusChange.targetStatus === "suspended" ? "bg-red-500" : confirmStatusChange.targetStatus === "beta" ? "bg-amber-500" : "bg-green-600"}`}>Confirm</button>
             </div>
           </div>
         </div>
@@ -990,14 +722,13 @@ export default function SuperadminDashboardPage() {
 
       {/* Confirm Delete */}
       {confirmDelete && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-red-500/30">
-            <div className="text-3xl text-center mb-3">⚠️</div>
-            <h3 className="text-white font-bold text-lg text-center mb-2">Buang Kedai?</h3>
-            <p className="text-purple-400 text-sm text-center mb-6">Tindakan ini tidak boleh dibatalkan.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDelete(null)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
-              <button onClick={() => deleteKedai(confirmDelete)} className="flex-1 bg-red-600 text-white font-bold py-3 rounded-xl">Ya, Buang</button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
+            <div className="text-gray-900 font-semibold mb-1">Buang Kedai?</div>
+            <p className="text-gray-500 text-sm mb-5">Tindakan ini tidak boleh dibatalkan.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Batal</button>
+              <button onClick={() => deleteKedai(confirmDelete)} className="flex-1 py-2.5 rounded-lg bg-red-500 text-white text-sm font-medium">Buang</button>
             </div>
           </div>
         </div>
@@ -1005,29 +736,25 @@ export default function SuperadminDashboardPage() {
 
       {/* Add Kedai */}
       {showAddKedai && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-purple-500/30" style={{ maxHeight: "85vh", overflowY: "auto" }}>
-            <h3 className="text-white font-bold text-lg mb-6">➕ Tambah Kedai Baru</h3>
-            <div className="mb-4"><label className="text-purple-400 text-xs font-bold mb-2 block">NAMA KEDAI</label><input type="text" value={newKedaiNama} onChange={(e) => setNewKedaiNama(e.target.value)} placeholder="cth: Kedai Makan Pak Ali" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" /></div>
-            <div className="mb-4"><label className="text-purple-400 text-xs font-bold mb-2 block">NAMA OWNER</label><input type="text" value={newKedaiOwnerNama} onChange={(e) => setNewKedaiOwnerNama(e.target.value)} placeholder="cth: Encik Ali bin Ahmad" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-green-400" /></div>
-            <div className="mb-4"><label className="text-purple-400 text-xs font-bold mb-2 block">NO TELEFON (OPTIONAL)</label><input type="text" value={newKedaiTelefon} onChange={(e) => setNewKedaiTelefon(e.target.value)} placeholder="cth: 0123456789" className="w-full bg-[#0f0a1e] border border-purple-700 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-400" /></div>
-            <div className="mb-6">
-              <label className="text-purple-400 text-xs font-bold mb-2 block">PLAN</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setNewKedaiPlan("beta")} className={`py-3 rounded-xl border text-sm font-bold transition-all ${newKedaiPlan === "beta" ? "bg-yellow-500/20 border-yellow-500 text-yellow-300" : "bg-transparent border-purple-700 text-purple-400"}`}>⏳ Beta<div className="text-xs font-normal mt-1">Free 2 bulan</div></button>
-                <button onClick={() => setNewKedaiPlan("active")} className={`py-3 rounded-xl border text-sm font-bold transition-all ${newKedaiPlan === "active" ? "bg-green-500/20 border-green-500 text-green-300" : "bg-transparent border-purple-700 text-purple-400"}`}>✓ Aktif<div className="text-xs font-normal mt-1">2% jualan</div></button>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl" style={{ maxHeight: "85vh", overflowY: "auto" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="text-gray-900 font-semibold">Tambah Kedai Baru</div>
+              <button onClick={() => setShowAddKedai(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"><X size={16} /></button>
+            </div>
+            <div className="mb-4"><label className="text-gray-500 text-xs font-medium mb-1 block">NAMA KEDAI</label><input type="text" value={newKedaiNama} onChange={(e) => setNewKedaiNama(e.target.value)} placeholder="cth: Kedai Makan Pak Ali" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm outline-none focus:border-green-400" /></div>
+            <div className="mb-4"><label className="text-gray-500 text-xs font-medium mb-1 block">NAMA OWNER</label><input type="text" value={newKedaiOwnerNama} onChange={(e) => setNewKedaiOwnerNama(e.target.value)} placeholder="cth: Encik Ali bin Ahmad" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm outline-none focus:border-green-400" /></div>
+            <div className="mb-4"><label className="text-gray-500 text-xs font-medium mb-1 block">NO TELEFON (OPTIONAL)</label><input type="text" value={newKedaiTelefon} onChange={(e) => setNewKedaiTelefon(e.target.value)} placeholder="cth: 0123456789" className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 text-sm outline-none focus:border-green-400" /></div>
+            <div className="mb-5">
+              <label className="text-gray-500 text-xs font-medium mb-2 block">PLAN</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setNewKedaiPlan("beta")} className={`py-3 rounded-lg border text-sm font-medium transition-all ${newKedaiPlan === "beta" ? "bg-amber-50 border-amber-200 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>Beta<div className="text-xs font-normal mt-0.5 opacity-70">Free 2 bulan</div></button>
+                <button onClick={() => setNewKedaiPlan("active")} className={`py-3 rounded-lg border text-sm font-medium transition-all ${newKedaiPlan === "active" ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}>Aktif<div className="text-xs font-normal mt-0.5 opacity-70">2% jualan</div></button>
               </div>
             </div>
-            {newKedaiNama && (
-              <div className="bg-purple-900/30 border border-purple-700/50 rounded-xl p-3 mb-4">
-                <div className="text-purple-400 text-xs font-bold mb-1">PREVIEW CREDENTIALS</div>
-                <div className="text-purple-200 text-xs">Username: <strong className="text-white font-mono">{newKedaiNama.toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9]/g, "").slice(0, 12)}XX</strong></div>
-                <div className="text-purple-200 text-xs mt-1">Password: <strong className="text-white">Auto-generated</strong></div>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button onClick={() => setShowAddKedai(false)} className="flex-1 bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700">Batal</button>
-              <button onClick={addKedai} disabled={saving || !newKedaiNama.trim() || !newKedaiOwnerNama.trim()} className="flex-1 bg-purple-700 text-white font-bold py-3 rounded-xl disabled:opacity-50">{saving ? "Menyimpan..." : "Cipta Kedai"}</button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAddKedai(false)} className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Batal</button>
+              <button onClick={addKedai} disabled={saving || !newKedaiNama.trim() || !newKedaiOwnerNama.trim()} className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50">{saving ? "Menyimpan..." : "Cipta Kedai"}</button>
             </div>
           </div>
         </div>
@@ -1035,62 +762,56 @@ export default function SuperadminDashboardPage() {
 
       {/* Generated Creds */}
       {generatedCreds && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-green-500/30">
-            <div className="text-4xl text-center mb-3">🎉</div>
-            <h3 className="text-white font-bold text-lg text-center mb-2">Kedai Berjaya Dicipta!</h3>
-            <p className="text-purple-400 text-sm text-center mb-6">Hantar credentials ni kepada owner</p>
-            <div className="bg-[#0f0a1e] border border-purple-700/50 rounded-xl p-4 mb-4">
-              <div className="flex justify-between items-center py-2 border-b border-purple-900/50"><span className="text-purple-400 text-xs">Nama Kedai</span><span className="text-white text-sm font-bold">{generatedCreds.kedaiNama}</span></div>
-              <div className="flex justify-between items-center py-2 border-b border-purple-900/50"><span className="text-purple-400 text-xs">Username</span><span className="text-white text-sm font-mono font-bold">{generatedCreds.username}</span></div>
-              <div className="flex justify-between items-center py-2"><span className="text-purple-400 text-xs">Password</span><span className="text-white text-sm font-mono font-bold">{generatedCreds.password}</span></div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
+            <div className="text-gray-900 font-semibold mb-1">Kedai Berjaya Dicipta</div>
+            <p className="text-gray-500 text-sm mb-5">Hantar credentials ini kepada owner.</p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-4 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-400">Kedai</span><span className="text-gray-900 font-medium">{generatedCreds.kedaiNama}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Username</span><span className="text-gray-900 font-mono font-medium">{generatedCreds.username}</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Password</span><span className="text-gray-900 font-mono font-medium">{generatedCreds.password}</span></div>
             </div>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 mb-4">
-              <div className="text-green-400 text-xs font-bold mb-1">📋 Mesej untuk Owner</div>
-              <div className="text-green-300 text-xs leading-relaxed">Selamat datang ke UrusPOS! 🎉{"\n"}Kedai: {generatedCreds.kedaiNama}{"\n"}Username: {generatedCreds.username}{"\n"}Password: {generatedCreds.password}{"\n"}Login: uruspos.vercel.app</div>
-            </div>
-            <button onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS! 🎉\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)} className="w-full bg-purple-700 text-white font-bold py-3 rounded-xl mb-3 text-sm">📋 Copy Mesej WhatsApp</button>
-            <button onClick={() => setGeneratedCreds(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 text-sm">Tutup</button>
+            <button onClick={() => navigator.clipboard.writeText(`Selamat datang ke UrusPOS!\nKedai: ${generatedCreds.kedaiNama}\nUsername: ${generatedCreds.username}\nPassword: ${generatedCreds.password}\nLogin: uruspos.vercel.app`)} className="w-full py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium mb-2">Copy Mesej WhatsApp</button>
+            <button onClick={() => setGeneratedCreds(null)} className="w-full py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Tutup</button>
           </div>
         </div>
       )}
 
       {/* View Credentials */}
       {showCredentials && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-[#1a0e35] rounded-2xl p-6 w-full max-w-sm border border-blue-500/30" style={{ maxHeight: "85vh", overflowY: "auto" }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl" style={{ maxHeight: "85vh", overflowY: "auto" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-white font-bold text-lg">🔑 Credentials</h3>
-              <button onClick={() => setShowCredentials(null)} className="text-purple-400 text-xl">✕</button>
+              <div className="text-gray-900 font-semibold">Credentials</div>
+              <button onClick={() => setShowCredentials(null)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"><X size={16} /></button>
             </div>
             {loadingCreds ? (
-              <div className="text-center text-purple-400 py-6">Loading...</div>
+              <div className="text-center text-gray-400 py-6 text-sm">Memuatkan...</div>
             ) : (
               <div className="flex flex-col gap-3">
                 {credentialsList.map((user, i) => (
-                  <div key={i} className="bg-[#0f0a1e] border border-purple-900/50 rounded-xl p-4">
+                  <div key={i} className="bg-gray-50 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-white text-sm font-bold">{user.nama}</span>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${user.role === "owner" ? "bg-purple-500/20 text-purple-300" : user.role === "staff" ? "bg-blue-500/20 text-blue-300" : "bg-orange-500/20 text-orange-300"}`}>{user.role}</span>
+                      <span className="text-gray-900 text-sm font-medium">{user.nama}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${user.role === "owner" ? "bg-green-50 text-green-700 border-green-100" : user.role === "staff" ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-orange-50 text-orange-700 border-orange-100"}`}>{user.role}</span>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Username</span><span className="text-white text-xs font-mono font-bold">{user.username}</span></div>
-                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Password</span><span className="text-white text-xs font-mono font-bold">{user.password || "abc123"}</span></div>
-                      <div className="flex justify-between"><span className="text-purple-400 text-xs">Status</span><span className={`text-xs font-bold ${user.is_active ? "text-green-400" : "text-red-400"}`}>{user.is_active ? "✓ Aktif" : "✗ Tidak Aktif"}</span></div>
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between"><span className="text-gray-400">Username</span><span className="text-gray-900 font-mono">{user.username}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Password</span><span className="text-gray-900 font-mono">{user.password || "abc123"}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-400">Status</span><span className={user.is_active ? "text-green-600" : "text-red-500"}>{user.is_active ? "Aktif" : "Tidak Aktif"}</span></div>
                     </div>
                   </div>
                 ))}
-                {credentialsList.length === 0 && <div className="text-center text-purple-400 py-6 text-sm">Tiada user untuk kedai ini.</div>}
+                {credentialsList.length === 0 && <div className="text-center text-gray-400 py-6 text-sm">Tiada user.</div>}
               </div>
             )}
-            <button onClick={() => setShowCredentials(null)} className="w-full bg-purple-900/50 text-purple-300 font-bold py-3 rounded-xl border border-purple-700 mt-5 text-sm">Tutup</button>
+            <button onClick={() => setShowCredentials(null)} className="w-full mt-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium">Tutup</button>
           </div>
         </div>
       )}
 
       <style jsx global>{`
         @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
-        @keyframes filterSheetUp { from { transform: translateY(100%); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
       `}</style>
     </div>
   );
