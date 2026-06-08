@@ -16,6 +16,8 @@ type KedaiStats = {
   jualan: number;
   fee: number;
   staff: number;
+  serviceCharge: number;
+  sst: number;
 };
 
 type BillingRecord = {
@@ -105,22 +107,15 @@ function normalizeText(value: any) {
     .toLowerCase();
 }
 
-function getOrderTotal(order: any) {
-  const possibleTotals = [
-    order?.total,
-    order?.jumlah,
-    order?.jumlah_bayaran,
-    order?.grand_total,
-    order?.total_amount,
-    order?.amount,
-    order?.subtotal,
-  ];
-
-  for (const value of possibleTotals) {
+function getNumberValue(...values: any[]) {
+  for (const value of values) {
     const numberValue = Number(value);
     if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
   }
+  return 0;
+}
 
+function getOrderItemsSubtotal(order: any) {
   return (order?.order_items || []).reduce((sum: number, item: any) => {
     const qty = Number(item?.qty || item?.quantity || 0);
     const harga = Number(
@@ -128,6 +123,69 @@ function getOrderTotal(order: any) {
     );
     return sum + qty * harga;
   }, 0);
+}
+
+function getOrderSubtotal(order: any) {
+  return getNumberValue(
+    order?.subtotal,
+    order?.sub_total,
+    order?.items_subtotal,
+    order?.item_total,
+    order?.jumlah_item,
+  ) || getOrderItemsSubtotal(order);
+}
+
+function getOrderServiceChargeAmount(order: any) {
+  const explicitAmount = getNumberValue(
+    order?.service_charge_amount,
+    order?.serviceChargeAmount,
+    order?.service_charge,
+    order?.serviceCharge,
+    order?.caj_servis_amount,
+    order?.caj_servis,
+  );
+  if (explicitAmount > 0) return explicitAmount;
+
+  const rate = getNumberValue(
+    order?.service_charge_rate,
+    order?.serviceChargeRate,
+    order?.caj_servis_rate,
+  );
+  if (!rate) return 0;
+  return getOrderSubtotal(order) * (rate / 100);
+}
+
+function getOrderSstAmount(order: any) {
+  const explicitAmount = getNumberValue(
+    order?.sst_amount,
+    order?.sstAmount,
+    order?.tax_amount,
+    order?.taxAmount,
+    order?.cukai_amount,
+  );
+  if (explicitAmount > 0) return explicitAmount;
+
+  const rate = getNumberValue(order?.sst_rate, order?.sstRate, order?.tax_rate, order?.taxRate);
+  if (!rate) return 0;
+  const taxableAmount = getOrderSubtotal(order) + getOrderServiceChargeAmount(order);
+  return taxableAmount * (rate / 100);
+}
+
+function getOrderTotal(order: any) {
+  const explicitTotal = getNumberValue(
+    order?.total,
+    order?.jumlah,
+    order?.jumlah_bayaran,
+    order?.grand_total,
+    order?.total_amount,
+    order?.amount,
+  );
+  if (explicitTotal > 0) return explicitTotal;
+
+  const subtotal = getOrderSubtotal(order);
+  const serviceCharge = getOrderServiceChargeAmount(order);
+  const sst = getOrderSstAmount(order);
+  return subtotal + serviceCharge + sst;
 }
 
 function getPaymentMethod(order: any) {
@@ -164,10 +222,10 @@ function getOrderSalesDate(order: any) {
     order?.paidAt ||
     order?.completed_at ||
     order?.completedAt ||
-    order?.updated_at ||
-    order?.updatedAt ||
     order?.created_at ||
     order?.createdAt ||
+    order?.updated_at ||
+    order?.updatedAt ||
     null
   );
 }
@@ -274,6 +332,8 @@ export default function SuperadminDashboardPage() {
         jualan: 0,
         fee: 0,
         staff: 0,
+        serviceCharge: 0,
+        sst: 0,
       };
     });
 
@@ -300,6 +360,8 @@ export default function SuperadminDashboardPage() {
         const kedaiId = order.kedai_id || order.kedaiId || order.store_id || order.storeId;
         if (!kedaiId || !statsMap[kedaiId]) return;
         statsMap[kedaiId].jualan += getOrderTotal(order);
+        statsMap[kedaiId].serviceCharge += getOrderServiceChargeAmount(order);
+        statsMap[kedaiId].sst += getOrderSstAmount(order);
       });
 
       const { data: staffData, error: staffError } = (await supabase
@@ -497,8 +559,12 @@ export default function SuperadminDashboardPage() {
 
   function isCurrentBulan() { return billingBulan === getCurrentBulan(); }
 
-  const totalJualan = Object.values(kedaiStats).reduce((s, k) => s + k.jualan, 0);
-  const totalFee = Object.values(kedaiStats).reduce((s, k) => s + k.fee, 0);
+  const kedaiStatsList = Object.values(kedaiStats) as KedaiStats[];
+  const billingList = Object.values(billingMap) as BillingRecord[];
+  const totalJualan = kedaiStatsList.reduce((s, k) => s + k.jualan, 0);
+  const totalFee = kedaiStatsList.reduce((s, k) => s + k.fee, 0);
+  const totalServiceCharge = kedaiStatsList.reduce((s, k) => s + (k.serviceCharge || 0), 0);
+  const totalSst = kedaiStatsList.reduce((s, k) => s + (k.sst || 0), 0);
   const stats = {
     total: kedaiList.length,
     active: kedaiList.filter((k) => k.status === "active").length,
@@ -507,19 +573,19 @@ export default function SuperadminDashboardPage() {
   };
 
   // Kira billing untuk active kedai je — exclude beta & suspended
-  const billingPaid = Object.values(billingMap).filter(b => {
+  const billingPaid = billingList.filter(b => {
     const kedai = kedaiList.find(k => k.id === b.kedai_id);
     return b.status === "paid" && kedai?.status === "active";
   }).length;
-  const billingUnpaid = Object.values(billingMap).filter(b => {
+  const billingUnpaid = billingList.filter(b => {
     const kedai = kedaiList.find(k => k.id === b.kedai_id);
     return b.status === "unpaid" && kedai?.status === "active";
   }).length;
-  const totalFeePaid = Object.values(billingMap).filter(b => {
+  const totalFeePaid = billingList.filter(b => {
     const kedai = kedaiList.find(k => k.id === b.kedai_id);
     return b.status === "paid" && kedai?.status === "active";
   }).reduce((s, b) => s + Number(b.fee), 0);
-  const totalFeeUnpaid = Object.values(billingMap).filter(b => {
+  const totalFeeUnpaid = billingList.filter(b => {
     const kedai = kedaiList.find(k => k.id === b.kedai_id);
     return b.status === "unpaid" && kedai?.status === "active";
   }).reduce((s, b) => s + Number(b.fee), 0);
@@ -652,6 +718,8 @@ export default function SuperadminDashboardPage() {
               <div className="text-white text-4xl font-black mt-1">RM {totalFee.toFixed(2)}</div>
               <div className="flex gap-3 mt-3 flex-wrap">
                 <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">📊 Jualan RM {totalJualan.toFixed(2)}</span>
+                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🧾 Caj RM {totalServiceCharge.toFixed(2)}</span>
+                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">🏛️ SST RM {totalSst.toFixed(2)}</span>
                 <span className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1 rounded-full">✓ {stats.active} Aktif</span>
               </div>
             </div>
@@ -704,6 +772,18 @@ export default function SuperadminDashboardPage() {
                         </div>
                         <div className="text-center"><div className="text-green-300 text-sm font-black">{s?.staff || 0}</div><div className="text-purple-400 text-xs">Staff</div></div>
                       </div>
+                      {((s?.serviceCharge || 0) > 0 || (s?.sst || 0) > 0) && (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-purple-950/40 rounded-xl p-2 text-center border border-purple-900/30">
+                            <div className="text-purple-200 text-xs font-black">RM {(s?.serviceCharge || 0).toFixed(2)}</div>
+                            <div className="text-purple-500 text-[10px] font-bold">Service Charge</div>
+                          </div>
+                          <div className="bg-purple-950/40 rounded-xl p-2 text-center border border-purple-900/30">
+                            <div className="text-purple-200 text-xs font-black">RM {(s?.sst || 0).toFixed(2)}</div>
+                            <div className="text-purple-500 text-[10px] font-bold">SST</div>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-2 flex-wrap">
                         {kedai.status !== "active" && <button onClick={() => requestStatusChange(kedai, "active")} className="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-2 rounded-xl border border-green-500/30">✓ Aktifkan</button>}
                         {kedai.status !== "beta" && <button onClick={() => requestStatusChange(kedai, "beta")} className="bg-yellow-500/20 text-yellow-300 text-xs font-bold px-3 py-2 rounded-xl border border-yellow-500/30">⏳ Beta</button>}
