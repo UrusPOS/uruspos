@@ -2190,15 +2190,241 @@ export default function OwnerDashboardPage() {
     </div>
   );
 
+  const FloatingOwnerMenu = ({ mobile = false }: { mobile?: boolean }) => (
+    <div className="flex h-full flex-col">
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-gray-900 font-black text-2xl leading-none">
+            Urus<span className="text-[var(--accent-600)]">POS</span>
+          </div>
+          <div className="mt-1 text-[var(--accent-600)] text-xs font-black uppercase tracking-wide">
+            Owner Menu
+          </div>
+        </div>
+
+        {mobile && (
+          <button
+            onClick={() => setShowMobileMenu(false)}
+            className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
+            aria-label="Tutup menu"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-[28px] p-5 mb-5 text-white shadow-lg shadow-black/5">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center flex-shrink-0 text-xl font-black">
+            {kedaiLogoUrl ? (
+              <img
+                src={kedaiLogoUrl}
+                alt={kedaiInfo?.nama || "Logo kedai"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              "U"
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[var(--accent-100)] text-xs font-bold mb-1">
+              KEDAI
+            </div>
+            <div className="font-black text-base leading-tight truncate">
+              {kedaiInfo?.nama || "Kedai Saya"}
+            </div>
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <span className="bg-white/20 text-white text-[11px] font-black px-3 py-1 rounded-full">
+                👑 Owner
+              </span>
+              <span className="bg-white/20 text-white text-[11px] font-black px-3 py-1 rounded-full">
+                {planInfo.label}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 flex-1 overflow-y-auto pr-1">
+        {navItems.map((item) => {
+          const isActive = activeTab === item.id;
+
+          if (item.id === "laporan") {
+            const isReportOpen = showReportSubmenu || isActive;
+
+            return (
+              <div key={item.id} className="space-y-1.5">
+                <button
+                  onClick={() => changeTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isReportOpen ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
+                >
+                  <span
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isReportOpen ? "bg-white/20" : "bg-gray-50"}`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-black text-sm">{item.label}</span>
+                    <span
+                      className={`block text-[11px] font-semibold mt-0.5 truncate ${isReportOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
+                    >
+                      {isActive
+                        ? activeReport?.label || item.description
+                        : isReportOpen
+                          ? "Pilih jenis laporan"
+                          : item.description}
+                    </span>
+                  </span>
+                  <span className="text-lg leading-none font-light">{isReportOpen ? "−" : "+"}</span>
+                </button>
+
+                {isReportOpen && (
+                  <div className="ml-5 pl-3 border-l border-[var(--accent-100)] space-y-1">
+                    {reportMenuItems.map((reportItem) => {
+                      const isReportActive = activeReportTab === reportItem.id;
+                      return (
+                        <button
+                          key={reportItem.id}
+                          onClick={() => changeReportTab(reportItem.id)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-left transition-all ${isReportActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
+                        >
+                          <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base flex-shrink-0">
+                            {reportItem.icon}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-xs font-black truncate">
+                              {reportItem.label}
+                            </span>
+                            <span className="block text-[10px] font-semibold text-gray-400 truncate">
+                              {reportItem.description}
+                            </span>
+                          </span>
+                          {isReportActive && (
+                            <span className="text-[var(--accent-600)] text-xs font-black">✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          if (item.id === "settings") {
+            const isSettingsOpen = showSettingsSubmenu || isActive;
+
+            return (
+              <div key={item.id} className="space-y-1.5">
+                <button
+                  onClick={() => changeTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isSettingsOpen ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
+                >
+                  <span
+                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isSettingsOpen ? "bg-white/20" : "bg-gray-50"}`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-black text-sm">{item.label}</span>
+                    <span
+                      className={`block text-[11px] font-semibold mt-0.5 truncate ${isSettingsOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
+                    >
+                      {isActive
+                        ? activeSettings?.label || item.description
+                        : isSettingsOpen
+                          ? "Pilih tetapan"
+                          : item.description}
+                    </span>
+                  </span>
+                  <span className="text-lg leading-none font-light">{isSettingsOpen ? "−" : "+"}</span>
+                </button>
+
+                {isSettingsOpen && (
+                  <div className="ml-5 pl-3 border-l border-[var(--accent-100)] space-y-1">
+                    {settingsMenuItems.map((settingsItem) => {
+                      const isSettingsActive = activeSettingsTab === settingsItem.id;
+                      return (
+                        <button
+                          key={settingsItem.id}
+                          onClick={() => changeSettingsTab(settingsItem.id)}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
+                        >
+                          <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base flex-shrink-0">
+                            {settingsItem.icon}
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-xs font-black truncate">
+                              {settingsItem.label}
+                            </span>
+                            <span className="block text-[10px] font-semibold text-gray-400 truncate">
+                              {settingsItem.description}
+                            </span>
+                          </span>
+                          {isSettingsActive && (
+                            <span className="text-[var(--accent-600)] text-xs font-black">✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => changeTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isActive ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
+            >
+              <span
+                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isActive ? "bg-white/20" : "bg-gray-50"}`}
+              >
+                {item.icon}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-black text-sm">{item.label}</span>
+                <span
+                  className={`block text-[11px] font-semibold mt-0.5 truncate ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}
+                >
+                  {item.description}
+                </span>
+              </span>
+              {isActive && <span className="font-black">✓</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <a
+          href="/auth/logout"
+          className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left text-sm font-black text-gray-500 transition-all hover:bg-red-50 hover:text-red-600"
+        >
+          <span className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-lg">🚪</span>
+          <span>Log Keluar</span>
+        </a>
+      </div>
+    </div>
+  );
+
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-10" style={accentStyle}>
+    <div className="min-h-screen bg-[#f6f7f2] pb-10" style={accentStyle}>
+      {/* Desktop Floating Menu */}
+      <aside className="fixed left-5 top-5 z-40 hidden h-[calc(100vh-40px)] w-[280px] rounded-[34px] bg-white/95 p-5 shadow-xl shadow-black/5 ring-1 ring-black/5 backdrop-blur lg:block">
+        <FloatingOwnerMenu />
+      </aside>
+
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-200">
+      <div className="sticky top-0 z-30 bg-[#f6f7f2]/90 backdrop-blur border-b border-black/5 lg:ml-[320px]">
         <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setShowMobileMenu(true)}
-              className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all"
+              className="w-11 h-11 rounded-2xl bg-white border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all lg:hidden"
               aria-label="Buka menu"
             >
               ☰
@@ -2223,7 +2449,7 @@ export default function OwnerDashboardPage() {
             </div>
             <a
               href="/auth/logout"
-              className="bg-gray-50 border border-gray-200 text-gray-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all"
+              className="bg-white border border-gray-200 text-gray-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all lg:hidden"
             >
               Log Keluar
             </a>
@@ -2231,7 +2457,7 @@ export default function OwnerDashboardPage() {
         </div>
       </div>
 
-      <div className="p-4 max-w-2xl mx-auto">
+      <div className="p-4 max-w-2xl mx-auto lg:ml-[320px] lg:max-w-5xl lg:px-6">
         {/* DASHBOARD */}
         {activeTab === "dashboard" && (
           <div>
@@ -4012,234 +4238,26 @@ export default function OwnerDashboardPage() {
         </div>
       )}
 
-      {/* Mobile Menu Drawer */}
+      {/* Mobile Floating Menu */}
       {showMobileMenu && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             onClick={() => setShowMobileMenu(false)}
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
             aria-label="Tutup menu"
           />
-          <div className="relative h-full w-[84%] sm:w-[380px] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <div className="text-gray-900 font-black text-xl leading-none">
-                  Urus<span className="text-[var(--accent-600)]">POS</span>
-                </div>
-                <div className="text-[var(--accent-600)] text-xs font-black mt-1 uppercase tracking-wide">
-                  Owner Menu
-                </div>
-              </div>
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-3xl p-5 mb-5 text-white shadow-lg ">
-              <div className="flex items-center gap-3">
-                {kedaiLogoUrl && (
-                  <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center flex-shrink-0">
-                    <img
-                      src={kedaiLogoUrl}
-                      alt={kedaiInfo?.nama || "Logo kedai"}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-[var(--accent-100)] text-xs font-bold mb-1">
-                    KEDAI
-                  </div>
-                  <div className="font-black text-lg leading-tight truncate">
-                    {kedaiInfo?.nama || "Kedai Saya"}
-                  </div>
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
-                      👑 Owner
-                    </span>
-                    <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full">
-                      {planInfo.label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 flex-1 overflow-y-auto pr-1">
-              {navItems.map((item) => {
-                const isActive = activeTab === item.id;
-
-                if (item.id === "laporan") {
-                  const isReportOpen = showReportSubmenu || isActive;
-
-                  return (
-                    <div key={item.id} className="space-y-2">
-                      <button
-                        onClick={() => changeTab(item.id)}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isReportOpen ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
-                      >
-                        <span
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isReportOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
-                        >
-                          {item.icon}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block font-black text-sm">
-                            {item.label}
-                          </span>
-                          <span
-                            className={`block text-xs font-semibold mt-0.5 ${isReportOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                          >
-                            {isActive
-                              ? activeReport?.label || item.description
-                              : isReportOpen
-                                ? "Pilih jenis laporan"
-                                : item.description}
-                          </span>
-                        </span>
-                        <span className="text-xl leading-none font-light">{isReportOpen ? "−" : "+"}</span>
-                      </button>
-
-                      {isReportOpen && (
-                        <div className="ml-4 pl-4 border-l border-[var(--accent-100)] space-y-1.5">
-                          {reportMenuItems.map((reportItem) => {
-                            const isReportActive =
-                              activeReportTab === reportItem.id;
-                            return (
-                              <button
-                                key={reportItem.id}
-                                onClick={() => changeReportTab(reportItem.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isReportActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
-                              >
-                                <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
-                                  {reportItem.icon}
-                                </span>
-                                <span className="flex-1 min-w-0">
-                                  <span className="block text-xs font-black truncate">
-                                    {reportItem.label}
-                                  </span>
-                                  <span className="block text-[11px] font-semibold text-gray-400 truncate">
-                                    {reportItem.description}
-                                  </span>
-                                </span>
-                                {isReportActive && (
-                                  <span className="text-[var(--accent-600)] text-xs font-black">
-                                    ✓
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (item.id === "settings") {
-                  const isSettingsOpen = showSettingsSubmenu || isActive;
-
-                  return (
-                    <div key={item.id} className="space-y-2">
-                      <button
-                        onClick={() => changeTab(item.id)}
-                        className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isSettingsOpen ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
-                      >
-                        <span
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isSettingsOpen ? "bg-white/20" : "bg-white border border-gray-100"}`}
-                        >
-                          {item.icon}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block font-black text-sm">
-                            {item.label}
-                          </span>
-                          <span
-                            className={`block text-xs font-semibold mt-0.5 ${isSettingsOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                          >
-                            {isActive
-                              ? activeSettings?.label || item.description
-                              : isSettingsOpen
-                                ? "Pilih tetapan"
-                                : item.description}
-                          </span>
-                        </span>
-                        <span className="text-xl leading-none font-light">
-                          {isSettingsOpen ? "−" : "+"}
-                        </span>
-                      </button>
-
-                      {isSettingsOpen && (
-                        <div className="ml-4 pl-4 border-l border-[var(--accent-100)] space-y-1.5">
-                          {settingsMenuItems.map((settingsItem) => {
-                            const isSettingsActive =
-                              activeSettingsTab === settingsItem.id;
-                            return (
-                              <button
-                                key={settingsItem.id}
-                                onClick={() => changeSettingsTab(settingsItem.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
-                              >
-                                <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base">
-                                  {settingsItem.icon}
-                                </span>
-                                <span className="flex-1 min-w-0">
-                                  <span className="block text-xs font-black truncate">
-                                    {settingsItem.label}
-                                  </span>
-                                  <span className="block text-[11px] font-semibold text-gray-400 truncate">
-                                    {settingsItem.description}
-                                  </span>
-                                </span>
-                                {isSettingsActive && (
-                                  <span className="text-[var(--accent-600)] text-xs font-black">
-                                    ✓
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                }
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => changeTab(item.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg " : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
-                  >
-                    <span
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}
-                    >
-                      {item.icon}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block font-black text-sm">
-                        {item.label}
-                      </span>
-                      <span
-                        className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                      >
-                        {item.description}
-                      </span>
-                    </span>
-                    {isActive && <span className="font-black">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="absolute bottom-4 left-4 top-4 w-[84vw] max-w-[340px] rounded-[34px] bg-white/95 p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5 backdrop-blur animate-[floatInLeft_0.22s_ease-out]">
+            <FloatingOwnerMenu mobile />
           </div>
           <style jsx>{`
-            @keyframes slideInLeft {
+            @keyframes floatInLeft {
               from {
-                transform: translateX(-100%);
+                opacity: 0;
+                transform: translateX(-18px) scale(0.98);
               }
               to {
-                transform: translateX(0);
+                opacity: 1;
+                transform: translateX(0) scale(1);
               }
             }
           `}</style>

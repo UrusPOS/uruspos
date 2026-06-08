@@ -17,7 +17,9 @@ import {
   Trash2,
   Key,
   Check,
-  Repeat2
+  Repeat2,
+  Eye,
+  FileText
 } from "lucide-react";
 
 type Kedai = {
@@ -37,13 +39,19 @@ type KedaiStats = {
   sst: number;
 };
 
-type BillingRecord = {
+type InvoiceRecord = {
   id: string;
+  invoice_no: string;
   kedai_id: string;
-  bulan: string;
+  billing_month: string;
+  invoice_date: string;
+  due_date: string;
   jualan: number;
   fee: number;
+  plan: string;
   status: string;
+  paid_at: string | null;
+  created_at: string;
 };
 
 type PendingStatusChange = {
@@ -74,9 +82,63 @@ function getMonthToDateRange(): { from: string; to: string } {
   };
 }
 
+function getMonthRange(year: number, monthIndex: number): { from: string; to: string } {
+  const from = new Date(year, monthIndex, 1);
+  from.setHours(0, 0, 0, 0);
+
+  const to = new Date(year, monthIndex + 1, 0);
+  to.setHours(23, 59, 59, 999);
+
+  return {
+    from: from.toISOString(),
+    to: to.toISOString()
+  };
+}
+
 function getCurrentBulan() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getPreviousMonthInvoiceInfo() {
+  const now = new Date();
+
+  const invoiceDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  invoiceDate.setHours(0, 0, 0, 0);
+
+  const dueDate = new Date(invoiceDate);
+  dueDate.setDate(dueDate.getDate() + 7);
+  dueDate.setHours(23, 59, 59, 999);
+
+  const billingDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const billingMonth = `${billingDate.getFullYear()}-${String(billingDate.getMonth() + 1).padStart(2, "0")}`;
+  const invoiceMonth = `${invoiceDate.getFullYear()}-${String(invoiceDate.getMonth() + 1).padStart(2, "0")}`;
+
+  const range = getMonthRange(billingDate.getFullYear(), billingDate.getMonth());
+
+  return {
+    billingMonth,
+    invoiceMonth,
+    invoiceDate: invoiceDate.toISOString().slice(0, 10),
+    dueDate: dueDate.toISOString().slice(0, 10),
+    from: range.from,
+    to: range.to
+  };
+}
+
+function getInvoiceMonthRange(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+
+  const from = new Date(year, monthNumber - 1, 1);
+  from.setHours(0, 0, 0, 0);
+
+  const to = new Date(year, monthNumber, 0);
+  to.setHours(23, 59, 59, 999);
+
+  return {
+    from: from.toISOString().slice(0, 10),
+    to: to.toISOString().slice(0, 10)
+  };
 }
 
 const SALES_STATUSES = new Set(["paid", "done", "completed", "complete", "selesai", "closed", "settled"]);
@@ -277,11 +339,14 @@ async function attachOrderItemsToOrders(rawOrders: any[]) {
 export default function SuperadminDashboardPage() {
   const [kedaiList, setKedaiList] = useState<Kedai[]>([]);
   const [monthlyKedaiStats, setMonthlyKedaiStats] = useState<{ [id: string]: KedaiStats }>({});
-  const [billingMap, setBillingMap] = useState<{ [kedai_id: string]: BillingRecord }>({});
-  const [loadingBilling, setLoadingBilling] = useState(false);
-  const [updatingBilling, setUpdatingBilling] = useState<string | null>(null);
-  const [confirmBilling, setConfirmBilling] = useState<{ kedaiId: string; nama: string; currentStatus: string } | null>(null);
-  const [billingBulan, setBillingBulan] = useState(getCurrentBulan());
+  const [invoiceList, setInvoiceList] = useState<InvoiceRecord[]>([]);
+  const [invoiceViewMonth, setInvoiceViewMonth] = useState(getCurrentBulan());
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [generatingInvoices, setGeneratingInvoices] = useState(false);
+  const [invoiceMessage, setInvoiceMessage] = useState("");
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
+  const [updatingInvoice, setUpdatingInvoice] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmStatusChange, setConfirmStatusChange] = useState<PendingStatusChange | null>(null);
@@ -305,8 +370,10 @@ export default function SuperadminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "langganan" && kedaiList.length > 0) fetchBilling();
-  }, [activeTab, kedaiList, billingBulan, monthlyKedaiStats]);
+    if (activeTab === "langganan") {
+      fetchInvoices(invoiceViewMonth);
+    }
+  }, [activeTab, invoiceViewMonth]);
 
   async function fetchKedai() {
     setLoading(true);
@@ -404,105 +471,161 @@ export default function SuperadminDashboardPage() {
     setMonthlyKedaiStats(monthlyStats);
   }
 
-  async function fetchBilling() {
-    setLoadingBilling(true);
+  async function fetchInvoices(month = invoiceViewMonth) {
+    setLoadingInvoices(true);
 
-    const bulan = billingBulan;
-    const isCurrentMonth = bulan === getCurrentBulan();
+    const range = getInvoiceMonthRange(month);
 
-    const { data } = await supabase
-      .from("billing")
+    const { data, error } = await supabase
+      .from("invoices")
       .select("*")
-      .eq("bulan", bulan) as any;
+      .gte("invoice_date", range.from)
+      .lte("invoice_date", range.to)
+      .order("invoice_date", { ascending: false })
+      .order("invoice_no", { ascending: false }) as any;
 
-    const map: { [kedai_id: string]: BillingRecord } = {};
-
-    (data || []).forEach((record: BillingRecord) => {
-      map[record.kedai_id] = record;
-    });
-
-    for (const record of (data || [])) {
-      const kedai = kedaiList.find(k => k.id === record.kedai_id);
-
-      if (kedai && kedai.status !== "active") {
-        await supabase
-          .from("billing")
-          .delete()
-          .eq("id", record.id);
-
-        delete map[record.kedai_id];
-      }
+    if (error) {
+      console.error("fetchInvoices error:", error);
+      setInvoiceList([]);
+    } else {
+      setInvoiceList(data || []);
     }
 
-    if (isCurrentMonth) {
-      const activeKedai = kedaiList.filter(k => k.status === "active");
-
-      for (const kedai of activeKedai) {
-        if (!map[kedai.id]) {
-          const s = monthlyKedaiStats[kedai.id];
-
-          const { data: newRecord } = await supabase
-            .from("billing")
-            .insert({
-              kedai_id: kedai.id,
-              bulan,
-              jualan: s?.jualan || 0,
-              fee: s?.fee || 0,
-              status: "unpaid"
-            })
-            .select()
-            .single() as any;
-
-          if (newRecord) map[kedai.id] = newRecord;
-        } else {
-          const s = monthlyKedaiStats[kedai.id];
-
-          if (s) {
-            await supabase
-              .from("billing")
-              .update({
-                jualan: s.jualan,
-                fee: s.fee
-              })
-              .eq("id", map[kedai.id].id);
-
-            map[kedai.id] = {
-              ...map[kedai.id],
-              jualan: s.jualan,
-              fee: s.fee
-            };
-          }
-        }
-      }
-    }
-
-    setBillingMap(map);
-    setLoadingBilling(false);
+    setLoadingInvoices(false);
   }
 
-  async function toggleBillingStatus(kedaiId: string) {
-    const record = billingMap[kedaiId];
+  async function generatePreviousMonthInvoices() {
+    setGeneratingInvoices(true);
+    setInvoiceMessage("");
 
-    if (!record) return;
+    const info = getPreviousMonthInvoiceInfo();
+    const billingEndDate = new Date(info.to);
+    billingEndDate.setHours(23, 59, 59, 999);
 
-    setUpdatingBilling(kedaiId);
+    try {
+      const eligibleKedai = kedaiList.filter((kedai) => {
+        if (kedai.status !== "active") return false;
+        if (!kedai.created_at) return false;
 
-    const newStatus = record.status === "paid" ? "unpaid" : "paid";
+        const createdAt = new Date(kedai.created_at);
+        if (Number.isNaN(createdAt.getTime())) return false;
 
-    await supabase
-      .from("billing")
-      .update({ status: newStatus })
-      .eq("id", record.id);
+        return createdAt.getTime() <= billingEndDate.getTime();
+      });
 
-    setBillingMap(prev => ({
-      ...prev,
-      [kedaiId]: {
-        ...prev[kedaiId],
-        status: newStatus
+      if (eligibleKedai.length === 0) {
+        setInvoiceMessage("Tiada kedai layak untuk invoice bulan lepas.");
+        setGeneratingInvoices(false);
+        return;
       }
-    }));
 
-    setUpdatingBilling(null);
+      const { data: existing } = await supabase
+        .from("invoices")
+        .select("kedai_id")
+        .eq("billing_month", info.billingMonth) as any;
+
+      const existingSet = new Set((existing || []).map((invoice: any) => invoice.kedai_id));
+
+      const statsMap = await buildStatsMap(eligibleKedai, info.from, info.to);
+
+      const invoiceCandidates = eligibleKedai
+        .filter(kedai => !existingSet.has(kedai.id))
+        .map((kedai) => {
+          const sales = statsMap[kedai.id]?.jualan || 0;
+          const fee = sales * 0.02;
+
+          return {
+            invoice_no: `INV-${info.invoiceMonth.replace("-", "")}-${kedai.id.slice(0, 8).toUpperCase()}`,
+            kedai_id: kedai.id,
+            billing_month: info.billingMonth,
+            invoice_date: info.invoiceDate,
+            due_date: info.dueDate,
+            jualan: sales,
+            fee,
+            plan: "active",
+            status: "unpaid",
+            paid_at: null
+          };
+        });
+
+      const newInvoices = invoiceCandidates.filter(invoice => Number(invoice.fee || 0) > 0);
+      const skippedExisting = eligibleKedai.filter(kedai => existingSet.has(kedai.id)).length;
+      const skippedZeroFee = invoiceCandidates.length - newInvoices.length;
+
+      if (newInvoices.length === 0) {
+        const messages = [];
+
+        if (skippedExisting > 0) messages.push(`${skippedExisting} invoice sudah wujud`);
+        if (skippedZeroFee > 0) messages.push(`${skippedZeroFee} kedai sales/fee RM0 di-skip`);
+
+        setInvoiceMessage(
+          messages.length > 0
+            ? `Tiada invoice baru dijana. ${messages.join(", ")}.`
+            : "Tiada invoice baru dijana."
+        );
+
+        setInvoiceViewMonth(info.invoiceMonth);
+        await fetchInvoices(info.invoiceMonth);
+        setGeneratingInvoices(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from("invoices")
+        .insert(newInvoices as any);
+
+      if (error) {
+        console.error("generate invoices error:", error);
+        setInvoiceMessage("Gagal jana invoice. Semak table invoices / permission Supabase.");
+      } else {
+        const extraMessages = [];
+
+        if (skippedExisting > 0) extraMessages.push(`${skippedExisting} sudah wujud`);
+        if (skippedZeroFee > 0) extraMessages.push(`${skippedZeroFee} sales/fee RM0 di-skip`);
+
+        setInvoiceMessage(
+          `${newInvoices.length} invoice berjaya dijana.${extraMessages.length > 0 ? ` (${extraMessages.join(", ")})` : ""}`
+        );
+
+        setInvoiceViewMonth(info.invoiceMonth);
+        await fetchInvoices(info.invoiceMonth);
+      }
+    } catch (error) {
+      console.error("generatePreviousMonthInvoices error:", error);
+      setInvoiceMessage("Gagal jana invoice.");
+    }
+
+    setGeneratingInvoices(false);
+  }
+
+  async function toggleInvoiceStatus(invoice: InvoiceRecord) {
+    setUpdatingInvoice(invoice.id);
+
+    const newStatus = invoice.status === "paid" ? "unpaid" : "paid";
+
+    const { error } = await supabase
+      .from("invoices")
+      .update({
+        status: newStatus,
+        paid_at: newStatus === "paid" ? new Date().toISOString() : null
+      } as any)
+      .eq("id", invoice.id);
+
+    if (!error) {
+      const updatedInvoice = {
+        ...invoice,
+        status: newStatus,
+        paid_at: newStatus === "paid" ? new Date().toISOString() : null
+      };
+
+      setInvoiceList(prev => prev.map(item => item.id === invoice.id ? updatedInvoice : item));
+
+      if (selectedInvoice?.id === invoice.id) {
+        setSelectedInvoice(updatedInvoice);
+      }
+    }
+
+    setUpdatingInvoice(null);
   }
 
   function statusLabel(status: string) {
@@ -511,6 +634,26 @@ export default function SuperadminDashboardPage() {
     if (status === "suspended") return "Suspended";
 
     return status;
+  }
+
+  function invoiceStatus(invoice: InvoiceRecord) {
+    if (invoice.status === "paid") return "paid";
+
+    const due = new Date(invoice.due_date);
+    due.setHours(23, 59, 59, 999);
+
+    if (new Date().getTime() > due.getTime()) return "overdue";
+
+    return "unpaid";
+  }
+
+  function invoiceStatusLabel(invoice: InvoiceRecord) {
+    const status = invoiceStatus(invoice);
+
+    if (status === "paid") return "Paid";
+    if (status === "overdue") return "Overdue";
+
+    return "Unpaid";
   }
 
   function requestStatusChange(kedai: Kedai, targetStatus: string) {
@@ -568,6 +711,7 @@ export default function SuperadminDashboardPage() {
     await supabase.from("users").delete().eq("kedai_id", id);
     await supabase.from("produk").delete().eq("kedai_id", id);
     await supabase.from("billing").delete().eq("kedai_id", id);
+    await supabase.from("invoices").delete().eq("kedai_id", id);
     await supabase.from("kedai").delete().eq("id", id);
 
     setConfirmDelete(null);
@@ -639,8 +783,8 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
-  function bulanLabel() {
-    const [y, m] = billingBulan.split("-");
+  function bulanLabel(month = invoiceViewMonth) {
+    const [y, m] = month.split("-");
 
     return new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString("ms-MY", {
       month: "long",
@@ -648,24 +792,45 @@ export default function SuperadminDashboardPage() {
     });
   }
 
-  function navigateBulan(direction: number) {
-    const [y, m] = billingBulan.split("-").map(Number);
-    const d = new Date(y, m - 1 + direction, 1);
+  function billingMonthLabel(month: string) {
+    const [y, m] = month.split("-");
 
-    setBillingBulan(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    setBillingMap({});
+    return new Date(parseInt(y), parseInt(m) - 1, 1).toLocaleDateString("ms-MY", {
+      month: "long",
+      year: "numeric"
+    });
   }
 
-  function isCurrentBulan() {
-    return billingBulan === getCurrentBulan();
+  function navigateInvoiceMonth(direction: number) {
+    const [y, m] = invoiceViewMonth.split("-").map(Number);
+    const d = new Date(y, m - 1 + direction, 1);
+
+    setInvoiceViewMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+
+  function isCurrentInvoiceMonth() {
+    return invoiceViewMonth === getCurrentBulan();
   }
 
   function formatRM(value: number) {
     return `RM ${Number(value || 0).toFixed(2)}`;
   }
 
+  function formatDate(value: string) {
+    if (!value) return "-";
+
+    return new Date(value).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  }
+
+  function getKedaiName(kedaiId: string) {
+    return kedaiList.find(k => k.id === kedaiId)?.nama || "Kedai";
+  }
+
   const monthlyKedaiStatsList = Object.values(monthlyKedaiStats) as KedaiStats[];
-  const billingList = Object.values(billingMap) as BillingRecord[];
 
   const totalMonthlyJualan = monthlyKedaiStatsList.reduce((s, k) => s + k.jualan, 0);
   const totalMonthlyFee = monthlyKedaiStatsList.reduce((s, k) => s + k.fee, 0);
@@ -677,25 +842,14 @@ export default function SuperadminDashboardPage() {
     suspended: kedaiList.filter(k => k.status === "suspended").length
   };
 
-  const billingPaid = billingList.filter(b => {
-    const k = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "paid" && k?.status === "active";
-  }).length;
+  const invoicePaid = invoiceList.filter(invoice => invoiceStatus(invoice) === "paid");
+  const invoiceUnpaid = invoiceList.filter(invoice => invoiceStatus(invoice) === "unpaid");
+  const invoiceOverdue = invoiceList.filter(invoice => invoiceStatus(invoice) === "overdue");
 
-  const billingUnpaid = billingList.filter(b => {
-    const k = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "unpaid" && k?.status === "active";
-  }).length;
-
-  const totalFeePaid = billingList.filter(b => {
-    const k = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "paid" && k?.status === "active";
-  }).reduce((s, b) => s + Number(b.fee), 0);
-
-  const totalFeeUnpaid = billingList.filter(b => {
-    const k = kedaiList.find(k => k.id === b.kedai_id);
-    return b.status === "unpaid" && k?.status === "active";
-  }).reduce((s, b) => s + Number(b.fee), 0);
+  const totalInvoiceAmount = invoiceList.reduce((sum, invoice) => sum + Number(invoice.fee || 0), 0);
+  const totalPaidAmount = invoicePaid.reduce((sum, invoice) => sum + Number(invoice.fee || 0), 0);
+  const totalUnpaidAmount = invoiceUnpaid.reduce((sum, invoice) => sum + Number(invoice.fee || 0), 0);
+  const totalOverdueAmount = invoiceOverdue.reduce((sum, invoice) => sum + Number(invoice.fee || 0), 0);
 
   const navItems = [
     { id: "utama", label: "Utama", icon: LayoutDashboard },
@@ -1092,27 +1246,43 @@ export default function SuperadminDashboardPage() {
 
           {activeTab === "langganan" && (
             <div>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-start justify-between gap-3 mb-6">
                 <div>
-                  <h1 className="text-gray-900 font-semibold text-xl">Langganan</h1>
-                  <p className="text-gray-400 text-sm mt-0.5">Status bayaran bulanan</p>
+                  <h1 className="text-gray-900 font-semibold text-xl">Invois</h1>
+                  <p className="text-gray-400 text-sm mt-0.5">Invoice bulanan UrusPOS</p>
+                  {invoiceMessage && (
+                    <div className="text-xs text-green-700 mt-2 bg-green-50 border border-green-100 px-3 py-2 rounded-lg inline-block">
+                      {invoiceMessage}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={generatePreviousMonthInvoices}
+                  disabled={generatingInvoices}
+                  className="flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-all disabled:opacity-50"
+                >
+                  <FileText size={15} />
+                  <span className="hidden sm:inline">{generatingInvoices ? "Menjana..." : "Generate Invoice"}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mb-6">
+                <div className="text-sm font-medium text-gray-700">
+                  {bulanLabel(invoiceViewMonth)}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => navigateBulan(-1)}
+                    onClick={() => navigateInvoiceMonth(-1)}
                     className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
                   >
                     <ChevronLeft size={16} />
                   </button>
 
-                  <div className="text-sm font-medium text-gray-700 min-w-[110px] text-center">
-                    {bulanLabel()}
-                  </div>
-
                   <button
-                    onClick={() => navigateBulan(1)}
-                    disabled={isCurrentBulan()}
+                    onClick={() => navigateInvoiceMonth(1)}
+                    disabled={isCurrentInvoiceMonth()}
                     className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronRight size={16} />
@@ -1120,114 +1290,197 @@ export default function SuperadminDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 <div className="bg-white rounded-xl p-4 border border-gray-100">
-                  <div className="text-gray-400 text-xs mb-1">Jumlah Fee</div>
-                  <div className="text-gray-900 font-bold">{formatRM(totalFeePaid + totalFeeUnpaid)}</div>
+                  <div className="text-gray-400 text-xs mb-1">Total Invoice</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalInvoiceAmount)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{invoiceList.length} invoice</div>
                 </div>
 
                 <div className="bg-white rounded-xl p-4 border border-green-100">
-                  <div className="text-green-600 text-xs mb-1 font-medium">Dah Bayar</div>
-                  <div className="text-gray-900 font-bold">{formatRM(totalFeePaid)}</div>
-                  <div className="text-gray-400 text-xs mt-0.5">{billingPaid} kedai</div>
+                  <div className="text-green-600 text-xs mb-1 font-medium">Paid</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalPaidAmount)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{invoicePaid.length} invoice</div>
+                </div>
+
+                <div className="bg-white rounded-xl p-4 border border-amber-100">
+                  <div className="text-amber-600 text-xs mb-1 font-medium">Unpaid</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalUnpaidAmount)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{invoiceUnpaid.length} invoice</div>
                 </div>
 
                 <div className="bg-white rounded-xl p-4 border border-red-100">
-                  <div className="text-red-500 text-xs mb-1 font-medium">Belum Bayar</div>
-                  <div className="text-gray-900 font-bold">{formatRM(totalFeeUnpaid)}</div>
-                  <div className="text-gray-400 text-xs mt-0.5">{billingUnpaid} kedai</div>
+                  <div className="text-red-500 text-xs mb-1 font-medium">Overdue</div>
+                  <div className="text-gray-900 font-bold">{formatRM(totalOverdueAmount)}</div>
+                  <div className="text-gray-400 text-xs mt-0.5">{invoiceOverdue.length} invoice</div>
                 </div>
               </div>
 
-              {loadingBilling ? (
-                <div className="text-center text-gray-400 py-10 text-sm">Memuatkan...</div>
+              {loadingInvoices ? (
+                <div className="text-center text-gray-400 py-10 text-sm">Memuatkan invoice...</div>
               ) : (
-                <div className="flex flex-col gap-2">
-                  {kedaiList.filter((kedai) => {
-                    const kedaiCreatedBulan = kedai.created_at
-                      ? `${new Date(kedai.created_at).getFullYear()}-${String(new Date(kedai.created_at).getMonth() + 1).padStart(2, "0")}`
-                      : "2000-01";
+                <>
+                  <div className="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Invois</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Tarikh Invois</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Nama Kedai</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Plan</th>
+                          <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Bayaran</th>
+                          <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Action</th>
+                        </tr>
+                      </thead>
 
-                    return billingBulan >= kedaiCreatedBulan;
-                  }).map((kedai) => {
-                    const s = monthlyKedaiStats[kedai.id];
-                    const billing = billingMap[kedai.id];
-                    const isActive = kedai.status === "active";
-                    const isPaid = billing?.status === "paid";
+                      <tbody className="divide-y divide-gray-50">
+                        {invoiceList.map((invoice) => {
+                          const status = invoiceStatus(invoice);
 
-                    return (
-                      <div key={kedai.id} className="bg-white rounded-xl p-4 border border-gray-100 flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-900 text-sm font-medium truncate">{kedai.nama}</div>
+                          return (
+                            <tr key={invoice.id} className="hover:bg-gray-50/70 transition-all">
+                              <td className="px-5 py-4">
+                                <div className="font-mono text-xs font-semibold text-gray-900">{invoice.invoice_no}</div>
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  Sales {billingMonthLabel(invoice.billing_month)}
+                                </div>
+                              </td>
 
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                              kedai.status === "active"
-                                ? "bg-green-50 text-green-700 border-green-100"
-                                : kedai.status === "beta"
-                                  ? "bg-amber-50 text-amber-700 border-amber-100"
-                                  : "bg-red-50 text-red-600 border-red-100"
-                            }`}>
-                              {statusLabel(kedai.status)}
-                            </span>
+                              <td className="px-5 py-4 text-gray-600">
+                                {formatDate(invoice.invoice_date)}
+                              </td>
 
-                            {isActive && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                                isPaid
-                                  ? "bg-green-50 text-green-700 border-green-100"
-                                  : "bg-red-50 text-red-500 border-red-100"
-                              }`}>
-                                {isPaid ? "Dah Bayar" : "Belum Bayar"}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                              <td className="px-5 py-4">
+                                <div className="font-medium text-gray-900">{getKedaiName(invoice.kedai_id)}</div>
+                              </td>
 
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right">
-                            <div className="text-gray-900 text-sm font-semibold">
-                              {isActive
-                                ? formatRM(s?.fee || 0)
-                                : kedai.status === "beta"
-                                  ? <span className="text-amber-500 text-xs">Free</span>
-                                  : <span className="text-gray-300">—</span>
-                              }
+                              <td className="px-5 py-4">
+                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                  status === "paid"
+                                    ? "bg-green-50 text-green-700 border-green-100"
+                                    : status === "overdue"
+                                      ? "bg-red-50 text-red-600 border-red-100"
+                                      : "bg-amber-50 text-amber-700 border-amber-100"
+                                }`}>
+                                  {invoiceStatusLabel(invoice)}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4 text-gray-600 capitalize">
+                                {invoice.plan || "active"}
+                              </td>
+
+                              <td className="px-5 py-4 text-right font-semibold text-gray-900">
+                                {formatRM(invoice.fee)}
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setSelectedInvoice(invoice)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all"
+                                  >
+                                    <Eye size={12} />
+                                    View
+                                  </button>
+
+                                  <button
+                                    onClick={() => toggleInvoiceStatus(invoice)}
+                                    disabled={updatingInvoice === invoice.id}
+                                    className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+                                      invoice.status === "paid"
+                                        ? "bg-red-50 text-red-600 border-red-100 hover:bg-red-100"
+                                        : "bg-green-50 text-green-700 border-green-100 hover:bg-green-100"
+                                    }`}
+                                  >
+                                    {invoice.status === "paid" ? <X size={12} /> : <Check size={12} />}
+                                    {updatingInvoice === invoice.id ? "..." : invoice.status === "paid" ? "Unpaid" : "Paid"}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {invoiceList.length === 0 && (
+                      <div className="text-center text-gray-400 py-12 text-sm">Tiada invoice untuk bulan ini.</div>
+                    )}
+                  </div>
+
+                  <div className="md:hidden flex flex-col gap-3">
+                    {invoiceList.map((invoice) => {
+                      const status = invoiceStatus(invoice);
+
+                      return (
+                        <div key={invoice.id} className="bg-white rounded-xl p-5 border border-gray-100">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                              <div className="font-mono text-xs font-semibold text-gray-900">{invoice.invoice_no}</div>
+                              <div className="text-gray-900 font-semibold mt-1">{getKedaiName(invoice.kedai_id)}</div>
                             </div>
 
-                            {isActive && (
-                              <div className="text-gray-400 text-xs">
-                                Jualan {formatRM(s?.jualan || 0)}
-                              </div>
-                            )}
+                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                              status === "paid"
+                                ? "bg-green-50 text-green-700 border-green-100"
+                                : status === "overdue"
+                                  ? "bg-red-50 text-red-600 border-red-100"
+                                  : "bg-amber-50 text-amber-700 border-amber-100"
+                            }`}>
+                              {invoiceStatusLabel(invoice)}
+                            </span>
                           </div>
 
-                          {isActive && (
+                          <div className="space-y-1.5 text-sm border-t border-gray-50 pt-3">
+                            <div className="flex justify-between gap-3">
+                              <span className="text-gray-400">Tarikh Invois</span>
+                              <span className="text-gray-700 font-medium">{formatDate(invoice.invoice_date)}</span>
+                            </div>
+
+                            <div className="flex justify-between gap-3">
+                              <span className="text-gray-400">Plan</span>
+                              <span className="text-gray-700 font-medium capitalize">{invoice.plan || "active"}</span>
+                            </div>
+
+                            <div className="flex justify-between gap-3">
+                              <span className="text-gray-400">Bayaran</span>
+                              <span className="text-gray-900 font-semibold">{formatRM(invoice.fee)}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-4 mt-4 border-t border-gray-50">
                             <button
-                              onClick={() => setConfirmBilling({
-                                kedaiId: kedai.id,
-                                nama: kedai.nama,
-                                currentStatus: billing?.status || "unpaid"
-                              })}
-                              disabled={updatingBilling === kedai.id}
-                              className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all disabled:opacity-50 ${
-                                isPaid
-                                  ? "bg-red-50 border-red-100 text-red-400 hover:bg-red-100"
-                                  : "bg-green-50 border-green-100 text-green-600 hover:bg-green-100"
+                              onClick={() => setSelectedInvoice(invoice)}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all"
+                            >
+                              <Eye size={12} />
+                              View
+                            </button>
+
+                            <button
+                              onClick={() => toggleInvoiceStatus(invoice)}
+                              disabled={updatingInvoice === invoice.id}
+                              className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border transition-all disabled:opacity-50 ${
+                                invoice.status === "paid"
+                                  ? "bg-red-50 text-red-600 border-red-100 hover:bg-red-100"
+                                  : "bg-green-50 text-green-700 border-green-100 hover:bg-green-100"
                               }`}
                             >
-                              {updatingBilling === kedai.id
-                                ? <span className="text-xs">...</span>
-                                : isPaid
-                                  ? <X size={14} />
-                                  : <Check size={14} />
-                              }
+                              {invoice.status === "paid" ? <X size={12} /> : <Check size={12} />}
+                              {updatingInvoice === invoice.id ? "..." : invoice.status === "paid" ? "Unpaid" : "Paid"}
                             </button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+
+                    {invoiceList.length === 0 && (
+                      <div className="text-center text-gray-400 py-12 text-sm">Tiada invoice untuk bulan ini.</div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -1261,6 +1514,125 @@ export default function SuperadminDashboardPage() {
           )}
         </main>
       </div>
+
+      {selectedInvoice && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl w-full max-w-lg border border-gray-100 shadow-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="text-gray-900 font-semibold">Invoice Preview</div>
+              <button
+                onClick={() => setSelectedInvoice(null)}
+                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="border border-gray-100 rounded-2xl p-6 bg-white">
+                <div className="flex items-start justify-between gap-4 mb-8">
+                  <div>
+                    <div className="text-gray-900 font-bold text-xl tracking-tight">
+                      Urus<span className="text-green-600">POS</span>
+                    </div>
+                    <div className="text-gray-400 text-xs uppercase tracking-widest mt-1">Invoice</div>
+                  </div>
+
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                    invoiceStatus(selectedInvoice) === "paid"
+                      ? "bg-green-50 text-green-700 border-green-100"
+                      : invoiceStatus(selectedInvoice) === "overdue"
+                        ? "bg-red-50 text-red-600 border-red-100"
+                        : "bg-amber-50 text-amber-700 border-amber-100"
+                  }`}>
+                    {invoiceStatusLabel(selectedInvoice)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                  <div>
+                    <div className="text-gray-400 text-xs mb-1">Invoice No</div>
+                    <div className="text-gray-900 font-mono font-semibold">{selectedInvoice.invoice_no}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-400 text-xs mb-1">Tarikh Invoice</div>
+                    <div className="text-gray-900 font-medium">{formatDate(selectedInvoice.invoice_date)}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-400 text-xs mb-1">Due Date</div>
+                    <div className="text-gray-900 font-medium">{formatDate(selectedInvoice.due_date)}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-gray-400 text-xs mb-1">Billing Month</div>
+                    <div className="text-gray-900 font-medium">{billingMonthLabel(selectedInvoice.billing_month)}</div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-5 mb-5">
+                  <div className="text-gray-400 text-xs mb-1">Bill To</div>
+                  <div className="text-gray-900 font-semibold">{getKedaiName(selectedInvoice.kedai_id)}</div>
+                  <div className="text-gray-400 text-xs mt-1 capitalize">Plan: {selectedInvoice.plan || "active"}</div>
+                </div>
+
+                <div className="border border-gray-100 rounded-xl overflow-hidden mb-5">
+                  <div className="grid grid-cols-[1fr_auto] bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-400 uppercase">
+                    <div>Item</div>
+                    <div>Amount</div>
+                  </div>
+
+                  <div className="grid grid-cols-[1fr_auto] px-4 py-4 text-sm border-t border-gray-100">
+                    <div>
+                      <div className="text-gray-900 font-medium">
+                        UrusPOS Platform Fee — {billingMonthLabel(selectedInvoice.billing_month)}
+                      </div>
+                      <div className="text-gray-400 text-xs mt-1">
+                        2% daripada jualan {formatRM(selectedInvoice.jualan)}
+                      </div>
+                    </div>
+                    <div className="text-gray-900 font-semibold">{formatRM(selectedInvoice.fee)}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Subtotal</span>
+                    <span className="text-gray-900 font-medium">{formatRM(selectedInvoice.fee)}</span>
+                  </div>
+
+                  <div className="flex justify-between pt-3 border-t border-gray-100">
+                    <span className="text-gray-900 font-semibold">Total Bayaran</span>
+                    <span className="text-gray-900 font-bold text-lg">{formatRM(selectedInvoice.fee)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => setSelectedInvoice(null)}
+                  className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium"
+                >
+                  Tutup
+                </button>
+
+                <button
+                  onClick={() => toggleInvoiceStatus(selectedInvoice)}
+                  disabled={updatingInvoice === selectedInvoice.id}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium border disabled:opacity-50 ${
+                    selectedInvoice.status === "paid"
+                      ? "bg-red-50 text-red-600 border-red-100"
+                      : "bg-green-600 text-white border-green-600"
+                  }`}
+                >
+                  {updatingInvoice === selectedInvoice.id ? "Updating..." : selectedInvoice.status === "paid" ? "Mark Unpaid" : "Mark Paid"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPlanChange && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
@@ -1304,41 +1676,6 @@ export default function SuperadminDashboardPage() {
             >
               Batal
             </button>
-          </div>
-        </div>
-      )}
-
-      {confirmBilling && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
-            <div className="text-gray-900 font-semibold mb-1">Tukar Status Bayaran</div>
-
-            <p className="text-gray-500 text-sm mb-5">
-              {confirmBilling.nama} — {confirmBilling.currentStatus === "paid"
-                ? "Dah Bayar → Belum Bayar"
-                : "Belum Bayar → Dah Bayar"}
-            </p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmBilling(null)}
-                className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium"
-              >
-                Batal
-              </button>
-
-              <button
-                onClick={() => {
-                  toggleBillingStatus(confirmBilling.kedaiId);
-                  setConfirmBilling(null);
-                }}
-                className={`flex-1 py-2.5 rounded-lg text-white text-sm font-medium ${
-                  confirmBilling.currentStatus === "paid" ? "bg-red-500" : "bg-green-600"
-                }`}
-              >
-                Confirm
-              </button>
-            </div>
           </div>
         </div>
       )}
