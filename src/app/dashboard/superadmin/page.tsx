@@ -16,7 +16,8 @@ import {
   Plus,
   Trash2,
   Key,
-  Check
+  Check,
+  Repeat2
 } from "lucide-react";
 
 type Kedai = {
@@ -45,8 +46,6 @@ type BillingRecord = {
   status: string;
 };
 
-type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
-
 type PendingStatusChange = {
   id: string;
   nama: string;
@@ -54,56 +53,11 @@ type PendingStatusChange = {
   targetStatus: string;
 };
 
-function getDateRange(filter: FilterType, customFrom?: string, customTo?: string): { from: string; to: string } {
-  const now = new Date();
-  const to = new Date(now);
-  to.setHours(23, 59, 59, 999);
-
-  if (filter === "daily") {
-    const from = new Date(now);
-    from.setHours(0, 0, 0, 0);
-    return { from: from.toISOString(), to: to.toISOString() };
-  }
-
-  if (filter === "yesterday") {
-    const from = new Date(now);
-    from.setDate(now.getDate() - 1);
-    from.setHours(0, 0, 0, 0);
-
-    const yesterdayTo = new Date(from);
-    yesterdayTo.setHours(23, 59, 59, 999);
-
-    return { from: from.toISOString(), to: yesterdayTo.toISOString() };
-  }
-
-  if (filter === "weekly") {
-    const from = new Date(now);
-    from.setDate(now.getDate() - 6);
-    from.setHours(0, 0, 0, 0);
-    return { from: from.toISOString(), to: to.toISOString() };
-  }
-
-  if (filter === "monthly") {
-    const from = new Date(now.getFullYear(), now.getMonth(), 1);
-    from.setHours(0, 0, 0, 0);
-    return { from: from.toISOString(), to: to.toISOString() };
-  }
-
-  if (filter === "custom" && customFrom && customTo) {
-    const from = new Date(customFrom);
-    from.setHours(0, 0, 0, 0);
-
-    const toCustom = new Date(customTo);
-    toCustom.setHours(23, 59, 59, 999);
-
-    return { from: from.toISOString(), to: toCustom.toISOString() };
-  }
-
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-
-  return { from: from.toISOString(), to: to.toISOString() };
-}
+type PendingPlanChange = {
+  id: string;
+  nama: string;
+  currentStatus: string;
+};
 
 function getMonthToDateRange(): { from: string; to: string } {
   const now = new Date();
@@ -322,7 +276,6 @@ async function attachOrderItemsToOrders(rawOrders: any[]) {
 
 export default function SuperadminDashboardPage() {
   const [kedaiList, setKedaiList] = useState<Kedai[]>([]);
-  const [kedaiStats, setKedaiStats] = useState<{ [id: string]: KedaiStats }>({});
   const [monthlyKedaiStats, setMonthlyKedaiStats] = useState<{ [id: string]: KedaiStats }>({});
   const [billingMap, setBillingMap] = useState<{ [kedai_id: string]: BillingRecord }>({});
   const [loadingBilling, setLoadingBilling] = useState(false);
@@ -332,6 +285,7 @@ export default function SuperadminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [confirmStatusChange, setConfirmStatusChange] = useState<PendingStatusChange | null>(null);
+  const [showPlanChange, setShowPlanChange] = useState<PendingPlanChange | null>(null);
   const [showAddKedai, setShowAddKedai] = useState(false);
   const [newKedaiNama, setNewKedaiNama] = useState("");
   const [newKedaiPlan, setNewKedaiPlan] = useState("beta");
@@ -341,28 +295,22 @@ export default function SuperadminDashboardPage() {
   const [generatedCreds, setGeneratedCreds] = useState<{ username: string; password: string; kedaiNama: string } | null>(null);
   const [activeTab, setActiveTab] = useState("utama");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [showCredentials, setShowCredentials] = useState<string | null>(null);
   const [credentialsList, setCredentialsList] = useState<any[]>([]);
   const [loadingCreds, setLoadingCreds] = useState(false);
 
-  const [filter, setFilter] = useState<FilterType>("daily");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo] = useState("");
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [tempFilter, setTempFilter] = useState<FilterType>("daily");
-  const [tempCustomFrom, setTempCustomFrom] = useState("");
-  const [tempCustomTo, setTempCustomTo] = useState("");
-
   useEffect(() => {
     fetchKedai();
-  }, [filter, customFrom, customTo]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === "langganan" && kedaiList.length > 0) fetchBilling();
-  }, [activeTab, kedaiList, billingBulan]);
+  }, [activeTab, kedaiList, billingBulan, monthlyKedaiStats]);
 
   async function fetchKedai() {
+    setLoading(true);
+
     const { data } = await supabase
       .from("kedai")
       .select("*")
@@ -371,7 +319,7 @@ export default function SuperadminDashboardPage() {
     setKedaiList(data || []);
 
     if (data && data.length > 0) {
-      await fetchAllStats(data);
+      await fetchMonthlyStats(data);
     }
 
     setLoading(false);
@@ -405,6 +353,7 @@ export default function SuperadminDashboardPage() {
         .limit(5000) as any;
 
       const ordersWithItems = await attachOrderItemsToOrders(rawOrders || []);
+
       const paidOrders = ordersWithItems
         .filter(isPaidSalesOrder)
         .filter((o: any) => isOrderInDateRange(o, from, to));
@@ -448,14 +397,10 @@ export default function SuperadminDashboardPage() {
     return statsMap;
   }
 
-  async function fetchAllStats(kedais: Kedai[]) {
-    const filteredRange = getDateRange(filter, customFrom, customTo);
+  async function fetchMonthlyStats(kedais: Kedai[]) {
     const monthlyRange = getMonthToDateRange();
-
-    const filteredStats = await buildStatsMap(kedais, filteredRange.from, filteredRange.to);
     const monthlyStats = await buildStatsMap(kedais, monthlyRange.from, monthlyRange.to);
 
-    setKedaiStats(filteredStats);
     setMonthlyKedaiStats(monthlyStats);
   }
 
@@ -577,6 +522,19 @@ export default function SuperadminDashboardPage() {
     });
   }
 
+  function requestPlanChange(targetStatus: string) {
+    if (!showPlanChange) return;
+
+    setConfirmStatusChange({
+      id: showPlanChange.id,
+      nama: showPlanChange.nama,
+      currentStatus: showPlanChange.currentStatus,
+      targetStatus
+    });
+
+    setShowPlanChange(null);
+  }
+
   async function updateStatus(id: string, status: string) {
     await supabase
       .from("kedai")
@@ -681,43 +639,6 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
-  function applyDateFilter() {
-    if (tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)) return;
-
-    setFilter(tempFilter);
-
-    if (tempFilter === "custom") {
-      setCustomFrom(tempCustomFrom);
-      setCustomTo(tempCustomTo);
-    } else {
-      setCustomFrom("");
-      setCustomTo("");
-    }
-
-    setShowFilterModal(false);
-  }
-
-  function formatDateLabel(date: string) {
-    return new Date(date).toLocaleDateString("ms-MY", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    });
-  }
-
-  function filterLabel() {
-    if (filter === "daily") return "Hari Ini";
-    if (filter === "yesterday") return "Semalam";
-    if (filter === "weekly") return "7 Hari Lepas";
-    if (filter === "monthly") return "Bulan Ini";
-
-    if (filter === "custom" && customFrom && customTo) {
-      return `${formatDateLabel(customFrom)} — ${formatDateLabel(customTo)}`;
-    }
-
-    return "Tarikh Custom";
-  }
-
   function bulanLabel() {
     const [y, m] = billingBulan.split("-");
 
@@ -743,12 +664,8 @@ export default function SuperadminDashboardPage() {
     return `RM ${Number(value || 0).toFixed(2)}`;
   }
 
-  const kedaiStatsList = Object.values(kedaiStats) as KedaiStats[];
   const monthlyKedaiStatsList = Object.values(monthlyKedaiStats) as KedaiStats[];
   const billingList = Object.values(billingMap) as BillingRecord[];
-
-  const totalJualan = kedaiStatsList.reduce((s, k) => s + k.jualan, 0);
-  const totalFee = kedaiStatsList.reduce((s, k) => s + k.fee, 0);
 
   const totalMonthlyJualan = monthlyKedaiStatsList.reduce((s, k) => s + k.jualan, 0);
   const totalMonthlyFee = monthlyKedaiStatsList.reduce((s, k) => s + k.fee, 0);
@@ -782,7 +699,7 @@ export default function SuperadminDashboardPage() {
 
   const navItems = [
     { id: "utama", label: "Utama", icon: LayoutDashboard },
-    { id: "klien", label: "Klien", icon: Store },
+    { id: "klien", label: "Kedai", icon: Store },
     { id: "langganan", label: "Langganan", icon: CreditCard },
     { id: "laporan", label: "Laporan", icon: BarChart2 },
     { id: "tetapan", label: "Tetapan", icon: Settings },
@@ -795,69 +712,83 @@ export default function SuperadminDashboardPage() {
 
   const activeNav = navItems.find(n => n.id === activeTab);
 
-  const FilterButton = () => {
-    const filterOptions: { value: FilterType; label: string }[] = [
-      { value: "daily", label: "Hari Ini" },
-      { value: "yesterday", label: "Semalam" },
-      { value: "weekly", label: "7 Hari Lepas" },
-      { value: "monthly", label: "Bulan Ini" },
-      { value: "custom", label: "Tarikh Custom" },
-    ];
-
+  const SidebarMenu = ({ expanded, mobile = false }: { expanded: boolean; mobile?: boolean }) => {
     return (
-      <div className="relative">
-        <button
-          onClick={() => setShowFilterDropdown(v => !v)}
-          className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:border-green-400 hover:text-green-700 transition-all"
-        >
-          <span>{filterLabel()}</span>
-          <ChevronRight size={14} className={`text-gray-400 transition-transform ${showFilterDropdown ? "-rotate-90" : "rotate-90"}`} />
-        </button>
-
-        {showFilterDropdown && (
-          <>
-            <button
-              aria-label="Tutup filter"
-              onClick={() => setShowFilterDropdown(false)}
-              className="fixed inset-0 z-40 cursor-default"
-            />
-
-            <div className="absolute right-0 top-full z-50 mt-1 w-48 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden">
-              {filterOptions.map((option) => {
-                const isActive = filter === option.value;
-
-                return (
-                  <button
-                    key={option.value}
-                    onClick={() => {
-                      if (option.value === "custom") {
-                        setTempFilter("custom");
-                        setTempCustomFrom(customFrom);
-                        setTempCustomTo(customTo);
-                        setShowFilterModal(true);
-                        setShowFilterDropdown(false);
-                      } else {
-                        setFilter(option.value);
-                        setCustomFrom("");
-                        setCustomTo("");
-                        setShowFilterDropdown(false);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-left transition-all ${
-                      isActive
-                        ? "bg-green-50 text-green-700"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <span>{option.label}</span>
-                    {isActive && <Check size={14} className="text-green-600" />}
-                  </button>
-                );
-              })}
+      <>
+        <div className={`${expanded ? "px-6" : "px-3"} py-5 flex items-center justify-between border-b border-gray-100`}>
+          {expanded ? (
+            <div className="min-w-0">
+              <div className="text-gray-900 font-bold text-lg tracking-tight">
+                Urus<span className="text-green-600">POS</span>
+              </div>
+              <div className="text-gray-400 text-xs font-medium tracking-widest uppercase mt-0.5">
+                Superadmin
+              </div>
             </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <div className="w-full h-10" />
+          )}
+
+          {mobile && (
+            <button
+              onClick={() => setShowMobileMenu(false)}
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        <nav className={`${expanded ? "px-4" : "px-3"} flex-1 py-4`}>
+          {expanded && (
+            <div className="text-gray-300 text-[10px] font-semibold tracking-widest uppercase px-2 mb-2">
+              Menu
+            </div>
+          )}
+
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.id}
+                  title={!expanded ? item.label : undefined}
+                  onClick={() => handleChangeTab(item.id)}
+                  className={`w-full flex items-center rounded-xl text-sm font-medium transition-all ${
+                    expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
+                  } ${
+                    isActive
+                      ? "text-green-700 bg-green-50"
+                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
+                >
+                  <Icon
+                    size={18}
+                    strokeWidth={1.8}
+                    className={isActive ? "text-green-600" : "text-gray-400"}
+                  />
+                  {expanded && <span>{item.label}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100`}>
+          <a
+            href="/auth/logout"
+            title={!expanded ? "Log Keluar" : undefined}
+            className={`flex items-center rounded-xl text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
+              expanded ? "gap-2 px-3 py-2.5" : "justify-center px-0 py-3"
+            }`}
+          >
+            <LogOut size={16} strokeWidth={1.8} />
+            {expanded && <span>Log Keluar</span>}
+          </a>
+        </div>
+      </>
     );
   };
 
@@ -866,88 +797,40 @@ export default function SuperadminDashboardPage() {
       className="min-h-screen bg-gray-50 flex"
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif' }}
     >
-      {/* Drawer — mobile & desktop */}
+      <aside
+        className={`hidden md:flex bg-white border-r border-gray-100 flex-col sticky top-0 h-screen transition-all duration-200 shrink-0 ${
+          desktopSidebarExpanded ? "w-72" : "w-20"
+        }`}
+      >
+        <SidebarMenu expanded={desktopSidebarExpanded} />
+      </aside>
+
       {showMobileMenu && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 md:hidden">
           <button
             onClick={() => setShowMobileMenu(false)}
             className="absolute inset-0 bg-black/40"
           />
 
           <div className="relative h-full w-72 bg-white shadow-xl flex flex-col animate-[slideInLeft_0.2s_ease-out]">
-            <div className="px-6 py-5 flex items-center justify-between border-b border-gray-100">
-              <div>
-                <div className="text-gray-900 font-bold text-lg tracking-tight">
-                  Urus<span className="text-green-600">POS</span>
-                </div>
-                <div className="text-gray-400 text-xs font-medium tracking-widest uppercase mt-0.5">
-                  Superadmin
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowMobileMenu(false)}
-                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <nav className="flex-1 px-4 py-4">
-              <div className="text-gray-300 text-[10px] font-semibold tracking-widest uppercase px-2 mb-2">
-                Menu
-              </div>
-
-              {navItems.map((item, index) => {
-                const isActive = activeTab === item.id;
-                const isLast = index === navItems.length - 1;
-                const Icon = item.icon;
-
-                return (
-                  <div key={item.id}>
-                    <button
-                      onClick={() => handleChangeTab(item.id)}
-                      className={`w-full flex items-center gap-3 py-3 px-2 text-sm font-medium transition-all rounded-lg ${
-                        isActive
-                          ? "text-green-700 bg-green-50"
-                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                      }`}
-                    >
-                      <Icon
-                        size={18}
-                        strokeWidth={1.8}
-                        className={isActive ? "text-green-600" : "text-gray-400"}
-                      />
-                      <span>{item.label}</span>
-                    </button>
-
-                    {!isLast && <div className="border-b border-gray-100 mx-2" />}
-                  </div>
-                );
-              })}
-            </nav>
-
-            <div className="px-4 py-4 border-t border-gray-100">
-              <a
-                href="/auth/logout"
-                className="flex items-center gap-2 py-2.5 px-2 text-sm text-gray-400 hover:text-red-500 transition-all"
-              >
-                <LogOut size={15} strokeWidth={1.8} />
-                <span>Log Keluar</span>
-              </a>
-            </div>
+            <SidebarMenu expanded mobile />
           </div>
         </div>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowMobileMenu(true)}
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50"
+              className="md:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50"
+            >
+              <Menu size={20} />
+            </button>
+
+            <button
+              onClick={() => setDesktopSidebarExpanded(v => !v)}
+              className="hidden md:flex w-9 h-9 items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50"
             >
               <Menu size={20} />
             </button>
@@ -962,8 +845,7 @@ export default function SuperadminDashboardPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 max-w-4xl mx-auto w-full">
-          {/* UTAMA */}
+        <main className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full">
           {activeTab === "utama" && (
             <div>
               <div className="flex items-center justify-between mb-6">
@@ -1013,127 +895,201 @@ export default function SuperadminDashboardPage() {
             </div>
           )}
 
-          {/* KLIEN */}
           {activeTab === "klien" && (
             <div>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h1 className="text-gray-900 font-semibold text-xl">Klien</h1>
+                  <h1 className="text-gray-900 font-semibold text-xl">Kedai</h1>
                   <p className="text-gray-400 text-sm mt-0.5">{kedaiList.length} kedai berdaftar</p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <FilterButton />
-
-                  <button
-                    onClick={() => setShowAddKedai(true)}
-                    className="flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-all"
-                  >
-                    <Plus size={15} />
-                    <span className="hidden sm:inline">Kedai Baru</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowAddKedai(true)}
+                  className="flex items-center gap-2 bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 transition-all"
+                >
+                  <Plus size={15} />
+                  <span className="hidden sm:inline">Kedai Baru</span>
+                </button>
               </div>
 
               {loading ? (
                 <div className="text-center text-gray-400 py-12 text-sm">Memuatkan...</div>
               ) : (
-                <div className="flex flex-col gap-3">
-                  {kedaiList.map((kedai) => {
-                    const s = kedaiStats[kedai.id];
+                <>
+                  <div className="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Kedai</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">ID</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Staff</th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+                          <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">Tindakan</th>
+                        </tr>
+                      </thead>
 
-                    return (
-                      <div key={kedai.id} className="bg-white rounded-xl p-5 border border-gray-100">
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div>
-                            <div className="text-gray-900 font-semibold">{kedai.nama}</div>
-                            <div className="text-gray-400 text-xs mt-0.5">{kedai.id.slice(0, 8)}...</div>
-                          </div>
+                      <tbody className="divide-y divide-gray-50">
+                        {kedaiList.map((kedai) => {
+                          const s = monthlyKedaiStats[kedai.id];
 
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
-                              kedai.status === "active"
-                                ? "bg-green-50 text-green-700 border-green-100"
-                                : kedai.status === "beta"
-                                  ? "bg-amber-50 text-amber-700 border-amber-100"
-                                  : "bg-red-50 text-red-600 border-red-100"
-                            }`}>
-                              {statusLabel(kedai.status)}
-                            </span>
+                          return (
+                            <tr key={kedai.id} className="hover:bg-gray-50/70 transition-all">
+                              <td className="px-5 py-4">
+                                <div className="font-semibold text-gray-900">{kedai.nama}</div>
+                                <div className="text-xs text-gray-400 mt-0.5">
+                                  Daftar {kedai.created_at ? new Date(kedai.created_at).toLocaleDateString("ms-MY") : "-"}
+                                </div>
+                              </td>
 
-                            <button
-                              onClick={() => setConfirmDelete(kedai.id)}
-                              className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </div>
+                              <td className="px-5 py-4">
+                                <span className="font-mono text-xs text-gray-400">{kedai.id.slice(0, 8)}...</span>
+                              </td>
 
-                        <div className="grid grid-cols-3 gap-3 pb-4 border-b border-gray-50 mb-4">
-                          <div>
-                            <div className="text-gray-400 text-xs mb-0.5">Jualan</div>
-                            <div className="text-gray-900 text-sm font-semibold">{formatRM(s?.jualan || 0)}</div>
-                          </div>
+                              <td className="px-5 py-4">
+                                <span className="text-gray-600">{s?.staff || 0} staff</span>
+                              </td>
 
-                          <div>
-                            <div className="text-gray-400 text-xs mb-0.5">Fee (2%)</div>
-                            <div className="text-gray-900 text-sm font-semibold">
-                              {kedai.status === "beta" ? <span className="text-amber-500">—</span> : formatRM(s?.fee || 0)}
+                              <td className="px-5 py-4">
+                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                  kedai.status === "active"
+                                    ? "bg-green-50 text-green-700 border-green-100"
+                                    : kedai.status === "beta"
+                                      ? "bg-amber-50 text-amber-700 border-amber-100"
+                                      : "bg-red-50 text-red-600 border-red-100"
+                                }`}>
+                                  {statusLabel(kedai.status)}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setShowPlanChange({
+                                      id: kedai.id,
+                                      nama: kedai.nama,
+                                      currentStatus: kedai.status
+                                    })}
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all"
+                                  >
+                                    <Repeat2 size={12} />
+                                    Tukar Plan
+                                  </button>
+
+                                  {kedai.status !== "suspended" && (
+                                    <button
+                                      onClick={() => requestStatusChange(kedai, "suspended")}
+                                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all"
+                                    >
+                                      Suspend
+                                    </button>
+                                  )}
+
+                                  <button
+                                    onClick={() => fetchCredentials(kedai.id)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all"
+                                  >
+                                    <Key size={12} />
+                                    Credentials
+                                  </button>
+
+                                  <button
+                                    onClick={() => setConfirmDelete(kedai.id)}
+                                    className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                                  >
+                                    <Trash2 size={15} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {kedaiList.length === 0 && (
+                      <div className="text-center text-gray-400 py-12 text-sm">Tiada kedai.</div>
+                    )}
+                  </div>
+
+                  <div className="md:hidden flex flex-col gap-3">
+                    {kedaiList.map((kedai) => {
+                      const s = monthlyKedaiStats[kedai.id];
+
+                      return (
+                        <div key={kedai.id} className="bg-white rounded-xl p-5 border border-gray-100">
+                          <div className="flex items-start justify-between gap-3 mb-4">
+                            <div className="min-w-0">
+                              <div className="text-gray-900 font-semibold truncate">{kedai.nama}</div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="text-gray-400 text-xs">{kedai.id.slice(0, 8)}...</span>
+                                <span className="text-gray-200 text-xs">·</span>
+                                <span className="text-gray-400 text-xs">{s?.staff || 0} staff</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                kedai.status === "active"
+                                  ? "bg-green-50 text-green-700 border-green-100"
+                                  : kedai.status === "beta"
+                                    ? "bg-amber-50 text-amber-700 border-amber-100"
+                                    : "bg-red-50 text-red-600 border-red-100"
+                              }`}>
+                                {statusLabel(kedai.status)}
+                              </span>
+
+                              <button
+                                onClick={() => setConfirmDelete(kedai.id)}
+                                className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-all"
+                              >
+                                <Trash2 size={15} />
+                              </button>
                             </div>
                           </div>
 
-                          <div>
-                            <div className="text-gray-400 text-xs mb-0.5">Staff</div>
-                            <div className="text-gray-900 text-sm font-semibold">{s?.staff || 0}</div>
+                          <div className="flex gap-2 flex-wrap pt-4 border-t border-gray-50">
+                            <button
+                              onClick={() => setShowPlanChange({
+                                id: kedai.id,
+                                nama: kedai.nama,
+                                currentStatus: kedai.status
+                              })}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all flex items-center gap-1"
+                            >
+                              <Repeat2 size={12} />
+                              Tukar Plan
+                            </button>
+
+                            {kedai.status !== "suspended" && (
+                              <button
+                                onClick={() => requestStatusChange(kedai, "suspended")}
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all"
+                              >
+                                Suspend
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => fetchCredentials(kedai.id)}
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all flex items-center gap-1"
+                            >
+                              <Key size={12} />
+                              Credentials
+                            </button>
                           </div>
                         </div>
+                      );
+                    })}
 
-                        <div className="flex gap-2 flex-wrap">
-                          {kedai.status !== "active" && (
-                            <button
-                              onClick={() => requestStatusChange(kedai, "active")}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all"
-                            >
-                              Aktifkan
-                            </button>
-                          )}
-
-                          {kedai.status !== "beta" && (
-                            <button
-                              onClick={() => requestStatusChange(kedai, "beta")}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 hover:bg-amber-100 transition-all"
-                            >
-                              Beta
-                            </button>
-                          )}
-
-                          {kedai.status !== "suspended" && (
-                            <button
-                              onClick={() => requestStatusChange(kedai, "suspended")}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all"
-                            >
-                              Suspend
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => fetchCredentials(kedai.id)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all flex items-center gap-1"
-                          >
-                            <Key size={12} />
-                            Credentials
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                    {kedaiList.length === 0 && (
+                      <div className="text-center text-gray-400 py-12 text-sm">Tiada kedai.</div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          {/* LANGGANAN */}
           {activeTab === "langganan" && (
             <div>
               <div className="flex items-center justify-between mb-6">
@@ -1276,7 +1232,6 @@ export default function SuperadminDashboardPage() {
             </div>
           )}
 
-          {/* LAPORAN */}
           {activeTab === "laporan" && (
             <div>
               <div className="mb-6">
@@ -1291,7 +1246,6 @@ export default function SuperadminDashboardPage() {
             </div>
           )}
 
-          {/* TETAPAN */}
           {activeTab === "tetapan" && (
             <div>
               <div className="mb-6">
@@ -1308,90 +1262,52 @@ export default function SuperadminDashboardPage() {
         </main>
       </div>
 
-      {/* Filter Modal */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
-          <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-gray-100 shadow-xl">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="text-gray-900 font-semibold">Tempoh Laporan</div>
+      {showPlanChange && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
+            <div className="text-gray-900 font-semibold mb-1">Tukar Plan Kedai</div>
+            <p className="text-gray-500 text-sm mb-5">
+              {showPlanChange.nama}
+            </p>
+
+            <div className="space-y-2 mb-5">
+              <button
+                onClick={() => requestPlanChange("beta")}
+                disabled={showPlanChange.currentStatus === "beta"}
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
+                  showPlanChange.currentStatus === "beta"
+                    ? "bg-amber-50 border-amber-200 text-amber-700 opacity-70"
+                    : "bg-white border-gray-200 hover:bg-amber-50 hover:border-amber-200"
+                }`}
+              >
+                <div className="text-sm font-semibold">Beta</div>
+                <div className="text-xs text-gray-400 mt-0.5">Free / tiada fee bulanan</div>
+              </button>
 
               <button
-                onClick={() => setShowFilterModal(false)}
-                className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"
+                onClick={() => requestPlanChange("active")}
+                disabled={showPlanChange.currentStatus === "active"}
+                className={`w-full text-left p-4 rounded-xl border transition-all ${
+                  showPlanChange.currentStatus === "active"
+                    ? "bg-green-50 border-green-200 text-green-700 opacity-70"
+                    : "bg-white border-gray-200 hover:bg-green-50 hover:border-green-200"
+                }`}
               >
-                <X size={16} />
+                <div className="text-sm font-semibold">Aktif</div>
+                <div className="text-xs text-gray-400 mt-0.5">Caj 2% daripada jualan</div>
               </button>
             </div>
 
-            <div className="p-5">
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {([
-                  { value: "daily", label: "Hari Ini" },
-                  { value: "yesterday", label: "Semalam" },
-                  { value: "weekly", label: "7 Hari Lepas" },
-                  { value: "monthly", label: "Bulan Ini" },
-                  { value: "custom", label: "Tarikh Custom" }
-                ] as { value: FilterType; label: string }[]).map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setTempFilter(option.value)}
-                    className={`py-2.5 px-3 rounded-lg text-sm font-medium border transition-all text-left ${
-                      tempFilter === option.value
-                        ? "bg-green-50 border-green-200 text-green-700"
-                        : "bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              {tempFilter === "custom" && (
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div>
-                    <label className="text-gray-400 text-xs font-medium mb-1 block">Dari</label>
-                    <input
-                      type="date"
-                      value={tempCustomFrom}
-                      onChange={(e) => setTempCustomFrom(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm outline-none focus:border-green-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-gray-400 text-xs font-medium mb-1 block">Hingga</label>
-                    <input
-                      type="date"
-                      value={tempCustomTo}
-                      onChange={(e) => setTempCustomTo(e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm outline-none focus:border-green-400"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowFilterModal(false)}
-                  className="flex-1 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50"
-                >
-                  Batal
-                </button>
-
-                <button
-                  onClick={applyDateFilter}
-                  disabled={tempFilter === "custom" && (!tempCustomFrom || !tempCustomTo)}
-                  className="flex-1 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-40 hover:bg-green-700 transition-all"
-                >
-                  Guna
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={() => setShowPlanChange(null)}
+              className="w-full py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium"
+            >
+              Batal
+            </button>
           </div>
         </div>
       )}
 
-      {/* Confirm Billing */}
       {confirmBilling && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
@@ -1427,7 +1343,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Confirm Status Change */}
       {confirmStatusChange && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
@@ -1466,7 +1381,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Confirm Delete */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
@@ -1492,7 +1406,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Add Kedai */}
       {showAddKedai && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div
@@ -1593,7 +1506,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* Generated Creds */}
       {generatedCreds && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl">
@@ -1634,7 +1546,6 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {/* View Credentials */}
       {showCredentials && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div
