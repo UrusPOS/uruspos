@@ -11,22 +11,67 @@ import {
   Settings,
   DollarSign,
   Flame,
-  FolderTree,
-  ClipboardList,
+  List,
   TrendingUp,
+  TrendingDown,
   Box,
   History,
   Receipt,
-  Armchair,
-  Store,
-  BadgePercent,
-  Palette,
-  LockKeyhole,
   X,
   Menu,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Calendar,
+  Check,
+  Clock,
+  AlertTriangle,
+  Utensils,
+  Coffee,
+  Tag,
+  Pause,
+  Play,
+  Trash2,
+  Pencil,
+  Search,
+  CreditCard,
+  FileText,
+  User,
+  Lock,
+  Monitor,
+  Star,
+  Key,
+  Plus,
+  Minus,
+  ShoppingCart,
 } from "lucide-react";
+
+// Safe icon aliases — replaces lucide icons that may not exist in older versions
+const FolderTree = List;
+const ClipboardList = List;
+const Armchair = LayoutDashboard;
+const Store = LayoutDashboard;
+const BadgePercent = Tag;
+const Palette = Settings;
+const LockKeyhole = Lock;
+const CalendarDays = Calendar;
+const CircleCheck = Check;
+const Clock3 = Clock;
+const Ban = X;
+const CupSoda = Coffee;
+const CakeSlice = Star;
+const Soup = Coffee;
+const Drumstick = Utensils;
+const Sandwich = Utensils;
+const BoxOpen = Package;
+const UserRound = User;
+const UserCog = User;
+const ChefHat = User;
+const ImageIcon = Monitor;
+const Smartphone = Monitor;
+const Sun = Star;
+const Moon = Star;
+const KeyRound = Key;
+const Lightbulb = Star;
 
 type StaffMember = {
   id: string;
@@ -38,6 +83,7 @@ type StaffMember = {
 
 type Produk = {
   id: string;
+  kod_produk?: string | null;
   nama: string;
   harga_jual: number;
   kos_produk: number;
@@ -98,6 +144,13 @@ type PaymentSummaryItem = {
   count: number;
 };
 
+type SalesTrendItem = {
+  label: string;
+  total: number;
+  profit: number;
+  orders: number;
+};
+
 type ReceiptItem = {
   id?: string;
   nama: string;
@@ -141,6 +194,7 @@ type OwnerReportData = {
   stockOutTotal: number;
   paymentSummary: PaymentSummaryItem[];
   recentReceipts: RecentReceipt[];
+  salesTrend: SalesTrendItem[];
 };
 
 type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
@@ -206,20 +260,68 @@ function getCookieSession() {
   }
 }
 
-
 const DEFAULT_PRODUCT_CATEGORIES = [
-  { nama: "Makanan", icon: "🍽️", sort_order: 1 },
-  { nama: "Minuman", icon: "🥤", sort_order: 2 },
-  { nama: "Kuih Muih", icon: "🧁", sort_order: 3 },
-  { nama: "Set / Combo", icon: "🍱", sort_order: 4 },
-  { nama: "Add-on", icon: "➕", sort_order: 5 },
-  { nama: "Lain-lain", icon: "📦", sort_order: 6 },
+  { nama: "Makanan", icon: "food", sort_order: 1 },
+  { nama: "Minuman", icon: "drink", sort_order: 2 },
+  { nama: "Kuih Muih", icon: "dessert", sort_order: 3 },
+  { nama: "Set / Combo", icon: "combo", sort_order: 4 },
+  { nama: "Add-on", icon: "addon", sort_order: 5 },
+  { nama: "Lain-lain", icon: "other", sort_order: 6 },
 ];
 
-const CATEGORY_ICON_OPTIONS = ["🍽️", "🥤", "🧁", "🍱", "➕", "📦", "☕", "🍰", "🍜", "🍗", "🍔", "🍟"];
+const CATEGORY_ICON_OPTIONS = [
+  { id: "food", label: "Makanan", icon: Utensils },
+  { id: "drink", label: "Minuman", icon: CupSoda },
+  { id: "dessert", label: "Kuih", icon: CakeSlice },
+  { id: "combo", label: "Set", icon: Package },
+  { id: "addon", label: "Add-on", icon: Plus },
+  { id: "other", label: "Lain-lain", icon: Box },
+  { id: "coffee", label: "Kopi", icon: Coffee },
+  { id: "noodle", label: "Mi", icon: Soup },
+  { id: "chicken", label: "Ayam", icon: Drumstick },
+  { id: "burger", label: "Burger", icon: Sandwich },
+];
+
+const CATEGORY_ICON_MAP: Record<string, any> = {
+  food: Utensils,
+  drink: CupSoda,
+  dessert: CakeSlice,
+  combo: Package,
+  addon: Plus,
+  other: Box,
+  coffee: Coffee,
+  noodle: Soup,
+  chicken: Drumstick,
+  burger: Sandwich,
+};
+
+function CategoryIcon({
+  value,
+  size = 16,
+  className = "",
+  strokeWidth = 2,
+}: {
+  value?: string | null;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+}) {
+  const Icon = CATEGORY_ICON_MAP[value || ""] || Box;
+  return <Icon size={size} className={className} strokeWidth={strokeWidth} />;
+}
+
+function isSuccessMessage(message: string) {
+  const lower = String(message || "").toLowerCase();
+  return (
+    lower.includes("berjaya") ||
+    lower.includes("disimpan") ||
+    lower.includes("settle") ||
+    lower.includes("sukses")
+  );
+}
 
 function getCategoryFallback() {
-  return { id: "", nama: "Lain-lain", icon: "📦" };
+  return { id: "", nama: "Lain-lain", icon: "other" };
 }
 
 const SALES_STATUSES = new Set([
@@ -297,6 +399,19 @@ function getOrderTotal(order: any) {
   }, 0);
 }
 
+
+function getOrderCogs(order: any) {
+  return (order?.order_items || []).reduce((sum: number, item: any) => {
+    const qty = Number(item?.qty || item?.quantity || 0);
+    const kos = Number(item?.kos || item?.kos_produk || item?.cost || 0);
+    return sum + qty * kos;
+  }, 0);
+}
+
+function getOrderGrossProfit(order: any) {
+  return Math.max(getOrderTotal(order) - getOrderCogs(order), 0);
+}
+
 function getPaymentMethod(order: any) {
   return (
     order?.payment_method ||
@@ -352,6 +467,95 @@ function isOrderInDateRange(order: any, from: string, to: string) {
   const time = new Date(rawDate).getTime();
   if (Number.isNaN(time)) return true;
   return time >= new Date(from).getTime() && time <= new Date(to).getTime();
+}
+
+function buildSalesTrendData(
+  orders: any[],
+  filter: FilterType,
+  from: string,
+  to: string,
+): SalesTrendItem[] {
+  const buckets: Record<string, SalesTrendItem> = {};
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const totalDays = Math.max(
+    1,
+    Math.ceil((toDate.getTime() - fromDate.getTime()) / dayMs),
+  );
+
+  if (filter === "daily" || filter === "yesterday" || totalDays <= 1) {
+    const hourBuckets = ["00", "04", "08", "12", "16", "20"];
+    hourBuckets.forEach((hour) => {
+      buckets[hour] = { label: hour, total: 0, profit: 0, orders: 0 };
+    });
+
+    (orders || []).forEach((order) => {
+      const rawDate = getOrderSalesDate(order);
+      if (!rawDate) return;
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+      const bucketHour = String(Math.floor(date.getHours() / 4) * 4).padStart(
+        2,
+        "0",
+      );
+      if (!buckets[bucketHour])
+        buckets[bucketHour] = { label: bucketHour, total: 0, profit: 0, orders: 0 };
+      buckets[bucketHour].total += getOrderTotal(order);
+      buckets[bucketHour].profit += getOrderGrossProfit(order);
+      buckets[bucketHour].orders += 1;
+    });
+
+    return hourBuckets.map((hour) => buckets[hour]);
+  }
+
+  const maxBuckets = 7;
+  const stepDays = Math.max(1, Math.ceil(totalDays / maxBuckets));
+  const bucketStarts: Date[] = [];
+  const cursor = new Date(fromDate);
+  cursor.setHours(0, 0, 0, 0);
+
+  while (cursor <= toDate && bucketStarts.length < maxBuckets) {
+    bucketStarts.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + stepDays);
+  }
+
+  bucketStarts.forEach((start) => {
+    const label = start.toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+    });
+    buckets[label] = { label, total: 0, profit: 0, orders: 0 };
+  });
+
+  (orders || []).forEach((order) => {
+    const rawDate = getOrderSalesDate(order);
+    if (!rawDate) return;
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return;
+
+    let selectedStart = bucketStarts[0];
+    for (const start of bucketStarts) {
+      if (date >= start) selectedStart = start;
+    }
+
+    const label = selectedStart.toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+    });
+    if (!buckets[label]) buckets[label] = { label, total: 0, profit: 0, orders: 0 };
+    buckets[label].total += getOrderTotal(order);
+    buckets[label].profit += getOrderGrossProfit(order);
+    buckets[label].orders += 1;
+  });
+
+  return bucketStarts.map((start) => {
+    const label = start.toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+    });
+    return buckets[label];
+  });
 }
 
 function normalizeStockMovementType(value: any) {
@@ -415,7 +619,7 @@ async function attachOrderItemsToOrders(rawOrders: any[]) {
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
   const [showReportSubmenu, setShowReportSubmenu] = useState(false);
   const [showSettingsSubmenu, setShowSettingsSubmenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -437,10 +641,15 @@ export default function OwnerDashboardPage() {
   const [produkStok, setProdukStok] = useState("");
   const [produkKategoriId, setProdukKategoriId] = useState("");
   const [categoryNama, setCategoryNama] = useState("");
-  const [categoryIcon, setCategoryIcon] = useState("🍽️");
+  const [categoryIcon, setCategoryIcon] = useState("food");
   const [categoryError, setCategoryError] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
+  const [editCategoryNama, setEditCategoryNama] = useState("");
+  const [editCategoryIcon, setEditCategoryIcon] = useState("food");
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("all");
-  const [showCategoryFilterDropdown, setShowCategoryFilterDropdown] = useState(false);
+  const [showCategoryFilterDropdown, setShowCategoryFilterDropdown] =
+    useState(false);
+  const [inventorySearch, setInventorySearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [editProdukId, setEditProdukId] = useState<string | null>(null);
   const [editProdukNama, setEditProdukNama] = useState("");
@@ -496,6 +705,7 @@ export default function OwnerDashboardPage() {
     stockOutTotal: 0,
     paymentSummary: [],
     recentReceipts: [],
+    salesTrend: [],
   });
   const [loadingReport, setLoadingReport] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(
@@ -579,14 +789,18 @@ export default function OwnerDashboardPage() {
     if (resolvedKedaiId) {
       const { data, error } = (await supabase
         .from("kedai")
-        .select("nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate")
+        .select(
+          "nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate",
+        )
         .eq("id", resolvedKedaiId)
         .single()) as any;
       let kedaiData = data || null;
       if (error) {
         const fallback = (await supabase
           .from("kedai")
-          .select("nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate")
+          .select(
+            "nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate",
+          )
           .eq("id", resolvedKedaiId)
           .single()) as any;
         kedaiData = fallback.data ? { ...fallback.data, table_count: 6 } : null;
@@ -675,7 +889,10 @@ export default function OwnerDashboardPage() {
           id: item.id,
           produk_id: item.produk_id || item.product_id || null,
           produk_nama:
-            item.produk_nama || item.product_name || item.nama_produk || "Produk",
+            item.produk_nama ||
+            item.product_name ||
+            item.nama_produk ||
+            "Produk",
           type: normalizeStockMovementType(item.type),
           qty: Number(item.qty || item.quantity || 0),
           reason: item.reason || item.sebab || null,
@@ -718,7 +935,7 @@ export default function OwnerDashboardPage() {
         stokKritikal: stokRendah?.length || 0,
       });
 
-      if (activeTab === "laporan") {
+      if (activeTab === "laporan" || activeTab === "dashboard") {
         const dineInOrders = paidOrders.filter((o: any) => {
           const meja = String(
             o.meja || o.table_no || o.tableNo || "",
@@ -816,7 +1033,9 @@ export default function OwnerDashboardPage() {
 
         const salesMovementOrderIds = new Set(
           stockMovementsData
-            .filter((movement) => movement.source === "sales" && movement.order_id)
+            .filter(
+              (movement) => movement.source === "sales" && movement.order_id,
+            )
             .map((movement) => movement.order_id as string),
         );
 
@@ -846,11 +1065,13 @@ export default function OwnerDashboardPage() {
           .map((item: any) => {
             const productKeys = [item.id, item.nama].filter(Boolean);
             const stockIn = productKeys.reduce(
-              (sum: number, key: string) => sum + (manualStockInByProduct[key] || 0),
+              (sum: number, key: string) =>
+                sum + (manualStockInByProduct[key] || 0),
               0,
             );
             const manualStockOut = productKeys.reduce(
-              (sum: number, key: string) => sum + (manualStockOutByProduct[key] || 0),
+              (sum: number, key: string) =>
+                sum + (manualStockOutByProduct[key] || 0),
               0,
             );
             const soldStockOut = productKeys.reduce(
@@ -870,9 +1091,12 @@ export default function OwnerDashboardPage() {
               stokAkhir,
             };
           })
-          .sort((a: InventorySummaryItem, b: InventorySummaryItem) =>
-            b.stockOut + b.stockIn - (a.stockOut + a.stockIn),
+          .sort(
+            (a: InventorySummaryItem, b: InventorySummaryItem) =>
+              b.stockOut + b.stockIn - (a.stockOut + a.stockIn),
           ) as InventorySummaryItem[];
+
+        const salesTrend = buildSalesTrendData(paidOrders, filter, from, to);
 
         const recentReceipts = paidOrders.slice(0, 8).map((order: any) => ({
           id: order.id,
@@ -881,11 +1105,14 @@ export default function OwnerDashboardPage() {
           status: order.status,
           subtotal: Number(order.subtotal || 0),
           service_charge_enabled: Boolean(
-            order.service_charge_enabled || Number(order.service_charge_amount || 0) > 0,
+            order.service_charge_enabled ||
+            Number(order.service_charge_amount || 0) > 0,
           ),
           service_charge_rate: Number(order.service_charge_rate || 0),
           service_charge_amount: Number(order.service_charge_amount || 0),
-          sst_enabled: Boolean(order.sst_enabled || Number(order.sst_amount || 0) > 0),
+          sst_enabled: Boolean(
+            order.sst_enabled || Number(order.sst_amount || 0) > 0,
+          ),
           sst_rate: Number(order.sst_rate || 0),
           sst_amount: Number(order.sst_amount || 0),
           total: getOrderTotal(order),
@@ -925,6 +1152,7 @@ export default function OwnerDashboardPage() {
           stockOutTotal,
           paymentSummary,
           recentReceipts,
+          salesTrend,
         });
       }
     } catch (error) {
@@ -955,6 +1183,7 @@ export default function OwnerDashboardPage() {
           stockOutTotal: 0,
           paymentSummary: [],
           recentReceipts: [],
+          salesTrend: [],
         });
       }
     } finally {
@@ -1053,6 +1282,25 @@ export default function OwnerDashboardPage() {
     setCategories(data || []);
   }
 
+  function resetCategoryForm() {
+    setCategoryNama("");
+    setCategoryIcon("food");
+    setEditCategoryId(null);
+    setEditCategoryNama("");
+    setEditCategoryIcon("food");
+    setCategoryError("");
+  }
+
+  function openManageCategories() {
+    resetCategoryForm();
+    setShowAddCategory(true);
+  }
+
+  function closeManageCategories() {
+    resetCategoryForm();
+    setShowAddCategory(false);
+  }
+
   async function addCategory() {
     if (!sessionUser?.kedai_id) return;
     const nama = categoryNama.trim();
@@ -1061,12 +1309,23 @@ export default function OwnerDashboardPage() {
       return;
     }
 
+    const isDuplicate = categories.some(
+      (category) => category.nama.trim().toLowerCase() === nama.toLowerCase(),
+    );
+
+    if (isDuplicate) {
+      setCategoryError("Nama kategori ini sudah wujud.");
+      return;
+    }
+
     setSaving(true);
     setCategoryError("");
 
     const nextOrder =
       categories.length > 0
-        ? Math.max(...categories.map((category) => Number(category.sort_order || 0))) + 1
+        ? Math.max(
+            ...categories.map((category) => Number(category.sort_order || 0)),
+          ) + 1
         : 1;
 
     const { error } = await supabase.from("product_categories").insert({
@@ -1085,46 +1344,130 @@ export default function OwnerDashboardPage() {
     }
 
     setCategoryNama("");
-    setCategoryIcon("🍽️");
-    setShowAddCategory(false);
-    fetchCategories(sessionUser.kedai_id);
+    setCategoryIcon("food");
+    await fetchCategories(sessionUser.kedai_id);
+  }
+
+  function startEditCategory(category: ProductCategory) {
+    setEditCategoryId(category.id);
+    setEditCategoryNama(category.nama);
+    setEditCategoryIcon(category.icon || "other");
+    setCategoryError("");
+  }
+
+  function cancelEditCategory() {
+    setEditCategoryId(null);
+    setEditCategoryNama("");
+    setEditCategoryIcon("food");
+    setCategoryError("");
+  }
+
+  async function updateCategory() {
+    if (!sessionUser?.kedai_id || !editCategoryId) return;
+
+    const nama = editCategoryNama.trim();
+    if (!nama) {
+      setCategoryError("Sila isi nama kategori.");
+      return;
+    }
+
+    const isDuplicate = categories.some(
+      (category) =>
+        category.id !== editCategoryId &&
+        category.nama.trim().toLowerCase() === nama.toLowerCase(),
+    );
+
+    if (isDuplicate) {
+      setCategoryError("Nama kategori ini sudah wujud.");
+      return;
+    }
+
+    setSaving(true);
+    setCategoryError("");
+
+    const { error } = await supabase
+      .from("product_categories")
+      .update({
+        nama,
+        icon: editCategoryIcon,
+      } as any)
+      .eq("id", editCategoryId)
+      .eq("kedai_id", sessionUser.kedai_id);
+
+    if (error) {
+      setSaving(false);
+      setCategoryError("Gagal kemaskini kategori. Sila cuba lagi.");
+      return;
+    }
+
+    await supabase
+      .from("produk")
+      .update({
+        kategori_nama: nama,
+        kategori_icon: editCategoryIcon,
+      } as any)
+      .eq("kedai_id", sessionUser.kedai_id)
+      .eq("kategori_id", editCategoryId);
+
+    setSaving(false);
+    cancelEditCategory();
+    await fetchCategories(sessionUser.kedai_id);
+    await fetchProduk(sessionUser.kedai_id);
   }
 
   async function toggleCategory(id: string, current: boolean) {
+    setSaving(true);
+    setCategoryError("");
+
     await supabase
       .from("product_categories")
       .update({ is_active: !current } as any)
       .eq("id", id);
 
+    setSaving(false);
     fetchCategories(sessionUser?.kedai_id);
   }
 
   async function removeCategory(category: ProductCategory) {
     if (!sessionUser?.kedai_id) return;
+
+    const productCount = produk.filter(
+      (product) => product.kategori_id === category.id,
+    ).length;
+
+    if (productCount > 0) {
+      setCategoryError(
+        `Kategori "${category.nama}" masih digunakan oleh ${productCount} produk. Tukar kategori produk dahulu atau nyahaktifkan kategori ini.`,
+      );
+      return;
+    }
+
     const confirmRemove = window.confirm(
-      `Remove kategori "${category.nama}"? Produk yang guna kategori ini akan ditukar kepada Lain-lain.`,
+      `Buang kategori "${category.nama}"? Tindakan ini tidak boleh dibatalkan.`,
     );
     if (!confirmRemove) return;
 
     setSaving(true);
-    const fallback = getCategoryFallback();
+    setCategoryError("");
 
-    await supabase
-      .from("produk")
-      .update({
-        kategori_id: null,
-        kategori_nama: fallback.nama,
-        kategori_icon: fallback.icon,
-      } as any)
-      .eq("kedai_id", sessionUser.kedai_id)
-      .eq("kategori_id", category.id);
+    const { error } = await supabase
+      .from("product_categories")
+      .delete()
+      .eq("id", category.id)
+      .eq("kedai_id", sessionUser.kedai_id);
 
-    await supabase.from("product_categories").delete().eq("id", category.id);
-
-    if (selectedCategoryFilter === category.id) setSelectedCategoryFilter("all");
     setSaving(false);
+
+    if (error) {
+      setCategoryError("Gagal buang kategori. Sila cuba lagi.");
+      return;
+    }
+
+    if (selectedCategoryFilter === category.id)
+      setSelectedCategoryFilter("all");
+    if (editCategoryId === category.id) cancelEditCategory();
+
     fetchCategories(sessionUser.kedai_id);
-    fetchProduk(sessionUser.kedai_id);
   }
 
   function findCategoryById(categoryId?: string | null) {
@@ -1139,7 +1482,7 @@ export default function OwnerDashboardPage() {
         id: product.kategori_id || "",
         kedai_id: sessionUser?.kedai_id || "",
         nama: product.kategori_nama || "Lain-lain",
-        icon: product.kategori_icon || "📦",
+        icon: product.kategori_icon || "other",
         sort_order: 999,
         is_active: true,
       };
@@ -1185,16 +1528,14 @@ export default function OwnerDashboardPage() {
       setSaving(false);
       return;
     }
-    await supabase
-      .from("users")
-      .insert({
-        nama: newStaffNama,
-        username: newStaffUsername.toLowerCase(),
-        role: newStaffRole,
-        is_active: true,
-        kedai_id: sessionUser?.kedai_id,
-        password: "abc123",
-      } as any);
+    await supabase.from("users").insert({
+      nama: newStaffNama,
+      username: newStaffUsername.toLowerCase(),
+      role: newStaffRole,
+      is_active: true,
+      kedai_id: sessionUser?.kedai_id,
+      password: "abc123",
+    } as any);
     setNewStaffNama("");
     setNewStaffUsername("");
     setNewStaffRole("staff");
@@ -1217,24 +1558,42 @@ export default function OwnerDashboardPage() {
     fetchStaff(sessionUser?.kedai_id);
   }
 
+  async function generateNextProductCode(kedaiId: string) {
+    const { data } = (await supabase
+      .from("produk")
+      .select("kod_produk, created_at")
+      .eq("kedai_id", kedaiId)
+      .order("created_at", { ascending: true })) as any;
+
+    const maxNumber = (data || []).reduce((max: number, item: any) => {
+      const match = String(item?.kod_produk || "").match(/^PRD-(\d+)$/i);
+      if (!match) return max;
+
+      const numberValue = Number(match[1]);
+      return Number.isNaN(numberValue) ? max : Math.max(max, numberValue);
+    }, 0);
+
+    return `PRD-${String(maxNumber + 1).padStart(4, "0")}`;
+  }
+
   async function addProduk() {
-    if (!produkNama.trim()) return;
+    if (!produkNama.trim() || !sessionUser?.kedai_id) return;
     setSaving(true);
     const selectedCategory = findCategoryById(produkKategoriId);
     const fallbackCategory = getCategoryFallback();
+    const kodProduk = await generateNextProductCode(sessionUser.kedai_id);
 
-    await supabase
-      .from("produk")
-      .insert({
-        nama: produkNama,
-        harga_jual: parseFloat(produkHarga) || 0,
-        kos_produk: parseFloat(produkKos) || 0,
-        stok: parseInt(produkStok) || 0,
-        kedai_id: sessionUser?.kedai_id,
-        kategori_id: selectedCategory?.id || null,
-        kategori_nama: selectedCategory?.nama || fallbackCategory.nama,
-        kategori_icon: selectedCategory?.icon || fallbackCategory.icon,
-      } as any);
+    await supabase.from("produk").insert({
+      kod_produk: kodProduk,
+      nama: produkNama,
+      harga_jual: parseFloat(produkHarga) || 0,
+      kos_produk: parseFloat(produkKos) || 0,
+      stok: parseInt(produkStok) || 0,
+      kedai_id: sessionUser?.kedai_id,
+      kategori_id: selectedCategory?.id || null,
+      kategori_nama: selectedCategory?.nama || fallbackCategory.nama,
+      kategori_icon: selectedCategory?.icon || fallbackCategory.icon,
+    } as any);
     setProdukNama("");
     setProdukHarga("");
     setProdukKos("");
@@ -1359,11 +1718,11 @@ export default function OwnerDashboardPage() {
   async function tukarPassword() {
     if (!newPassword.trim()) return;
     if (newPassword !== confirmPassword) {
-      setPasswordMsg("❌ Password baru tidak sepadan.");
+      setPasswordMsg("Password baru tidak sepadan.");
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordMsg("❌ Password kena sekurang-kurangnya 6 aksara.");
+      setPasswordMsg("Password kena sekurang-kurangnya 6 aksara.");
       return;
     }
     const { data: user } = (await supabase
@@ -1372,7 +1731,7 @@ export default function OwnerDashboardPage() {
       .eq("username", sessionUser?.username)
       .single()) as any;
     if (user?.password !== currentPassword) {
-      setPasswordMsg("❌ Password semasa tidak betul.");
+      setPasswordMsg("Password semasa tidak betul.");
       return;
     }
     await supabase
@@ -1382,7 +1741,7 @@ export default function OwnerDashboardPage() {
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setPasswordMsg("✅ Password berjaya ditukar!");
+    setPasswordMsg("Password berjaya ditukar!");
     setTimeout(() => setPasswordMsg(""), 3000);
   }
 
@@ -1394,7 +1753,7 @@ export default function OwnerDashboardPage() {
       .eq("id", resetStaffId);
     setResetStaffId(null);
     setNewStaffPassword("");
-    setResetMsg("✅ Password staff berjaya direset!");
+    setResetMsg("Password staff berjaya direset!");
     setTimeout(() => setResetMsg(""), 3000);
   }
 
@@ -1409,14 +1768,14 @@ export default function OwnerDashboardPage() {
       .eq("id", sessionUser.kedai_id);
     setSaving(false);
     if (error) {
-      setTableMsg("❌ Gagal simpan bilangan meja.");
+      setTableMsg("Gagal simpan bilangan meja.");
       return;
     }
     setKedaiInfo((prev) =>
       prev ? { ...prev, table_count: finalCount } : prev,
     );
     setTableCountInput(finalCount);
-    setTableMsg("✅ Setup meja berjaya disimpan.");
+    setTableMsg("Setup meja berjaya disimpan.");
     setTimeout(() => setTableMsg(""), 3000);
   }
 
@@ -1441,12 +1800,12 @@ export default function OwnerDashboardPage() {
 
     const isLogo = assetType === "logo";
     if (!file.type.startsWith("image/")) {
-      setStoreSetupMsg("❌ Sila upload fail gambar sahaja.");
+      setStoreSetupMsg("Sila upload fail gambar sahaja.");
       return;
     }
 
     if (file.size > 3 * 1024 * 1024) {
-      setStoreSetupMsg("❌ Saiz gambar maksimum 3MB sahaja.");
+      setStoreSetupMsg("Saiz gambar maksimum 3MB sahaja.");
       return;
     }
 
@@ -1462,7 +1821,7 @@ export default function OwnerDashboardPage() {
         .upload(path, file, { upsert: true });
 
       if (uploadError) {
-        setStoreSetupMsg(`❌ Upload gagal: ${uploadError.message}`);
+        setStoreSetupMsg(`Upload gagal: ${uploadError.message}`);
         return;
       }
 
@@ -1472,7 +1831,7 @@ export default function OwnerDashboardPage() {
 
       const publicUrl = publicUrlData?.publicUrl;
       if (!publicUrl) {
-        setStoreSetupMsg("❌ Gagal dapatkan URL gambar.");
+        setStoreSetupMsg("Gagal dapatkan URL gambar.");
         return;
       }
 
@@ -1483,7 +1842,7 @@ export default function OwnerDashboardPage() {
         .eq("id", sessionUser.kedai_id);
 
       if (updateError) {
-        setStoreSetupMsg(`❌ Gagal simpan gambar: ${updateError.message}`);
+        setStoreSetupMsg(`Gagal simpan gambar: ${updateError.message}`);
         return;
       }
 
@@ -1492,13 +1851,13 @@ export default function OwnerDashboardPage() {
       );
       setStoreSetupMsg(
         isLogo
-          ? "✅ Logo kedai berjaya disimpan."
-          : "✅ QR DuitNow berjaya disimpan.",
+          ? "Logo kedai berjaya disimpan."
+          : "QR DuitNow berjaya disimpan.",
       );
       setTimeout(() => setStoreSetupMsg(""), 3000);
     } catch (error) {
       console.error("Upload kedai asset error:", error);
-      setStoreSetupMsg("❌ Upload gagal. Sila cuba lagi.");
+      setStoreSetupMsg("Upload gagal. Sila cuba lagi.");
     } finally {
       if (isLogo) setUploadingLogo(false);
       else setUploadingQr(false);
@@ -1521,7 +1880,7 @@ export default function OwnerDashboardPage() {
     setSaving(false);
 
     if (error) {
-      setThemeMsg(`❌ Gagal simpan theme: ${error.message}`);
+      setThemeMsg(`Gagal simpan theme: ${error.message}`);
       return;
     }
 
@@ -1534,7 +1893,7 @@ export default function OwnerDashboardPage() {
           }
         : prev,
     );
-    setThemeMsg("✅ Theme kedai berjaya disimpan.");
+    setThemeMsg("Theme kedai berjaya disimpan.");
     setTimeout(() => setThemeMsg(""), 3000);
   }
 
@@ -1542,7 +1901,10 @@ export default function OwnerDashboardPage() {
     if (!sessionUser?.kedai_id) return;
 
     const finalSstRate = Math.max(0, Math.min(Number(sstRate) || 0, 100));
-    const finalServiceChargeRate = Math.max(0, Math.min(Number(serviceChargeRate) || 0, 100));
+    const finalServiceChargeRate = Math.max(
+      0,
+      Math.min(Number(serviceChargeRate) || 0, 100),
+    );
 
     setSaving(true);
     setChargeMsg("");
@@ -1560,7 +1922,7 @@ export default function OwnerDashboardPage() {
     setSaving(false);
 
     if (error) {
-      setChargeMsg(`❌ Gagal simpan setup caj: ${error.message}`);
+      setChargeMsg(`Gagal simpan setup caj: ${error.message}`);
       return;
     }
 
@@ -1577,7 +1939,7 @@ export default function OwnerDashboardPage() {
           }
         : prev,
     );
-    setChargeMsg("✅ Setup caj berjaya disimpan.");
+    setChargeMsg("Setup caj berjaya disimpan.");
     setTimeout(() => setChargeMsg(""), 3000);
   }
 
@@ -1727,7 +2089,9 @@ export default function OwnerDashboardPage() {
                 ]
               : []),
             ...(getReceiptSst(receipt) > 0
-              ? [`SST (${formatReceiptRate(receipt.sst_rate)}%): ${formatRM(getReceiptSst(receipt))}`]
+              ? [
+                  `SST (${formatReceiptRate(receipt.sst_rate)}%): ${formatRM(getReceiptSst(receipt))}`,
+                ]
               : []),
           ]
         : []),
@@ -1771,15 +2135,25 @@ export default function OwnerDashboardPage() {
         : editStokSemasa - parseInt(editStokQty)
       : null;
 
-  const filteredProduk =
-    selectedCategoryFilter === "all"
-      ? produk
-      : produk.filter((product) => product.kategori_id === selectedCategoryFilter);
+  const filteredProduk = produk.filter((product) => {
+    const category = resolveProductCategory(product);
+    const matchesCategory =
+      selectedCategoryFilter === "all" ||
+      product.kategori_id === selectedCategoryFilter;
+    const keyword = inventorySearch.trim().toLowerCase();
+    const matchesSearch =
+      !keyword ||
+      product.nama.toLowerCase().includes(keyword) ||
+      category.nama.toLowerCase().includes(keyword) ||
+      getProductDisplayId(product).toLowerCase().includes(keyword);
+
+    return matchesCategory && matchesSearch;
+  });
 
   function categoryFilterLabel() {
     if (selectedCategoryFilter === "all") return "Semua Kategori";
     const category = findCategoryById(selectedCategoryFilter);
-    return category ? `${category.icon} ${category.nama}` : "Kategori";
+    return category ? category.nama : "Kategori";
   }
 
   function applyCategoryFilter(categoryId: string) {
@@ -1787,6 +2161,48 @@ export default function OwnerDashboardPage() {
     setShowCategoryFilterDropdown(false);
   }
 
+  function getProductDisplayId(product: Produk) {
+    return product.kod_produk || "PRD-0000";
+  }
+
+  function getProductMargin(product: Produk) {
+    return product.harga_jual > 0
+      ? Math.round(
+          ((product.harga_jual - product.kos_produk) / product.harga_jual) *
+            100,
+        )
+      : 0;
+  }
+
+  function getStockStatus(product: Produk) {
+    const stock = Number(product.stok || 0);
+
+    if (stock <= 0) {
+      return {
+        label: "Habis",
+        dot: "bg-red-500",
+        badge: "bg-red-50 text-red-600 border-red-100",
+        row: "text-red-600",
+      };
+    }
+
+    if (stock <= 5) {
+      return {
+        label: "Stok Rendah",
+        dot: "bg-amber-500",
+        badge: "bg-amber-50 text-amber-700 border-amber-100",
+        row: "text-amber-600",
+      };
+    }
+
+    return {
+      label: "Stok OK",
+      dot: "bg-[var(--accent-500)]",
+      badge:
+        "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]",
+      row: "text-gray-900",
+    };
+  }
 
   function normalizeKedaiStatus(status?: string | null) {
     return String(status || "")
@@ -1801,7 +2217,7 @@ export default function OwnerDashboardPage() {
   const planInfo = isBeta
     ? {
         label: "BETA",
-        title: "⏳ Beta — Cuba Percuma",
+        title: "Beta — Cuba Percuma",
         bg: "bg-yellow-50 border-yellow-200",
         titleColor: "text-yellow-800",
         labelColor: "text-yellow-700",
@@ -1810,7 +2226,7 @@ export default function OwnerDashboardPage() {
     : isActivePlan
       ? {
           label: "AKTIF",
-          title: "✅ Aktif — 2% Jualan",
+          title: "Aktif — 2% Jualan",
           bg: "bg-[var(--accent-50)] border-[var(--accent-200)]",
           titleColor: "text-[var(--accent-800)]",
           labelColor: "text-[var(--accent-700)]",
@@ -1819,7 +2235,7 @@ export default function OwnerDashboardPage() {
       : isSuspended
         ? {
             label: "SUSPENDED",
-            title: "⛔ Suspended — Akses Ditangguhkan",
+            title: "Suspended — Akses Ditangguhkan",
             bg: "bg-red-50 border-red-200",
             titleColor: "text-red-800",
             labelColor: "text-red-700",
@@ -1827,7 +2243,7 @@ export default function OwnerDashboardPage() {
           }
         : {
             label: "BELUM SET",
-            title: "⚠️ Status kedai belum ditetapkan",
+            title: "Status kedai belum ditetapkan",
             bg: "bg-gray-50 border-gray-200",
             titleColor: "text-gray-800",
             labelColor: "text-gray-600",
@@ -1835,18 +2251,85 @@ export default function OwnerDashboardPage() {
           };
 
   const urusposFee = isActivePlan ? stats.jumlahJualan * 0.02 : 0;
+  const PlanIcon = isBeta
+    ? Clock3
+    : isActivePlan
+      ? CircleCheck
+      : isSuspended
+        ? Ban
+        : AlertTriangle;
 
   const accentColorOptions = [
-    { id: "green", label: "Green", dot: "bg-green-600", ring: "border-green-500", sample: "bg-green-600" },
-    { id: "blue", label: "Blue", dot: "bg-blue-600", ring: "border-blue-500", sample: "bg-blue-600" },
-    { id: "purple", label: "Purple", dot: "bg-purple-600", ring: "border-purple-500", sample: "bg-purple-600" },
-    { id: "red", label: "Red", dot: "bg-red-600", ring: "border-red-500", sample: "bg-red-600" },
-    { id: "orange", label: "Orange", dot: "bg-orange-500", ring: "border-orange-400", sample: "bg-orange-500" },
-    { id: "amber", label: "Amber", dot: "bg-amber-500", ring: "border-amber-400", sample: "bg-amber-500" },
-    { id: "pink", label: "Pink", dot: "bg-pink-500", ring: "border-pink-400", sample: "bg-pink-500" },
-    { id: "teal", label: "Teal", dot: "bg-teal-500", ring: "border-teal-400", sample: "bg-teal-500" },
-    { id: "indigo", label: "Indigo", dot: "bg-indigo-600", ring: "border-indigo-500", sample: "bg-indigo-600" },
-    { id: "slate", label: "Slate", dot: "bg-slate-700", ring: "border-slate-500", sample: "bg-slate-700" },
+    {
+      id: "green",
+      label: "Green",
+      dot: "bg-green-600",
+      ring: "border-green-500",
+      sample: "bg-green-600",
+    },
+    {
+      id: "blue",
+      label: "Blue",
+      dot: "bg-blue-600",
+      ring: "border-blue-500",
+      sample: "bg-blue-600",
+    },
+    {
+      id: "purple",
+      label: "Purple",
+      dot: "bg-purple-600",
+      ring: "border-purple-500",
+      sample: "bg-purple-600",
+    },
+    {
+      id: "red",
+      label: "Red",
+      dot: "bg-red-600",
+      ring: "border-red-500",
+      sample: "bg-red-600",
+    },
+    {
+      id: "orange",
+      label: "Orange",
+      dot: "bg-orange-500",
+      ring: "border-orange-400",
+      sample: "bg-orange-500",
+    },
+    {
+      id: "amber",
+      label: "Amber",
+      dot: "bg-amber-500",
+      ring: "border-amber-400",
+      sample: "bg-amber-500",
+    },
+    {
+      id: "pink",
+      label: "Pink",
+      dot: "bg-pink-500",
+      ring: "border-pink-400",
+      sample: "bg-pink-500",
+    },
+    {
+      id: "teal",
+      label: "Teal",
+      dot: "bg-teal-500",
+      ring: "border-teal-400",
+      sample: "bg-teal-500",
+    },
+    {
+      id: "indigo",
+      label: "Indigo",
+      dot: "bg-indigo-600",
+      ring: "border-indigo-500",
+      sample: "bg-indigo-600",
+    },
+    {
+      id: "slate",
+      label: "Slate",
+      dot: "bg-slate-700",
+      ring: "border-slate-500",
+      sample: "bg-slate-700",
+    },
   ];
 
   const selectedAccent =
@@ -1996,7 +2479,8 @@ export default function OwnerDashboardPage() {
     },
   };
 
-  const accentTheme = accentThemeMap[selectedAccentColor] || accentThemeMap.green;
+  const accentTheme =
+    accentThemeMap[selectedAccentColor] || accentThemeMap.green;
   const accentStyle = {
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
@@ -2059,28 +2543,16 @@ export default function OwnerDashboardPage() {
       description: "Top product terjual",
     },
     {
-      id: "category-sales",
-      icon: FolderTree,
-      label: "Sales Kategori",
-      description: "Prestasi ikut kategori",
+      id: "payment-method",
+      icon: CreditCard,
+      label: "Kaedah Bayaran",
+      description: "Ringkasan payment method",
     },
     {
-      id: "daily-sales",
+      id: "inventory-summary",
       icon: ClipboardList,
-      label: "Jualan Harian",
-      description: "Senarai jualan ikut hari",
-    },
-    {
-      id: "profit-margin",
-      icon: TrendingUp,
-      label: "Profit Margin",
-      description: "Untung kasar produk",
-    },
-    {
-      id: "inventory-report",
-      icon: Box,
-      label: "Laporan Stok",
-      description: "Status inventori",
+      label: "Ringkasan Stok",
+      description: "Stok awal, masuk, keluar & akhir",
     },
     {
       id: "stock-movement",
@@ -2089,7 +2561,7 @@ export default function OwnerDashboardPage() {
       description: "Rekod stok masuk/keluar",
     },
     {
-      id: "receipt",
+      id: "receipts",
       icon: Receipt,
       label: "Rekod Resit",
       description: "Semakan receipt",
@@ -2129,7 +2601,6 @@ export default function OwnerDashboardPage() {
     },
   ];
 
-
   function changeTab(tabId: string) {
     if (tabId === "laporan") {
       setShowReportSubmenu((prev) => !prev);
@@ -2166,8 +2637,12 @@ export default function OwnerDashboardPage() {
   }
 
   const activeNav = navItems.find((item) => item.id === activeTab);
-  const activeReport = reportMenuItems.find((item) => item.id === activeReportTab);
-  const activeSettings = settingsMenuItems.find((item) => item.id === activeSettingsTab);
+  const activeReport = reportMenuItems.find(
+    (item) => item.id === activeReportTab,
+  );
+  const activeSettings = settingsMenuItems.find(
+    (item) => item.id === activeSettingsTab,
+  );
   const ActiveSettingsIcon = activeSettings?.icon || Settings;
   const kedaiLogoUrl = String(kedaiInfo?.logo_url || "").trim();
 
@@ -2177,62 +2652,54 @@ export default function OwnerDashboardPage() {
         onClick={openFilterDropdown}
         className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
       >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
+        <CalendarDays
+          size={15}
+          strokeWidth={2.1}
           className="text-[var(--accent-600)]"
-        >
-          <path
-            d="M7 3V6"
-            stroke="currentColor"
-            strokeWidth="2.3"
-            strokeLinecap="round"
-          />
-          <path
-            d="M17 3V6"
-            stroke="currentColor"
-            strokeWidth="2.3"
-            strokeLinecap="round"
-          />
-          <path
-            d="M4 9H20"
-            stroke="currentColor"
-            strokeWidth="2.3"
-            strokeLinecap="round"
-          />
-          <path
-            d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z"
-            stroke="currentColor"
-            strokeWidth="2.3"
-            strokeLinejoin="round"
-          />
-        </svg>
+        />
         <span>{filterLabel()}</span>
-        <span className="text-gray-400 text-[10px]">▾</span>
+        <ChevronDown size={12} className="text-gray-400" />
       </button>
 
       {showFilterDropdown && (
         <div className="absolute left-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2">
-          {(["daily", "yesterday", "monthly", "weekly", "custom"] as FilterType[]).map(
-            (option) => (
-              <button
-                key={option}
-                onClick={() => applyQuickFilter(option)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
-              >
-                <span>{pendingFilterLabel(option)}</span>
-                {filter === option && <span className="text-[var(--accent-600)]">✓</span>}
-              </button>
-            ),
-          )}
+          {(
+            [
+              "daily",
+              "yesterday",
+              "monthly",
+              "weekly",
+              "custom",
+            ] as FilterType[]
+          ).map((option) => (
+            <button
+              key={option}
+              onClick={() => applyQuickFilter(option)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              <span>{pendingFilterLabel(option)}</span>
+              {filter === option && (
+                <CircleCheck size={14} className="text-[var(--accent-600)]" />
+              )}
+            </button>
+          ))}
         </div>
       )}
     </div>
   );
 
-  const FloatingOwnerMenu = ({
+  const userProfilePhotoUrl = String(
+    sessionUser?.profile_photo_url ||
+      sessionUser?.avatar_url ||
+      sessionUser?.photo_url ||
+      sessionUser?.image_url ||
+      "",
+  ).trim();
+  const userInitial = String(sessionUser?.nama || sessionUser?.username || "O")
+    .slice(0, 1)
+    .toUpperCase();
+
+  const OwnerSidebarMenu = ({
     expanded,
     mobile = false,
   }: {
@@ -2241,77 +2708,53 @@ export default function OwnerDashboardPage() {
   }) => (
     <>
       <div
-        className={`${expanded ? "px-6" : "px-3"} py-5 flex items-center justify-between border-b border-gray-100`}
+        className={`${expanded ? "px-5" : "px-3"} h-16 flex items-center justify-between border-b border-gray-100 bg-white`}
       >
         {expanded ? (
           <div className="min-w-0">
-            <div className="text-gray-900 font-bold text-lg tracking-tight">
+            <div className="text-gray-950 font-black text-base tracking-tight leading-none">
               Urus<span className="text-[var(--accent-600)]">POS</span>
             </div>
-            <div className="text-gray-400 text-xs font-medium tracking-widest uppercase mt-0.5">
+            <div className="text-gray-400 text-[9px] font-black tracking-widest uppercase mt-1.5">
               Owner Dashboard
             </div>
           </div>
         ) : (
-          <div className="w-full h-10" />
+          <div className="w-full" />
         )}
 
-        {mobile && (
+        {mobile ? (
           <button
             onClick={() => setShowMobileMenu(false)}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-50"
             aria-label="Tutup menu"
           >
             <X size={18} strokeWidth={1.8} />
           </button>
+        ) : (
+          <button
+            onClick={() => setDesktopSidebarExpanded((value) => !value)}
+            className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all"
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            title={expanded ? "Collapse menu" : "Expand menu"}
+          >
+            <span className="text-sm font-black leading-none">
+              {expanded ? "‹‹" : "››"}
+            </span>
+          </button>
         )}
       </div>
 
-      {expanded && (
-        <div className="px-4 pt-4">
-          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] p-4 text-white shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center shrink-0 text-base font-black">
-                {kedaiLogoUrl ? (
-                  <img
-                    src={kedaiLogoUrl}
-                    alt={kedaiInfo?.nama || "Logo kedai"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  "U"
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="text-[var(--accent-100)] text-[10px] font-semibold tracking-widest uppercase mb-1">
-                  Kedai
-                </div>
-                <div className="font-semibold text-sm leading-tight truncate">
-                  {kedaiInfo?.nama || "Kedai Saya"}
-                </div>
-                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                  <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
-                    Owner
-                  </span>
-                  <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
-                    {planInfo.label}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className={`${expanded ? "px-4" : "px-3"} flex-1 py-4 overflow-y-auto`}>
+      <nav
+        className={`${expanded ? "px-4" : "px-3"} flex-1 py-5 overflow-y-auto bg-white`}
+      >
         {expanded && (
-          <div className="text-gray-300 text-[10px] font-semibold tracking-widest uppercase px-2 mb-2">
-            Menu
+          <div className="text-gray-400 text-[10px] font-black tracking-widest uppercase px-1 mb-3">
+            Overview
           </div>
         )}
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             const Icon = item.icon;
@@ -2319,19 +2762,27 @@ export default function OwnerDashboardPage() {
             const isSettingsItem = item.id === "settings";
             const isReportOpen = showReportSubmenu || isActive;
             const isSettingsOpen = showSettingsSubmenu || isActive;
-            const parentActive = isReportItem ? isReportOpen : isSettingsItem ? isSettingsOpen : isActive;
+            const parentActive = isReportItem
+              ? isReportOpen
+              : isSettingsItem
+                ? isSettingsOpen
+                : isActive;
 
             return (
               <div key={item.id} className="space-y-1">
                 <button
                   title={!expanded ? item.label : undefined}
                   onClick={() => {
-                    if (!expanded && !mobile && (isReportItem || isSettingsItem)) {
+                    if (
+                      !expanded &&
+                      !mobile &&
+                      (isReportItem || isSettingsItem)
+                    ) {
                       setDesktopSidebarExpanded(true);
                     }
                     changeTab(item.id);
                   }}
-                  className={`w-full flex items-center rounded-xl text-sm font-medium transition-all ${
+                  className={`relative w-full flex items-center rounded-lg text-sm font-bold transition-all ${
                     expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                   } ${
                     parentActive
@@ -2339,31 +2790,34 @@ export default function OwnerDashboardPage() {
                       : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
+                  {expanded && parentActive && (
+                    <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--accent-600)]" />
+                  )}
+
                   <Icon
-                    size={18}
-                    strokeWidth={1.8}
-                    className={parentActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                    size={17}
+                    strokeWidth={1.9}
+                    className={
+                      parentActive
+                        ? "text-[var(--accent-600)]"
+                        : "text-gray-400"
+                    }
                   />
 
                   {expanded && (
                     <>
-                      <span className="flex-1 text-left min-w-0">
-                        <span className="block truncate">{item.label}</span>
-                        <span
-                          className={`block text-[11px] font-normal mt-0.5 truncate ${
-                            parentActive ? "text-[var(--accent-600)]" : "text-gray-400"
-                          }`}
-                        >
-                          {item.description}
-                        </span>
+                      <span className="flex-1 text-left truncate">
+                        {item.label}
                       </span>
 
                       {(isReportItem || isSettingsItem) && (
                         <ChevronDown
-                          size={15}
-                          strokeWidth={1.8}
+                          size={14}
+                          strokeWidth={1.9}
                           className={`transition-transform ${
-                            parentActive ? "rotate-180 text-[var(--accent-600)]" : "text-gray-300"
+                            parentActive
+                              ? "rotate-180 text-[var(--accent-600)]"
+                              : "text-gray-300"
                           }`}
                         />
                       )}
@@ -2372,32 +2826,32 @@ export default function OwnerDashboardPage() {
                 </button>
 
                 {expanded && isReportItem && isReportOpen && (
-                  <div className="ml-3 border-l border-gray-100 pl-3 space-y-1">
+                  <div className="ml-4 border-l border-gray-100 pl-3 space-y-1">
                     {reportMenuItems.map((sub) => {
                       const SubIcon = sub.icon;
-                      const isSubActive = activeTab === "laporan" && activeReportTab === sub.id;
+                      const isSubActive =
+                        activeTab === "laporan" && activeReportTab === sub.id;
 
                       return (
                         <button
                           key={sub.id}
                           onClick={() => changeReportTab(sub.id)}
-                          className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition-all ${
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
                             isSubActive
                               ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                           }`}
                         >
                           <SubIcon
-                            size={15}
-                            strokeWidth={1.8}
-                            className={isSubActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                            size={14}
+                            strokeWidth={1.9}
+                            className={
+                              isSubActive
+                                ? "text-[var(--accent-600)]"
+                                : "text-gray-400"
+                            }
                           />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate">{sub.label}</span>
-                            <span className="block text-[10px] text-gray-400 font-normal truncate mt-0.5">
-                              {sub.description}
-                            </span>
-                          </span>
+                          <span className="truncate">{sub.label}</span>
                         </button>
                       );
                     })}
@@ -2405,32 +2859,33 @@ export default function OwnerDashboardPage() {
                 )}
 
                 {expanded && isSettingsItem && isSettingsOpen && (
-                  <div className="ml-3 border-l border-gray-100 pl-3 space-y-1">
+                  <div className="ml-4 border-l border-gray-100 pl-3 space-y-1">
                     {settingsMenuItems.map((sub) => {
                       const SubIcon = sub.icon;
-                      const isSubActive = activeTab === "settings" && activeSettingsTab === sub.id;
+                      const isSubActive =
+                        activeTab === "settings" &&
+                        activeSettingsTab === sub.id;
 
                       return (
                         <button
                           key={sub.id}
                           onClick={() => changeSettingsTab(sub.id)}
-                          className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition-all ${
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
                             isSubActive
                               ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                           }`}
                         >
                           <SubIcon
-                            size={15}
-                            strokeWidth={1.8}
-                            className={isSubActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                            size={14}
+                            strokeWidth={1.9}
+                            className={
+                              isSubActive
+                                ? "text-[var(--accent-600)]"
+                                : "text-gray-400"
+                            }
                           />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate">{sub.label}</span>
-                            <span className="block text-[10px] text-gray-400 font-normal truncate mt-0.5">
-                              {sub.description}
-                            </span>
-                          </span>
+                          <span className="truncate">{sub.label}</span>
                         </button>
                       );
                     })}
@@ -2442,2456 +2897,4009 @@ export default function OwnerDashboardPage() {
         </div>
       </nav>
 
-      <div className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100`}>
+      <div
+        className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100 bg-white`}
+      >
         <a
           href="/auth/logout"
           title={!expanded ? "Log Keluar" : undefined}
-          className={`flex items-center rounded-xl text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
-            expanded ? "gap-2 px-3 py-2.5" : "justify-center px-0 py-3"
+          className={`flex items-center rounded-lg text-sm font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
+            expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
           }`}
         >
-          <LogOut size={16} strokeWidth={1.8} />
+          <LogOut size={16} strokeWidth={1.9} />
           {expanded && <span>Log Keluar</span>}
         </a>
       </div>
     </>
   );
 
-
   return (
     <div className="min-h-screen bg-[#f6f7f2] pb-10" style={accentStyle}>
       {/* Desktop Menu */}
       <aside
         className={`fixed left-0 top-0 z-40 hidden h-screen bg-white border-r border-gray-100 flex-col transition-all duration-200 lg:flex ${
-          desktopSidebarExpanded ? "w-72" : "w-20"
+          desktopSidebarExpanded ? "w-64" : "w-20"
         }`}
       >
-        <FloatingOwnerMenu expanded={desktopSidebarExpanded} />
+        <OwnerSidebarMenu expanded={desktopSidebarExpanded} />
       </aside>
 
       {/* Header */}
       <div
         className={`sticky top-0 z-30 bg-[#f6f7f2]/90 backdrop-blur border-b border-black/5 transition-all duration-200 ${
-          desktopSidebarExpanded ? "lg:ml-72" : "lg:ml-20"
+          desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
         }`}
       >
         <div className="px-4 sm:px-6 py-4 w-full flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setShowMobileMenu(true)}
-              className="lg:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-white/70"
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-2xl bg-white border border-gray-100 shadow-sm"
               aria-label="Buka menu"
             >
               <Menu size={20} strokeWidth={1.8} />
             </button>
 
-            <button
-              onClick={() => setDesktopSidebarExpanded(v => !v)}
-              className="hidden lg:flex w-9 h-9 items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-white/70"
-              aria-label="Toggle menu"
-            >
-              <Menu size={20} strokeWidth={1.8} />
-            </button>
-
-            <div className="text-gray-900 font-semibold text-sm truncate">
-              {activeTab === "laporan"
-                ? activeReport?.label || "Laporan"
-                : activeTab === "settings"
-                  ? activeSettings?.label || "Tetapan"
-                  : activeNav?.label || "Owner"}
+            <div className="min-w-0">
+              <div className="text-gray-900 font-black text-sm sm:text-base truncate">
+                {activeTab === "laporan"
+                  ? activeReport?.label || "Laporan"
+                  : activeTab === "settings"
+                    ? activeSettings?.label || "Tetapan"
+                    : activeNav?.label || "Owner"}
+              </div>
+              <div className="hidden sm:block text-gray-400 text-xs font-bold truncate mt-0.5">
+                {kedaiInfo?.nama || "Owner Dashboard"}
+              </div>
             </div>
           </div>
 
-          <div className="text-gray-900 font-bold text-base tracking-tight">
-            Urus<span className="text-[var(--accent-600)]">POS</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="hidden sm:block text-right">
+              <div className="text-gray-900 text-sm font-black leading-tight">
+                {sessionUser?.nama || "Owner"}
+              </div>
+              <div className="text-gray-400 text-[11px] font-bold mt-0.5">
+                Owner
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] font-black">
+              {userProfilePhotoUrl ? (
+                <img
+                  src={userProfilePhotoUrl}
+                  alt={sessionUser?.nama || "Profile user"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                userInitial
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       <div
         className={`transition-all duration-200 ${
-          desktopSidebarExpanded ? "lg:ml-72" : "lg:ml-20"
+          desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
         }`}
       >
         <div className="p-4 max-w-2xl mx-auto lg:max-w-5xl lg:px-6">
-        {/* DASHBOARD */}
-        {activeTab === "dashboard" && (
-          <div>
-            <div className="mb-4">
-              <div className="text-gray-400 text-sm">Selamat datang 👋</div>
-              <div className="text-gray-900 text-xl font-black truncate">
-                {sessionUser?.nama || "Owner"}
-              </div>
-            </div>
-            <FilterBar />
-            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-2xl p-6 mb-4">
-              <div className="text-[var(--accent-100)] text-sm">
-                Jumlah Jualan
-              </div>
-              <div className="text-white text-4xl font-black mt-1">
-                RM {stats.jumlahJualan.toFixed(2)}
-              </div>
-              <div className="flex gap-3 mt-3">
-                <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
-                  🧾 {stats.jumlahTransaksi} transaksi
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">💰</div>
-                <div className="text-[var(--accent-600)] text-lg font-black">
-                  RM {stats.jumlahUntung.toFixed(0)}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">📊</div>
-                <div className="text-gray-900 text-lg font-black">
-                  {stats.jumlahMargin}%
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Margin</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">⚠️</div>
-                <div className="text-amber-500 text-lg font-black">
-                  {stats.stokKritikal} item
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Stok Kritikal</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">👥</div>
-                <div className="text-gray-900 text-lg font-black">
-                  {staff.length} orang
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Jumlah Staff</div>
-              </div>
-            </div>
-            <div
-              className={`rounded-2xl p-4 mb-3 border flex items-center justify-between ${planInfo.bg}`}
-            >
-              <div>
-                <div
-                  className={`text-xs font-bold mb-0.5 ${planInfo.labelColor}`}
-                >
-                  PLAN SEMASA
-                </div>
-                <div className={`text-sm font-black ${planInfo.titleColor}`}>
-                  {planInfo.title}
-                </div>
-              </div>
-              <span
-                className={`text-xs font-bold px-3 py-1.5 rounded-full ${planInfo.pill}`}
-              >
-                {planInfo.label}
-              </span>
-            </div>
-            {isActivePlan ? (
-              <div
-                className={`rounded-2xl p-4 border ${billingStatus?.status === "unpaid" ? "bg-red-50 border-red-200" : "bg-[var(--accent-50)] border-[var(--accent-200)]"}`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div
-                    className={`text-xs font-bold ${billingStatus?.status === "unpaid" ? "text-red-700" : "text-[var(--accent-700)]"}`}
-                  >
-                    📊 Fee UrusPOS —{" "}
-                    {billingStatus ? billingStatus.bulanLabel : "Bulan Lepas"}
+          {/* DASHBOARD */}
+          {activeTab === "dashboard" && (
+            <div>
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                <div>
+                  <div className="inline-flex items-center gap-2 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] px-3 py-1.5 rounded-full text-[11px] font-black mb-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-500)]" />
+                    Owner Overview
                   </div>
-                  {billingStatus?.status === "paid" ? (
-                    <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                      ✅ Dah Bayar
-                    </span>
-                  ) : billingStatus?.status === "unpaid" ? (
-                    <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap">
-                      ⏳ Belum Bayar
-                    </span>
-                  ) : null}
+                  <h1 className="text-gray-950 font-black text-2xl tracking-tight">
+                    Dashboard
+                  </h1>
+                  <p className="text-gray-400 text-sm font-bold mt-1">
+                    Pantau jualan, profit dan operasi {kedaiInfo?.nama || "kedai"}.
+                  </p>
                 </div>
-                <div className="text-gray-900 text-2xl font-black">
-                  {billingStatus
-                    ? `RM ${Number(billingStatus.fee).toFixed(2)}`
-                    : "—"}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">
-                  {billingStatus
-                    ? `2% daripada jualan RM ${Number(billingStatus.jualan).toFixed(2)}`
-                    : "Tiada rekod bulan lepas"}
-                </div>
-                {billingStatus?.status === "unpaid" && (
-                  <div className="mt-3 bg-red-100 border border-red-200 rounded-xl p-3">
-                    <div className="text-red-700 text-xs font-bold">
-                      ⚠️ Peringatan
-                    </div>
-                    <div className="text-red-600 text-xs mt-1">
-                      Sila jelaskan fee UrusPOS anda sebelum 7hb bulan ini.
-                      Terima kasih.
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : isBeta ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
-                <div className="text-yellow-700 text-xs font-bold mb-1">
-                  📊 Fee UrusPOS — {filterLabel()}
-                </div>
+
                 <div className="flex items-center gap-3">
-                  <div className="text-gray-900 text-2xl font-black">
-                    RM 0.00
-                  </div>
-                  <span className="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded-full">
-                    🎉 Free semasa Beta
-                  </span>
+                  <FilterBar />
                 </div>
-                <div className="text-yellow-600 text-xs mt-1">
-                  Jualan RM {stats.jumlahJualan.toFixed(2)} — tiada caj semasa
-                  beta
-                </div>
-              </div>
-            ) : isSuspended ? (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                <div className="text-red-700 text-xs font-bold mb-1">
-                  📊 Fee UrusPOS
-                </div>
-                <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
-                <div className="text-red-600 text-xs mt-1">
-                  Akaun suspended — caj tidak dikira.
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <div className="text-gray-600 text-xs font-bold mb-1">
-                  📊 Fee UrusPOS
-                </div>
-                <div className="text-gray-900 text-2xl font-black">RM 0.00</div>
-                <div className="text-gray-500 text-xs mt-1">
-                  Status kedai belum dibaca.
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* INVENTORY */}
-        {activeTab === "inventory" && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-gray-900 font-bold text-lg">
-                Inventori ({produk.length})
-              </h2>
-              <button
-                onClick={() => setShowAddProduk(true)}
-                className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
-              >
-                + Tambah Produk
-              </button>
-            </div>
-            <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="text-gray-900 text-sm font-black">
-                    Kategori Produk
-                  </div>
-                  <div className="text-gray-400 text-xs font-bold">
-                    Filter & urus kategori produk
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setCategoryError("");
-                    setShowAddCategory(true);
-                  }}
-                  className="bg-[var(--accent-600)] text-white text-xs font-black px-3 py-2 rounded-full shadow-sm active:scale-95 transition-all"
-                >
-                  + Kategori
-                </button>
               </div>
 
-              <div className="relative inline-block mb-4">
-                <button
-                  onClick={() => setShowCategoryFilterDropdown((value) => !value)}
-                  className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
-                >
-                  <span className="text-[var(--accent-600)]">🏷️</span>
-                  <span>{categoryFilterLabel()}</span>
-                  <span className="text-gray-400 text-[10px]">▾</span>
-                </button>
-
-                {showCategoryFilterDropdown && (
-                  <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
-                    <button
-                      onClick={() => applyCategoryFilter("all")}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${selectedCategoryFilter === "all" ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
-                    >
-                      <span>Semua Kategori</span>
-                      {selectedCategoryFilter === "all" && (
-                        <span className="text-[var(--accent-600)]">✓</span>
-                      )}
-                    </button>
-                    {categories.map((category) => (
-                      <button
-                        key={`filter-${category.id}`}
-                        onClick={() => applyCategoryFilter(category.id)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${selectedCategoryFilter === category.id ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : category.is_active ? "text-gray-600 hover:bg-gray-50" : "text-gray-300 hover:bg-gray-50"}`}
-                      >
-                        <span className="truncate">
-                          {category.icon} {category.nama}
-                        </span>
-                        {selectedCategoryFilter === category.id && (
-                          <span className="text-[var(--accent-600)]">✓</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {categories.length > 0 && (
-                <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                  {categories.map((category) => (
-                    <div
-                      key={`manage-${category.id}`}
-                      className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl px-3 py-2"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg border ${category.is_active ? "bg-white border-gray-100" : "bg-gray-100 border-gray-200 grayscale opacity-60"}`}>
-                          {category.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-gray-900 text-sm font-black truncate">
-                            {category.nama}
-                          </div>
-                          <div className={`text-xs font-bold ${category.is_active ? "text-[var(--accent-600)]" : "text-gray-400"}`}>
-                            {category.is_active ? "Aktif" : "Tidak aktif"}
-                          </div>
-                        </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+                <div className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-100 p-5 shadow-sm">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Jualan
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => toggleCategory(category.id, category.is_active)}
-                          className={`w-10 h-10 rounded-2xl border flex items-center justify-center text-sm font-black active:scale-95 transition-all ${
-                            category.is_active
-                              ? "bg-amber-50 text-amber-600 border-amber-100"
-                              : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"
-                          }`}
-                          title={category.is_active ? "Nyahaktif kategori" : "Aktifkan kategori"}
-                          aria-label={category.is_active ? "Nyahaktif kategori" : "Aktifkan kategori"}
-                        >
-                          {category.is_active ? "⏸" : "▶"}
-                        </button>
-                        <button
-                          onClick={() => removeCategory(category)}
-                          disabled={saving}
-                          className="w-10 h-10 rounded-2xl border bg-red-50 text-red-500 border-red-100 flex items-center justify-center text-sm font-black active:scale-95 transition-all disabled:opacity-50"
-                          title="Remove kategori"
-                          aria-label="Remove kategori"
-                        >
-                          🗑
-                        </button>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {formatRM(stats.jumlahJualan)}
+                      </div>
+                      <div className="text-emerald-700 text-xs font-bold mt-2">
+                        {filterLabel()}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {produk.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
-                <div className="text-4xl mb-3">📦</div>
-                <div className="text-gray-400 text-sm">
-                  Belum ada produk lagi
-                </div>
-              </div>
-            ) : filteredProduk.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
-                <div className="text-4xl mb-3">🔎</div>
-                <div className="text-gray-400 text-sm">
-                  Tiada produk dalam kategori ini
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {filteredProduk.map((p) => {
-                  const m =
-                    p.harga_jual > 0
-                      ? Math.round(
-                          ((p.harga_jual - p.kos_produk) / p.harga_jual) * 100,
-                        )
-                      : 0;
-                  const category = resolveProductCategory(p);
-                  return (
-                    <div
-                      key={p.id}
-                      className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between mb-3 gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-900 font-bold truncate">
-                            {category.icon} {p.nama}
-                          </div>
-                          <div className="inline-flex mt-1 bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-2 py-1 rounded-full">
-                            {category.nama}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openEditProduk(p)}
-                            className="text-blue-600 text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-100"
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setConfirmDeleteProdukId(p.id);
-                              setConfirmDeleteProdukNama(p.nama);
-                            }}
-                            className="text-red-400 text-xs font-bold px-2 py-1 rounded-lg bg-red-50"
-                          >
-                            🗑
-                          </button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div className="text-gray-900 text-sm font-black">
-                            RM {p.harga_jual}
-                          </div>
-                          <div className="text-gray-400 text-xs">
-                            Harga Jual
-                          </div>
-                        </div>
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div className="text-gray-900 text-sm font-black">
-                            RM {p.kos_produk}
-                          </div>
-                          <div className="text-gray-400 text-xs">
-                            Kos Produk
-                          </div>
-                        </div>
-                        <div className="text-center bg-gray-50 rounded-xl p-2">
-                          <div
-                            className={`text-sm font-black ${m >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
-                          >
-                            {m}%
-                          </div>
-                          <div className="text-gray-400 text-xs">Margin</div>
-                        </div>
-                      </div>
-                      <div className="mt-2 text-gray-500 text-xs">
-                        Stok:{" "}
-                        <strong
-                          className={
-                            p.stok <= 5 ? "text-red-500" : "text-gray-900"
-                          }
-                        >
-                          {p.stok} unit
-                        </strong>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* LAPORAN */}
-        {activeTab === "laporan" && (
-          <div>
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-gray-900 font-black text-xl">
-                  {activeReport?.label || "Laporan Owner"}
-                </h2>
-                <p className="text-gray-400 text-xs font-bold mt-1">
-                  {activeReport?.description || "Prestasi kedai ikut tempoh dipilih"}
-                </p>
-              </div>
-              <button
-                onClick={() => fetchAllData(sessionUser?.kedai_id)}
-                disabled={loadingReport}
-                className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
-              >
-                {loadingReport ? "Loading..." : "Refresh"}
-              </button>
-            </div>
-            <FilterBar />
-            {activeReportTab === "sales-summary" && (
-              <>
-            <div className="bg-gradient-to-br from-gray-950 to-gray-800 rounded-3xl p-5 mb-4 text-white shadow-lg">
-              <div className="flex items-start justify-between gap-3 mb-5">
-                <div>
-                  <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
-                    Jumlah Jualan
-                  </div>
-                  <div className="text-3xl sm:text-4xl font-black mt-1">
-                    {formatRM(reportData.totalSales)}
-                  </div>
-                </div>
-                <div className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">
-                  {filterLabel()}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white/10 rounded-2xl p-3">
-                  <div className="text-gray-400 text-xs font-bold">
-                    Jumlah Order
-                  </div>
-                  <div className="text-white text-xl font-black mt-1">
-                    {reportData.totalOrders}
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-2xl p-3">
-                  <div className="text-gray-400 text-xs font-bold">
-                    Purata Order
-                  </div>
-                  <div className="text-white text-xl font-black mt-1">
-                    {formatRM(reportData.averageOrderValue)}
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-2xl p-3">
-                  <div className="text-gray-400 text-xs font-bold">Dine-in</div>
-                  <div className="text-white text-xl font-black mt-1">
-                    {reportData.dineInOrders}
-                  </div>
-                </div>
-                <div className="bg-white/10 rounded-2xl p-3">
-                  <div className="text-gray-400 text-xs font-bold">Bungkus</div>
-                  <div className="text-white text-xl font-black mt-1">
-                    {reportData.takeawayOrders}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">💰</div>
-                <div className="text-[var(--accent-600)] text-lg font-black">
-                  {formatRM(reportData.grossProfit)}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Untung Kasar</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">📉</div>
-                <div className="text-red-500 text-lg font-black">
-                  {formatRM(reportData.cogs)}
-                </div>
-                <div className="text-gray-400 text-xs mt-1">COGS</div>
-              </div>
-              <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <div className="text-xl mb-1">📊</div>
-                <div className="text-gray-900 text-lg font-black">
-                  {reportData.margin}%
-                </div>
-                <div className="text-gray-400 text-xs mt-1">Margin</div>
-              </div>
-            </div>
-              </>
-            )}
-            {activeReportTab === "top-products" && (
-              <>
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-black text-sm">
-                  🔥 Top Product
-                </h3>
-                <span className="text-gray-400 text-xs font-bold">Top 5</span>
-              </div>
-              {reportData.topProducts.length === 0 ? (
-                <div className="text-center py-6">
-                  <div className="text-3xl mb-2">🍽️</div>
-                  <div className="text-gray-400 text-sm">
-                    Belum ada produk terjual
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reportData.topProducts.map((item, index) => (
-                    <div
-                      key={`${item.nama}-${index}`}
-                      className="flex items-center gap-3"
-                    >
-                      <div
-                        className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${index === 0 ? "bg-[var(--accent-600)] text-white" : "bg-gray-100 text-gray-500"}`}
-                      >
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-gray-900 font-bold text-sm truncate">
-                          {item.nama}
-                        </div>
-                        <div className="text-gray-400 text-xs">
-                          {item.qty} terjual
-                        </div>
-                      </div>
-                      <div className="text-gray-900 text-sm font-black">
-                        {formatRM(item.total)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-              </>
-            )}
-            {activeReportTab === "payment-method" && (
-              <>
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-black text-sm">
-                  💳 Payment Method
-                </h3>
-                <span className="text-gray-400 text-xs font-bold">
-                  {reportData.paymentSummary.length} jenis
-                </span>
-              </div>
-              {reportData.paymentSummary.length === 0 ? (
-                <div className="text-center py-6">
-                  <div className="text-3xl mb-2">💳</div>
-                  <div className="text-gray-400 text-sm">
-                    Belum ada rekod bayaran
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reportData.paymentSummary.map((item) => (
-                    <div
-                      key={item.method}
-                      className="flex items-center justify-between bg-gray-50 rounded-2xl p-3"
-                    >
-                      <div>
-                        <div className="text-gray-900 text-sm font-black">
-                          {item.method}
-                        </div>
-                        <div className="text-gray-400 text-xs">
-                          {item.count} order
-                        </div>
-                      </div>
-                      <div className="text-[var(--accent-600)] text-sm font-black">
-                        {formatRM(item.total)}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {reportData.paymentSummary.some(
-                (p) => p.method === "Belum direkod",
-              ) && (
-                <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                  <div className="text-amber-700 text-xs font-bold">
-                    ⚠️ Ada order yang payment method belum disimpan. Pastikan
-                    staff pilih Tunai atau DuitNow masa checkout.
-                  </div>
-                </div>
-              )}
-            </div>
-              </>
-            )}
-            {activeReportTab === "inventory-summary" && (
-              <>
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-gray-900 font-black text-sm">
-                    📊 Ringkasan Stok
-                  </h3>
-                  <p className="text-gray-400 text-xs font-bold mt-1">
-                    Stok awal, masuk, keluar dan akhir ikut filter tarikh
-                  </p>
-                </div>
-                <span className="text-gray-400 text-xs font-bold">
-                  {reportData.inventorySummary.length} produk
-                </span>
-              </div>
-              {reportData.inventorySummary.length === 0 ? (
-                <div className="text-center py-6 bg-gray-50 rounded-2xl">
-                  <div className="text-3xl mb-2">📦</div>
-                  <div className="text-gray-400 text-sm font-bold">
-                    Belum ada produk aktif
-                  </div>
-                </div>
-              ) : (
-                <div className="max-h-80 overflow-y-auto pr-1">
-                  <div className="hidden sm:block overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="sticky top-0 bg-white z-10">
-                        <tr className="text-gray-400 font-black border-b border-gray-100">
-                          <th className="py-3 pr-3">Produk</th>
-                          <th className="py-3 px-3 text-right">Stok Awal</th>
-                          <th className="py-3 px-3 text-right">Masuk</th>
-                          <th className="py-3 px-3 text-right">Keluar</th>
-                          <th className="py-3 pl-3 text-right">Stok Akhir</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.inventorySummary.map((item) => (
-                          <tr
-                            key={item.id}
-                            className="border-b border-gray-50 last:border-0"
-                          >
-                            <td className="py-3 pr-3 text-gray-900 font-black max-w-[160px] truncate">
-                              {item.nama}
-                            </td>
-                            <td className="py-3 px-3 text-right text-gray-600 font-bold">
-                              {item.stokAwal}
-                            </td>
-                            <td className="py-3 px-3 text-right text-[var(--accent-600)] font-black">
-                              +{item.stockIn}
-                            </td>
-                            <td className="py-3 px-3 text-right text-red-500 font-black">
-                              -{item.stockOut}
-                            </td>
-                            <td className="py-3 pl-3 text-right text-gray-900 font-black">
-                              {item.stokAkhir}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="sm:hidden space-y-3">
-                    {reportData.inventorySummary.map((item) => (
-                      <div
-                        key={item.id}
-                        className="bg-gray-50 rounded-2xl p-3 border border-gray-100"
-                      >
-                        <div className="text-gray-900 text-sm font-black truncate mb-3">
-                          {item.nama}
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 text-center">
-                          <div>
-                            <div className="text-gray-900 text-sm font-black">
-                              {item.stokAwal}
-                            </div>
-                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
-                              Awal
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[var(--accent-600)] text-sm font-black">
-                              +{item.stockIn}
-                            </div>
-                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
-                              Masuk
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-red-500 text-sm font-black">
-                              -{item.stockOut}
-                            </div>
-                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
-                              Keluar
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-900 text-sm font-black">
-                              {item.stokAkhir}
-                            </div>
-                            <div className="text-gray-400 text-[10px] font-bold mt-0.5">
-                              Akhir
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-              </>
-            )}
-
-            {activeReportTab === "stock-movement" && (
-              <>
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-gray-900 font-black text-sm">
-                    📦 Rekod Pergerakan Stok
-                  </h3>
-                  <p className="text-gray-400 text-xs font-bold mt-1">
-                    Tambah/tolak stok manual ikut filter tarikh
-                  </p>
-                </div>
-                <span className="text-gray-400 text-xs font-bold">
-                  {reportData.stockMovements.length} rekod
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-2xl p-3">
-                  <div className="text-[var(--accent-700)] text-xs font-black">
-                    Stok Masuk
-                  </div>
-                  <div className="text-[var(--accent-700)] text-xl font-black mt-1">
-                    +{reportData.stockInTotal} unit
-                  </div>
-                </div>
-                <div className="bg-red-50 border border-red-100 rounded-2xl p-3">
-                  <div className="text-red-600 text-xs font-black">
-                    Stok Keluar
-                  </div>
-                  <div className="text-red-600 text-xl font-black mt-1">
-                    -{reportData.stockOutTotal} unit
-                  </div>
-                </div>
-              </div>
-              {reportData.stockMovements.length === 0 ? (
-                <div className="text-center py-6 bg-gray-50 rounded-2xl">
-                  <div className="text-3xl mb-2">📦</div>
-                  <div className="text-gray-400 text-sm font-bold">
-                    Belum ada pergerakan stok dalam tempoh ini
-                  </div>
-                </div>
-              ) : (
-                <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
-                  {reportData.stockMovements.map((item) => {
-                    const isIn = isStockInMovement(item.type);
-                    return (
-                      <div
-                        key={item.id}
-                        className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl p-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-900 text-sm font-black truncate">
-                            {item.produk_nama}
-                          </div>
-                          <div className="text-gray-400 text-xs mt-1">
-                            {formatReceiptDate(item.created_at)}
-                          </div>
-                          <div className="text-gray-500 text-xs mt-1 truncate">
-                            {item.reason || "Tiada sebab"}
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div
-                            className={`text-sm font-black ${isIn ? "text-[var(--accent-600)]" : "text-red-500"}`}
-                          >
-                            {isIn ? "+" : "-"}
-                            {item.qty} unit
-                          </div>
-                          <div
-                            className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-red-100 text-red-600"}`}
-                          >
-                            {formatMovementType(item.type)}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-              </>
-            )}
-            {activeReportTab === "receipts" && (
-              <>
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-black text-sm">
-                  🧾 Receipt Preview
-                </h3>
-                <span className="text-gray-400 text-xs font-bold">Recent</span>
-              </div>
-              {reportData.recentReceipts.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-3">🧾</div>
-                  <div className="text-gray-400 text-sm">
-                    Belum ada receipt dalam tempoh ini
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reportData.recentReceipts.map((receipt) => (
-                    <div
-                      key={receipt.id}
-                      className="bg-gray-50 rounded-2xl p-4"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-900 text-sm font-black truncate">
-                            #{receipt.id.slice(0, 8).toUpperCase()}
-                          </div>
-                          <div className="text-gray-400 text-xs mt-1">
-                            {displayMejaLabel(receipt.meja)} ·{" "}
-                            {formatReceiptDate(receipt.created_at)}
-                          </div>
-                          <div className="text-gray-400 text-xs mt-1">
-                            {receipt.payment_method || "Belum direkod"}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">
-                            {formatRM(receipt.total)}
-                          </div>
-                          <button
-                            onClick={() => setSelectedReceipt(receipt)}
-                            className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
-                          >
-                            <svg
-                              width="17"
-                              height="17"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <path
-                                d="M21 21L16.65 16.65"
-                                stroke="currentColor"
-                                strokeWidth="2.4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                              <path
-                                d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z"
-                                stroke="currentColor"
-                                strokeWidth="2.4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => downloadReceipt(receipt)}
-                            className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
-                          >
-                            <svg
-                              width="17"
-                              height="17"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <path
-                                d="M12 3V15"
-                                stroke="currentColor"
-                                strokeWidth="2.4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                              <path
-                                d="M7 10L12 15L17 10"
-                                stroke="currentColor"
-                                strokeWidth="2.4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                              <path
-                                d="M5 21H19"
-                                stroke="currentColor"
-                                strokeWidth="2.4"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* STAFF */}
-        {activeTab === "staff" && (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-gray-900 font-bold text-lg">
-                Staff ({staff.length})
-              </h2>
-              <button
-                onClick={() => setShowAddStaff(true)}
-                className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
-              >
-                + Tambah Staff
-              </button>
-            </div>
-            {resetMsg && (
-              <div className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-bold p-3 rounded-2xl mb-3 border border-[var(--accent-200)]">
-                {resetMsg}
-              </div>
-            )}
-            <div className="flex flex-col gap-3">
-              {staff.map((s) => (
-                <div
-                  key={s.id}
-                  className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3"
-                >
-                  <div className="w-10 h-10 rounded-full bg-[var(--accent-100)] flex items-center justify-center text-lg flex-shrink-0">
-                    {s.role === "kitchen"
-                      ? "👨‍🍳"
-                      : s.role === "manager"
-                        ? "👔"
-                        : "🧑‍💼"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-gray-900 font-bold text-sm">
-                      {s.nama}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
-                      >
-                        {s.role === "kitchen"
-                          ? "Dapur"
-                          : s.role === "manager"
-                            ? "Manager"
-                            : "Cashier"}
-                      </span>
-                      <span className="text-gray-300 text-xs">
-                        @{s.username}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => toggleStaff(s.id, s.is_active)}
-                      className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
-                    >
-                      {s.is_active ? "Nyahaktif" : "Aktifkan"}
-                    </button>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          setResetStaffId(s.id);
-                          setResetStaffNama(s.nama);
-                          setNewStaffPassword("");
-                        }}
-                        className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-amber-50 text-amber-500 border-amber-200"
-                        title="Reset Password"
-                      >
-                        <svg
-                          width="13"
-                          height="13"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M7 11V7a5 5 0 0 1 10 0v4"
-                            stroke="currentColor"
-                            strokeWidth="2.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <rect
-                            x="3"
-                            y="11"
-                            width="18"
-                            height="11"
-                            rx="2"
-                            stroke="currentColor"
-                            strokeWidth="2.4"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => removeStaff(s.id)}
-                        className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200"
-                        title="Buang Staff"
-                      >
-                        <svg
-                          width="13"
-                          height="13"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                        >
-                          <path
-                            d="M3 6H5H21"
-                            stroke="currentColor"
-                            strokeWidth="2.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6L18.1245 19.1354C18.0544 20.1875 17.1763 21 16.1218 21H7.87824C6.82373 21 5.94563 20.1875 5.87551 19.1354L5 6"
-                            stroke="currentColor"
-                            strokeWidth="2.4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-sm">
+                      <DollarSign size={19} strokeWidth={2} />
                     </div>
                   </div>
                 </div>
-              ))}
-              {staff.length === 0 && (
-                <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
-                  <div className="text-4xl mb-3">👥</div>
-                  <div className="text-gray-400 text-sm">Belum ada staff</div>
+
+                <div className="relative overflow-hidden rounded-3xl bg-blue-50 border border-blue-100 p-5 shadow-sm">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-blue-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Pesanan Selesai
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {stats.jumlahTransaksi}
+                      </div>
+                      <div className="text-blue-700 text-xs font-bold mt-2">
+                        Order berbayar
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-blue-600 border border-blue-100 flex items-center justify-center shadow-sm">
+                      <Receipt size={19} strokeWidth={2} />
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {/* SETTINGS */}
-        {activeTab === "settings" && (
-          <div>
-            <div className="mb-4">
-              <h2 className="text-gray-900 font-black text-xl flex items-center gap-2">
-                <ActiveSettingsIcon size={20} strokeWidth={2} className="text-[var(--accent-600)]" />
-                <span>{activeSettings?.label || "Tetapan"}</span>
-              </h2>
-              <p className="text-gray-400 text-xs font-bold mt-1">
-                {activeSettings?.description || "Tetapan kedai"}
-              </p>
-            </div>
+                <div className="relative overflow-hidden rounded-3xl bg-violet-50 border border-violet-100 p-5 shadow-sm">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Untung Kasar
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {formatRM(stats.jumlahUntung)}
+                      </div>
+                      <div className="text-violet-700 text-xs font-bold mt-2">
+                        Margin {stats.jumlahMargin}%
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-violet-600 border border-violet-100 flex items-center justify-center shadow-sm">
+                      <TrendingUp size={19} strokeWidth={2} />
+                    </div>
+                  </div>
+                </div>
 
-            {activeSettingsTab === "table-setup" && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
-                <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="relative overflow-hidden rounded-3xl bg-amber-50 border border-amber-100 p-5 shadow-sm">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Stok Kritikal
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {stats.stokKritikal}
+                      </div>
+                      <div className="text-amber-700 text-xs font-bold mt-2">
+                        Perlu restock
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 border border-amber-100 flex items-center justify-center shadow-sm">
+                      <AlertTriangle size={19} strokeWidth={2} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+                <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div>
-                    <h3 className="text-gray-900 font-bold text-sm">
-                      🪑 Setup Meja Kedai
+                    <h3 className="text-gray-950 font-black text-base">
+                      Sales Overview
                     </h3>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Default 6 meja. Bungkus akan kekal automatik.
+                    <p className="text-gray-400 text-xs font-bold mt-1">
+                      Perbandingan sales dan gross profit ikut tempoh filter.
                     </p>
                   </div>
-                  <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
-                    Max 20
-                  </span>
-                </div>
-                <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <button
-                      onClick={() => changeTableCount(tableCountInput - 1)}
-                      disabled={tableCountInput <= 1}
-                      className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
-                    >
-                      −
-                    </button>
-                    <div className="text-center">
-                      <div className="text-gray-900 text-4xl font-black leading-none">
-                        {tableCountInput}
-                      </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">
-                        Meja
-                      </div>
+                  <div className="flex items-center gap-4 text-xs font-black text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-600)]" />
+                      Sales
                     </div>
-                    <button
-                      onClick={() => changeTableCount(tableCountInput + 1)}
-                      disabled={tableCountInput >= 20}
-                      className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="20"
-                    value={tableCountInput}
-                    onChange={(e) => changeTableCount(Number(e.target.value))}
-                    className="w-full accent-[var(--accent-600)]"
-                  />
-                  <div className="mt-4 grid grid-cols-7 gap-1.5">
-                    {Array.from({ length: tableCountInput }).map((_, index) => (
-                      <div
-                        key={index}
-                        className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black"
-                      >
-                        {index + 1}
-                      </div>
-                    ))}
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
-                      🥡
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
+                      Profit
                     </div>
                   </div>
-                  <div className="text-gray-400 text-xs mt-3">
-                    POS akan papar Meja 1 hingga Meja {tableCountInput}, dan
-                    pilihan Bungkus.
-                  </div>
                 </div>
-                {tableMsg && (
-                  <div
-                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${tableMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                  >
-                    {tableMsg}
+
+                {reportData.salesTrend.length === 0 ||
+                reportData.salesTrend.every(
+                  (item) =>
+                    Number(item.total || 0) <= 0 && Number(item.profit || 0) <= 0,
+                ) ? (
+                  <div className="h-72 flex items-center justify-center text-center p-6">
+                    <div>
+                      <BarChart2 size={36} className="text-gray-300 mx-auto mb-3" />
+                      <div className="text-gray-400 text-sm font-bold">
+                        Belum ada data jualan untuk tempoh ini.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-5 pt-4">
+                    {(() => {
+                      const chartData = reportData.salesTrend;
+                      const maxValue = Math.max(
+                        ...chartData.flatMap((item) => [
+                          Number(item.total || 0),
+                          Number(item.profit || 0),
+                        ]),
+                        1,
+                      );
+                      const roundedMax = Math.ceil(maxValue / 100) * 100 || maxValue;
+                      const width = 720;
+                      const height = 300;
+                      const padLeft = 48;
+                      const padRight = 24;
+                      const padTop = 20;
+                      const padBottom = 46;
+                      const chartWidth = width - padLeft - padRight;
+                      const chartHeight = height - padTop - padBottom;
+                      const groupGap = chartWidth / Math.max(chartData.length, 1);
+                      const barWidth = Math.min(10, Math.max(5, groupGap * 0.12));
+                      const centerOffset = groupGap / 2;
+                      const yForValue = (value: number) =>
+                        padTop + (1 - value / roundedMax) * chartHeight;
+
+                      return (
+                        <div className="overflow-x-auto pb-1">
+                          <svg
+                            viewBox={`0 0 ${width} ${height}`}
+                            className="min-w-[680px] w-full h-[300px]"
+                            preserveAspectRatio="none"
+                          >
+                            {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
+                              const value = roundedMax * (1 - tick);
+                              const y = padTop + tick * chartHeight;
+                              return (
+                                <g key={`grid-${tick}`}>
+                                  <line
+                                    x1={padLeft}
+                                    y1={y}
+                                    x2={width - padRight}
+                                    y2={y}
+                                    stroke="#e5e7eb"
+                                    strokeWidth="1"
+                                    strokeDasharray="4 8"
+                                  />
+                                  <text
+                                    x={padLeft - 12}
+                                    y={y + 4}
+                                    textAnchor="end"
+                                    fontSize="11"
+                                    fontWeight="800"
+                                    fill="#9ca3af"
+                                  >
+                                    {value >= 1000
+                                      ? `${Math.round(value / 1000)}k`
+                                      : Math.round(value)}
+                                  </text>
+                                </g>
+                              );
+                            })}
+
+                            {chartData.map((item, index) => {
+                              const x = padLeft + index * groupGap + centerOffset;
+                              const sales = Number(item.total || 0);
+                              const profit = Number(item.profit || 0);
+                              const salesY = yForValue(sales);
+                              const profitY = yForValue(profit);
+                              const salesHeight = Math.max(chartHeight + padTop - salesY, 0);
+                              const profitHeight = Math.max(chartHeight + padTop - profitY, 0);
+
+                              return (
+                                <g key={`${item.label}-${index}`}>
+                                  {sales > 0 && (
+                                    <rect
+                                      x={x - barWidth - 2}
+                                      y={salesY}
+                                      width={barWidth}
+                                      height={salesHeight}
+                                      rx="5"
+                                      fill="var(--accent-600)"
+                                    />
+                                  )}
+                                  {profit > 0 && (
+                                    <rect
+                                      x={x + 2}
+                                      y={profitY}
+                                      width={barWidth}
+                                      height={profitHeight}
+                                      rx="5"
+                                      fill="#fb923c"
+                                    />
+                                  )}
+                                  <text
+                                    x={x}
+                                    y={height - 18}
+                                    textAnchor="middle"
+                                    fontSize="11"
+                                    fontWeight="800"
+                                    fill="#9ca3af"
+                                  >
+                                    {item.label}
+                                  </text>
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                          Total Sales
+                        </div>
+                        <div className="text-gray-950 text-sm font-black mt-1">
+                          {formatRM(reportData.totalSales)}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                          Gross Profit
+                        </div>
+                        <div className="text-gray-950 text-sm font-black mt-1">
+                          {formatRM(reportData.grossProfit)}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                          Total Order
+                        </div>
+                        <div className="text-gray-950 text-sm font-black mt-1">
+                          {reportData.totalOrders}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                          Margin
+                        </div>
+                        <div className="text-gray-950 text-sm font-black mt-1">
+                          {reportData.margin}%
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-                <button
-                  onClick={saveTableCount}
-                  disabled={
-                    saving ||
-                    tableCountInput ===
-                      Math.min(
-                        Math.max(Number(kedaiInfo?.table_count || 6), 1),
-                        20,
-                      )
-                  }
-                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
-                >
-                  {saving ? "Menyimpan..." : "Simpan Setup Meja"}
-                </button>
               </div>
-            )}
 
-            {activeSettingsTab === "store-setup" && (
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-900 font-semibold">
+                        Recent Receipts
+                      </div>
+                      <div className="text-gray-400 text-sm mt-0.5">
+                        Transaksi terbaru {filterLabel().toLowerCase()}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setActiveTab("laporan");
+                        setActiveReportTab("receipts");
+                      }}
+                      className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-semibold px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
+                    >
+                      View all
+                    </button>
+                  </div>
+
+                  <div className="divide-y divide-gray-50">
+                    {reportData.recentReceipts.length === 0 ? (
+                      <div className="p-5 text-sm text-gray-400">
+                        Tiada transaksi untuk tempoh ini.
+                      </div>
+                    ) : (
+                      reportData.recentReceipts.slice(0, 4).map((receipt) => (
+                        <button
+                          key={receipt.id}
+                          onClick={() => setSelectedReceipt(receipt)}
+                          className="w-full p-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/70 transition-all"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-mono text-xs font-semibold text-gray-900">
+                              #{receipt.id.slice(0, 8).toUpperCase()}
+                            </div>
+                            <div className="text-gray-400 text-xs mt-1">
+                              {displayMejaLabel(receipt.meja)} · {formatReceiptDate(receipt.created_at)}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-gray-900 font-bold">
+                              {formatRM(receipt.total)}
+                            </div>
+                            <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-xs font-semibold mt-1 inline-block">
+                              {receipt.payment_method || "Paid"}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                   <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
-                      <h3 className="text-gray-900 font-bold text-sm">
-                        🏪 Setup Kedai
-                      </h3>
-                      <p className="text-gray-400 text-xs mt-1">
-                        Upload logo kedai dan QR DuitNow untuk digunakan di owner, staff dan kitchen.
-                      </p>
+                      <div className="text-gray-900 font-semibold">
+                        Top Produk
+                      </div>
+                      <div className="text-gray-400 text-sm mt-0.5">
+                        Berdasarkan kuantiti terjual
+                      </div>
                     </div>
-                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
-                      Branding
-                    </span>
-                  </div>
-
-                  {storeSetupMsg && (
-                    <div
-                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${storeSetupMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                    >
-                      {storeSetupMsg}
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="text-gray-900 text-sm font-black">
-                            Logo Kedai
-                          </div>
-                          <div className="text-gray-400 text-xs font-bold mt-0.5">
-                            Untuk header app
-                          </div>
-                        </div>
-                        <span className="text-xl">🖼️</span>
-                      </div>
-
-                      <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
-                        {kedaiInfo?.logo_url ? (
-                          <img
-                            src={kedaiInfo.logo_url}
-                            alt="Logo kedai"
-                            className="max-h-full max-w-full object-contain p-3"
-                          />
-                        ) : (
-                          <div className="text-center px-4">
-                            <div className="text-3xl mb-2">🏪</div>
-                            <div className="text-gray-400 text-xs font-bold">
-                              Belum ada logo
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <label className="block">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) =>
-                            uploadKedaiAsset(e.target.files?.[0] || null, "logo")
-                          }
-                        />
-                        <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
-                          {uploadingLogo ? "Uploading..." : "Upload Logo"}
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="text-gray-900 text-sm font-black">
-                            QR DuitNow
-                          </div>
-                          <div className="text-gray-400 text-xs font-bold mt-0.5">
-                            Untuk payment staff
-                          </div>
-                        </div>
-                        <span className="text-xl">💳</span>
-                      </div>
-
-                      <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
-                        {kedaiInfo?.duitnow_qr_url ? (
-                          <img
-                            src={kedaiInfo.duitnow_qr_url}
-                            alt="QR DuitNow"
-                            className="max-h-full max-w-full object-contain p-3"
-                          />
-                        ) : (
-                          <div className="text-center px-4">
-                            <div className="text-3xl mb-2">📱</div>
-                            <div className="text-gray-400 text-xs font-bold">
-                              Belum ada QR
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <label className="block">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) =>
-                            uploadKedaiAsset(
-                              e.target.files?.[0] || null,
-                              "duitnow_qr",
-                            )
-                          }
-                        />
-                        <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
-                          {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
-                        </span>
-                      </label>
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--accent-50)] text-[var(--accent-600)] flex items-center justify-center">
+                      <BarChart2 size={20} strokeWidth={1.8} />
                     </div>
                   </div>
 
-                  <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                    <div className="text-amber-700 text-xs font-bold">
-                      Nota: QR DuitNow akan digunakan di staff payment popup. Logo kedai akan digunakan untuk branding owner, staff dan kitchen selepas Phase B/C.
+                  <div className="space-y-4">
+                    {reportData.topProducts.length === 0 ? (
+                      <div className="text-sm text-gray-400">
+                        Tiada produk terjual untuk tempoh ini.
+                      </div>
+                    ) : (
+                      reportData.topProducts.slice(0, 5).map((product, index) => {
+                        const maxQty = Math.max(
+                          ...reportData.topProducts.map((p) => Number(p.qty || 0)),
+                          1,
+                        );
+                        const width = Math.max(
+                          (Number(product.qty || 0) / maxQty) * 100,
+                          6,
+                        );
+
+                        return (
+                          <div key={`${product.nama}-${index}`}>
+                            <div className="flex items-center justify-between gap-3 text-sm mb-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-6 h-6 rounded-lg bg-gray-50 text-gray-400 text-xs font-semibold flex items-center justify-center shrink-0">
+                                  {index + 1}
+                                </span>
+                                <span className="text-gray-900 font-semibold truncate">
+                                  {product.nama}
+                                </span>
+                              </div>
+                              <span className="text-gray-900 font-semibold shrink-0">
+                                {product.qty} unit
+                              </span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden ml-8">
+                              <div
+                                className="h-full rounded-full bg-[var(--accent-500)]"
+                                style={{ width: `${width}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* INVENTORY */}
+          {activeTab === "inventory" && (
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-gray-900 font-black text-xl">
+                    Inventori
+                  </h2>
+                  <p className="text-gray-400 text-xs font-bold mt-1">
+                    Urus produk, kategori, harga dan stok kedai
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={openManageCategories}
+                    className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                  >
+                    <FolderTree size={14} strokeWidth={2} />
+                    <span className="hidden sm:inline">Kategori</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowAddProduk(true)}
+                    className="inline-flex items-center justify-center gap-2 bg-[var(--accent-600)] text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-700)] active:scale-95 transition-all"
+                  >
+                    <Plus size={14} strokeWidth={2.2} />
+                    Tambah Produk
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                <div className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-100 p-5 shadow-sm min-h-[124px]">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Produk Aktif
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {produk.length}
+                      </div>
+                      <div className="text-emerald-700 text-xs font-bold mt-2">
+                        Produk tersedia
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-sm">
+                      <Package size={19} strokeWidth={2} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-3xl bg-amber-50 border border-amber-100 p-5 shadow-sm min-h-[124px]">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Stok Rendah
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {
+                          produk.filter(
+                            (product) =>
+                              Number(product.stok || 0) > 0 &&
+                              Number(product.stok || 0) <= 5,
+                          ).length
+                        }
+                      </div>
+                      <div className="text-amber-700 text-xs font-bold mt-2">
+                        Perlu restock
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 border border-amber-100 flex items-center justify-center shadow-sm">
+                      <AlertTriangle size={19} strokeWidth={2} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden rounded-3xl bg-red-50 border border-red-100 p-5 shadow-sm min-h-[124px]">
+                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-red-100/70" />
+                  <div className="relative z-10 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                        Habis
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                        {
+                          produk.filter((product) => Number(product.stok || 0) <= 0)
+                            .length
+                        }
+                      </div>
+                      <div className="text-red-600 text-xs font-bold mt-2">
+                        Tidak boleh dijual
+                      </div>
+                    </div>
+                    <div className="w-11 h-11 rounded-2xl bg-white text-red-500 border border-red-100 flex items-center justify-center shadow-sm">
+                      <X size={19} strokeWidth={2} />
                     </div>
                   </div>
                 </div>
               </div>
-            )}
 
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-gray-50">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                      <div className="text-gray-900 text-sm font-black flex items-center gap-2">
+                        <Package
+                          size={16}
+                          className="text-[var(--accent-600)]"
+                        />
+                        Inventory
+                      </div>
+                      <div className="text-gray-400 text-xs font-bold mt-1">
+                        {filteredProduk.length} daripada {produk.length} produk
+                        dipaparkan
+                      </div>
+                    </div>
 
-            {activeSettingsTab === "charge-setup" && (
-              <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative">
+                        <Search
+                          size={15}
+                          strokeWidth={2}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        />
+                        <input
+                          type="text"
+                          value={inventorySearch}
+                          onChange={(event) =>
+                            setInventorySearch(event.target.value)
+                          }
+                          placeholder="Cari produk atau kategori..."
+                          className="w-full sm:w-72 border border-gray-200 bg-white rounded-2xl pl-10 pr-4 py-3 text-gray-900 text-xs font-bold outline-none focus:border-[var(--accent-500)]"
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <button
+                          onClick={() =>
+                            setShowCategoryFilterDropdown((value) => !value)
+                          }
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-2xl text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                        >
+                          <Tag size={14} className="text-[var(--accent-600)]" />
+                          <span>{categoryFilterLabel()}</span>
+                          <ChevronDown size={12} className="text-gray-400" />
+                        </button>
+
+                        {showCategoryFilterDropdown && (
+                          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
+                            <button
+                              onClick={() => applyCategoryFilter("all")}
+                              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                selectedCategoryFilter === "all"
+                                  ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                                  : "text-gray-600 hover:bg-gray-50"
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <Package size={15} className="text-gray-400" />
+                                Semua Kategori
+                              </span>
+                              {selectedCategoryFilter === "all" && (
+                                <CircleCheck
+                                  size={14}
+                                  className="text-[var(--accent-600)]"
+                                />
+                              )}
+                            </button>
+
+                            {categories.map((category) => (
+                              <button
+                                key={`filter-${category.id}`}
+                                onClick={() => applyCategoryFilter(category.id)}
+                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                  selectedCategoryFilter === category.id
+                                    ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                                    : category.is_active
+                                      ? "text-gray-600 hover:bg-gray-50"
+                                      : "text-gray-300 hover:bg-gray-50"
+                                }`}
+                              >
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <CategoryIcon
+                                    value={category.icon}
+                                    size={15}
+                                    className="shrink-0"
+                                  />
+                                  <span className="truncate">
+                                    {category.nama}
+                                  </span>
+                                </span>
+                                {selectedCategoryFilter === category.id && (
+                                  <CircleCheck
+                                    size={14}
+                                    className="text-[var(--accent-600)]"
+                                  />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {produk.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <BoxOpen size={36} className="text-gray-300 mx-auto mb-3" />
+                    <div className="text-gray-900 text-sm font-black">
+                      Belum ada produk lagi
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Tambah produk pertama untuk mula urus inventory.
+                    </div>
+                  </div>
+                ) : filteredProduk.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <Search size={36} className="text-gray-300 mx-auto mb-3" />
+                    <div className="text-gray-900 text-sm font-black">
+                      Tiada produk dijumpai
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Cuba tukar keyword search atau kategori filter.
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="hidden lg:block">
+                      <table className="w-full table-fixed text-left text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="w-[5%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                              No
+                            </th>
+                            <th className="w-[20%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                              Produk
+                            </th>
+                            <th className="w-[11%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                              ID
+                            </th>
+                            <th className="w-[13%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                              Kategori
+                            </th>
+                            <th className="w-[8%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                              Harga
+                            </th>
+                            <th className="w-[7%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                              Kos
+                            </th>
+                            <th className="w-[7%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                              Margin
+                            </th>
+                            <th className="w-[8%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                              Stok
+                            </th>
+                            <th className="w-[12%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                              Status
+                            </th>
+                            <th className="w-[9%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                              Action
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-gray-50">
+                          {filteredProduk.map((p, index) => {
+                            const margin = getProductMargin(p);
+                            const category = resolveProductCategory(p);
+                            const stockStatus = getStockStatus(p);
+
+                            return (
+                              <tr
+                                key={p.id}
+                                className="hover:bg-gray-50/70 transition-all"
+                              >
+                                <td className="px-3 py-4 text-gray-500 font-bold">
+                                  {String(index + 1).padStart(2, "0")}
+                                </td>
+
+                                <td className="px-3 py-4">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
+                                      <CategoryIcon
+                                        value={category.icon}
+                                        size={16}
+                                      />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-gray-900 font-black truncate">
+                                        {p.nama}
+                                      </div>
+                                      <div className="text-gray-400 text-xs font-bold mt-0.5">
+                                        {p.is_active ? "Aktif" : "Tidak aktif"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                <td className="px-3 py-4">
+                                  <span className="font-mono text-xs font-black text-gray-500">
+                                    {getProductDisplayId(p)}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-4">
+                                  <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-2 py-1 rounded-lg">
+                                    <CategoryIcon
+                                      value={category.icon}
+                                      size={13}
+                                    />
+                                    {category.nama}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-4 text-right text-gray-900 font-black">
+                                  {formatRM(p.harga_jual)}
+                                </td>
+
+                                <td className="px-3 py-4 text-right text-gray-600 font-bold">
+                                  {formatRM(p.kos_produk)}
+                                </td>
+
+                                <td
+                                  className={`px-3 py-4 text-right font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                >
+                                  {margin}%
+                                </td>
+
+                                <td
+                                  className={`px-3 py-4 text-right font-black ${stockStatus.row}`}
+                                >
+                                  {p.stok} unit
+                                </td>
+
+                                <td className="px-3 py-4">
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1.5 rounded-full border ${stockStatus.badge}`}
+                                  >
+                                    <span
+                                      className={`w-2 h-2 rounded-full ${stockStatus.dot}`}
+                                    />
+                                    {stockStatus.label}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-4">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      onClick={() => openEditProduk(p)}
+                                      className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
+                                      title="Edit produk"
+                                      aria-label="Edit produk"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+
+                                    <button
+                                      onClick={() => {
+                                        setConfirmDeleteProdukId(p.id);
+                                        setConfirmDeleteProdukNama(p.nama);
+                                      }}
+                                      className="w-8 h-8 rounded-lg bg-red-50 text-red-500 border border-red-100 flex items-center justify-center hover:bg-red-100 active:scale-95 transition-all"
+                                      title="Buang produk"
+                                      aria-label="Buang produk"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="lg:hidden p-4 space-y-3">
+                      {filteredProduk.map((p, index) => {
+                        const margin = getProductMargin(p);
+                        const category = resolveProductCategory(p);
+                        const stockStatus = getStockStatus(p);
+
+                        return (
+                          <div
+                            key={p.id}
+                            className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
+                          >
+                            <div className="flex items-start justify-between gap-3 mb-4">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="w-11 h-11 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
+                                  <CategoryIcon
+                                    value={category.icon}
+                                    size={19}
+                                  />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-400 text-xs font-black">
+                                      {String(index + 1).padStart(2, "0")}
+                                    </span>
+                                    <span className="font-mono text-[11px] font-black text-gray-400">
+                                      {getProductDisplayId(p)}
+                                    </span>
+                                  </div>
+                                  <div className="text-gray-900 font-black truncate mt-0.5">
+                                    {p.nama}
+                                  </div>
+                                  <div className="inline-flex items-center gap-1.5 bg-white border border-gray-100 text-gray-500 text-xs font-black px-2.5 py-1 rounded-full mt-2">
+                                    <CategoryIcon
+                                      value={category.icon}
+                                      size={12}
+                                    />
+                                    {category.nama}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <span
+                                className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1 rounded-full border ${stockStatus.badge}`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${stockStatus.dot}`}
+                                />
+                                {stockStatus.label}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                <div className="text-gray-900 text-sm font-black">
+                                  {formatRM(p.harga_jual)}
+                                </div>
+                                <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                  Harga
+                                </div>
+                              </div>
+
+                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                <div className="text-gray-900 text-sm font-black">
+                                  {formatRM(p.kos_produk)}
+                                </div>
+                                <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                  Kos
+                                </div>
+                              </div>
+
+                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                <div
+                                  className={`text-sm font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                >
+                                  {margin}%
+                                </div>
+                                <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                  Margin
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                              <div>
+                                <div className="text-gray-400 text-[10px] font-black uppercase">
+                                  Stok Semasa
+                                </div>
+                                <div
+                                  className={`text-sm font-black mt-0.5 ${stockStatus.row}`}
+                                >
+                                  {p.stok} unit
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => openEditProduk(p)}
+                                  className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition-all"
+                                >
+                                  <Pencil size={13} />
+                                  Edit
+                                </button>
+
+                                <button
+                                  onClick={() => {
+                                    setConfirmDeleteProdukId(p.id);
+                                    setConfirmDeleteProdukNama(p.nama);
+                                  }}
+                                  className="w-9 h-9 bg-red-50 text-red-500 border border-red-100 rounded-xl flex items-center justify-center active:scale-95 transition-all"
+                                  aria-label="Buang produk"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* LAPORAN */}
+          {activeTab === "laporan" && (
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-gray-900 font-black text-xl">
+                    {activeReport?.label || "Laporan Owner"}
+                  </h2>
+                  <p className="text-gray-400 text-xs font-bold mt-1">
+                    {activeReport?.description ||
+                      "Prestasi kedai ikut tempoh dipilih"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => fetchAllData(sessionUser?.kedai_id)}
+                  disabled={loadingReport}
+                  className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
+                >
+                  {loadingReport ? "Loading..." : "Refresh"}
+                </button>
+              </div>
+              <FilterBar />
+              {activeReportTab === "sales-summary" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] p-5 text-white shadow-sm min-h-[150px]">
+                        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10" />
+                        <div className="absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-black/10" />
+                        <div className="relative z-10 flex items-start justify-between gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/10 flex items-center justify-center">
+                            <DollarSign size={21} strokeWidth={1.9} />
+                          </div>
+                          <span className="bg-white/15 text-white text-[11px] font-black px-2.5 py-1 rounded-full">
+                            {filterLabel()}
+                          </span>
+                        </div>
+                        <div className="relative z-10 mt-5">
+                          <div className="text-[var(--accent-100)] text-xs font-black uppercase tracking-wide">
+                            Total Sales
+                          </div>
+                          <div className="text-white text-3xl sm:text-4xl font-black mt-1 tracking-tight">
+                            {formatRM(reportData.totalSales)}
+                          </div>
+                          <div className="text-[var(--accent-100)] text-xs font-bold mt-2">
+                            {reportData.totalOrders} order dalam tempoh ini
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm min-h-[150px]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-700 flex items-center justify-center">
+                            <Receipt size={21} strokeWidth={1.9} />
+                          </div>
+                          <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-[11px] font-black px-2.5 py-1 rounded-full border border-[var(--accent-100)]">
+                            Avg {formatRM(reportData.averageOrderValue)}
+                          </span>
+                        </div>
+                        <div className="mt-5">
+                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                            Total Orders
+                          </div>
+                          <div className="text-gray-950 text-3xl font-black mt-1">
+                            {reportData.totalOrders}
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Purata nilai setiap order
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm min-h-[150px]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
+                            <TrendingUp size={21} strokeWidth={1.9} />
+                          </div>
+                          <span className="bg-green-50 text-green-600 text-[11px] font-black px-2.5 py-1 rounded-full border border-green-100">
+                            {reportData.margin}% margin
+                          </span>
+                        </div>
+                        <div className="mt-5">
+                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                            Gross Profit
+                          </div>
+                          <div className="text-gray-950 text-3xl font-black mt-1">
+                            {formatRM(reportData.grossProfit)}
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Jualan selepas tolak kos produk
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm min-h-[150px]">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center">
+                            <TrendingDown size={21} strokeWidth={1.9} />
+                          </div>
+                          <span className="bg-red-50 text-red-500 text-[11px] font-black px-2.5 py-1 rounded-full border border-red-100">
+                            Cost
+                          </span>
+                        </div>
+                        <div className="mt-5">
+                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                            COGS
+                          </div>
+                          <div className="text-gray-950 text-3xl font-black mt-1">
+                            {formatRM(reportData.cogs)}
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Anggaran kos produk terjual
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                      <div className="flex items-start justify-between gap-3 mb-5">
+                        <div>
+                          <h3 className="text-gray-900 font-black text-base">
+                            Product Statistic
+                          </h3>
+                          <p className="text-gray-400 text-xs font-bold mt-1">
+                            Top produk ikut kuantiti terjual
+                          </p>
+                        </div>
+                        <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                          Top 5
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-5">
+                        <div className="rounded-3xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-4">
+                          <div className="w-10 h-10 rounded-2xl bg-white text-[var(--accent-600)] flex items-center justify-center mb-4 border border-[var(--accent-100)]">
+                            <Package size={18} strokeWidth={1.9} />
+                          </div>
+                          <div className="text-gray-950 text-3xl font-black leading-none">
+                            {reportData.topProducts.reduce(
+                              (sum, product) => sum + Number(product.qty || 0),
+                              0,
+                            )}
+                          </div>
+                          <div className="text-gray-500 text-[11px] font-bold mt-2">
+                            Total unit terjual
+                          </div>
+                        </div>
+
+                        <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4">
+                          <div className="w-10 h-10 rounded-2xl bg-white text-gray-600 flex items-center justify-center mb-4 border border-gray-100">
+                            <DollarSign size={18} strokeWidth={1.9} />
+                          </div>
+                          <div className="text-gray-950 text-xl font-black leading-tight">
+                            {formatRM(
+                              reportData.topProducts.reduce(
+                                (sum, product) => sum + Number(product.total || 0),
+                                0,
+                              ),
+                            )}
+                          </div>
+                          <div className="text-gray-500 text-[11px] font-bold mt-2">
+                            Sales top produk
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {reportData.topProducts.length === 0 ? (
+                          <div className="text-center py-5 bg-gray-50 rounded-2xl">
+                            <Package
+                              size={30}
+                              className="text-gray-300 mx-auto mb-2"
+                            />
+                            <div className="text-gray-400 text-xs font-bold">
+                              Belum ada produk terjual
+                            </div>
+                          </div>
+                        ) : (
+                          reportData.topProducts
+                            .slice(0, 5)
+                            .map((item, index) => {
+                              const totalTopQty = Math.max(
+                                reportData.topProducts.reduce(
+                                  (sum, product) =>
+                                    sum + Number(product.qty || 0),
+                                  0,
+                                ),
+                                1,
+                              );
+                              const percent = Math.round(
+                                (Number(item.qty || 0) / totalTopQty) * 100,
+                              );
+
+                              return (
+                                <div
+                                  key={`${item.nama}-stat-${index}`}
+                                  className="flex items-center gap-3"
+                                >
+                                  <div className="w-8 h-8 rounded-xl bg-gray-50 text-gray-500 flex items-center justify-center shrink-0">
+                                    <CategoryIcon value="food" size={14} />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-gray-900 text-xs font-black truncate">
+                                      {item.nama}
+                                    </div>
+                                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1.5">
+                                      <div
+                                        className="h-full rounded-full bg-[var(--accent-500)]"
+                                        style={{
+                                          width: `${Math.max(percent, 6)}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    <div className="text-gray-900 text-xs font-black">
+                                      {item.qty} unit
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                      {formatRM(Number(item.total || 0))}
+                                    </div>
+                                    <div className="text-[var(--accent-600)] text-[10px] font-black bg-[var(--accent-50)] px-2 py-0.5 rounded-full mt-1 inline-block">
+                                      {percent}%
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-base">
+                          Sales Trend
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Trend jualan dan order ikut tempoh filter
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                        {filterLabel()}
+                      </span>
+                    </div>
+
+                    {reportData.salesTrend.length === 0 ||
+                    reportData.salesTrend.every(
+                      (item) => Number(item.total || 0) <= 0,
+                    ) ? (
+                      <div className="h-56 rounded-3xl bg-gray-50 border border-gray-100 flex items-center justify-center text-center p-6">
+                        <div>
+                          <BarChart2
+                            size={34}
+                            className="text-gray-300 mx-auto mb-3"
+                          />
+                          <div className="text-gray-400 text-sm font-bold">
+                            Belum ada trend jualan untuk tempoh ini.
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 overflow-hidden">
+                          {(() => {
+                            const chartData = reportData.salesTrend;
+                            const maxSales = Math.max(
+                              ...chartData.map((trend) => Number(trend.total || 0)),
+                              1,
+                            );
+                            const width = 560;
+                            const height = 210;
+                            const padX = 34;
+                            const padTop = 24;
+                            const chartHeight = 132;
+                            const baseY = padTop + chartHeight;
+                            const points = chartData.map((item, index) => {
+                              const x =
+                                chartData.length === 1
+                                  ? width / 2
+                                  : padX +
+                                    (index / (chartData.length - 1)) *
+                                      (width - padX * 2);
+                              const y =
+                                padTop +
+                                (1 - Number(item.total || 0) / maxSales) *
+                                  chartHeight;
+                              return {
+                                ...item,
+                                x,
+                                y,
+                                totalValue: Number(item.total || 0),
+                              };
+                            });
+                            const linePath = points
+                              .map(
+                                (point, index) =>
+                                  `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+                              )
+                              .join(" ");
+                            const areaPath = points.length
+                              ? `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`
+                              : "";
+                            const labelIndexes = new Set([
+                              0,
+                              Math.floor((points.length - 1) / 2),
+                              points.length - 1,
+                            ]);
+
+                            return (
+                              <div>
+                                <div className="relative h-56">
+                                  <svg
+                                    viewBox={`0 0 ${width} ${height}`}
+                                    className="w-full h-full"
+                                    preserveAspectRatio="none"
+                                  >
+                                    <defs>
+                                      <linearGradient
+                                        id="ownerSalesTrendArea"
+                                        x1="0"
+                                        y1="0"
+                                        x2="0"
+                                        y2="1"
+                                      >
+                                        <stop
+                                          offset="0%"
+                                          stopColor="var(--accent-500)"
+                                          stopOpacity="0.22"
+                                        />
+                                        <stop
+                                          offset="100%"
+                                          stopColor="var(--accent-500)"
+                                          stopOpacity="0"
+                                        />
+                                      </linearGradient>
+                                    </defs>
+
+                                    {[0, 1, 2, 3].map((grid) => {
+                                      const gridY = padTop + (grid / 3) * chartHeight;
+                                      return (
+                                        <line
+                                          key={`grid-${grid}`}
+                                          x1={padX}
+                                          y1={gridY}
+                                          x2={width - padX}
+                                          y2={gridY}
+                                          stroke="#e5e7eb"
+                                          strokeWidth="1"
+                                          strokeDasharray="5 7"
+                                        />
+                                      );
+                                    })}
+
+                                    {areaPath && (
+                                      <path
+                                        d={areaPath}
+                                        fill="url(#ownerSalesTrendArea)"
+                                      />
+                                    )}
+                                    {linePath && (
+                                      <path
+                                        d={linePath}
+                                        fill="none"
+                                        stroke="var(--accent-600)"
+                                        strokeWidth="5"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        vectorEffect="non-scaling-stroke"
+                                      />
+                                    )}
+
+                                    {points.map((point, index) => (
+                                      <g key={`${point.label}-${index}`}>
+                                        <circle
+                                          cx={point.x}
+                                          cy={point.y}
+                                          r="6"
+                                          fill="white"
+                                          stroke="var(--accent-600)"
+                                          strokeWidth="4"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                        {labelIndexes.has(index) && (
+                                          <text
+                                            x={point.x}
+                                            y={height - 22}
+                                            textAnchor="middle"
+                                            fontSize="13"
+                                            fontWeight="800"
+                                            fill="#9ca3af"
+                                          >
+                                            {point.label}
+                                          </text>
+                                        )}
+                                      </g>
+                                    ))}
+                                  </svg>
+
+                                  <div className="absolute left-3 top-3 bg-white/90 backdrop-blur border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
+                                    <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                                      Peak Sales
+                                    </div>
+                                    <div className="text-gray-900 text-sm font-black mt-0.5">
+                                      {formatRM(maxSales)}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-gray-400">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-600)]" />
+                                    <span>Sales amount</span>
+                                  </div>
+                                  <div className="text-gray-500">
+                                    {chartData.reduce(
+                                      (sum, item) => sum + Number(item.orders || 0),
+                                      0,
+                                    )}{" "}
+                                    order
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                          <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
+                            <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
+                              Peak Sales
+                            </div>
+                            <div className="text-[var(--accent-800)] text-sm font-black mt-1">
+                              {formatRM(
+                                Math.max(
+                                  ...reportData.salesTrend.map((trend) =>
+                                    Number(trend.total || 0),
+                                  ),
+                                  0,
+                                ),
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                            <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                              Total Order
+                            </div>
+                            <div className="text-gray-900 text-sm font-black mt-1">
+                              {reportData.salesTrend.reduce(
+                                (sum, trend) => sum + Number(trend.orders || 0),
+                                0,
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-green-50 border border-green-100 p-3">
+                            <div className="text-green-600 text-[10px] font-black uppercase tracking-wide">
+                              Gross Profit
+                            </div>
+                            <div className="text-green-700 text-sm font-black mt-1">
+                              {formatRM(reportData.grossProfit)}
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-red-50 border border-red-100 p-3">
+                            <div className="text-red-500 text-[10px] font-black uppercase tracking-wide">
+                              COGS
+                            </div>
+                            <div className="text-red-600 text-sm font-black mt-1">
+                              {formatRM(reportData.cogs)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    <div className="lg:col-span-8 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                      <div className="flex items-start justify-between gap-3 mb-5">
+                        <div>
+                          <h3 className="text-gray-900 font-black text-base">
+                            Order Habits
+                          </h3>
+                          <p className="text-gray-400 text-xs font-bold mt-1">
+                            Pecahan dine-in, bungkus dan nilai order
+                          </p>
+                        </div>
+                        <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                          {filterLabel()}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2 rounded-3xl bg-gray-50 border border-gray-100 p-4">
+                          <div className="space-y-5">
+                            {[
+                              {
+                                label: "Dine-in",
+                                value: reportData.dineInOrders,
+                                total: Math.max(reportData.totalOrders, 1),
+                                icon: Store,
+                              },
+                              {
+                                label: "Bungkus",
+                                value: reportData.takeawayOrders,
+                                total: Math.max(reportData.totalOrders, 1),
+                                icon: ShoppingCart,
+                              },
+                              {
+                                label: "Order Direkod",
+                                value: reportData.totalOrders,
+                                total: Math.max(reportData.totalOrders, 1),
+                                icon: Receipt,
+                              },
+                            ].map((habit) => {
+                              const HabitIcon = habit.icon;
+                              const percent = Math.round(
+                                (habit.value / habit.total) * 100,
+                              );
+
+                              return (
+                                <div key={habit.label}>
+                                  <div className="flex items-center justify-between gap-3 mb-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="w-8 h-8 rounded-xl bg-white text-[var(--accent-600)] border border-gray-100 flex items-center justify-center shrink-0">
+                                        <HabitIcon
+                                          size={15}
+                                          strokeWidth={1.9}
+                                        />
+                                      </div>
+                                      <div>
+                                        <div className="text-gray-900 text-sm font-black">
+                                          {habit.label}
+                                        </div>
+                                        <div className="text-gray-400 text-[11px] font-bold">
+                                          {habit.value} order
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {percent}%
+                                    </div>
+                                  </div>
+                                  <div className="h-3 rounded-full bg-white overflow-hidden border border-gray-100">
+                                    <div
+                                      className="h-full rounded-full bg-[var(--accent-500)]"
+                                      style={{
+                                        width: `${Math.min(Math.max(percent, habit.value > 0 ? 6 : 0), 100)}%`,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+                          <div className="rounded-3xl bg-gray-950 text-white p-4">
+                            <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                              Average Order
+                            </div>
+                            <div className="text-white text-2xl font-black mt-2">
+                              {formatRM(reportData.averageOrderValue)}
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-2">
+                              Per transaksi
+                            </div>
+                          </div>
+                          <div className="rounded-3xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-4">
+                            <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide">
+                              Margin
+                            </div>
+                            <div className="text-[var(--accent-800)] text-2xl font-black mt-2">
+                              {reportData.margin}%
+                            </div>
+                            <div className="text-[var(--accent-600)] text-xs font-bold mt-2">
+                              Gross profit rate
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                      <div className="flex items-start justify-between gap-3 mb-5">
+                        <div>
+                          <h3 className="text-gray-900 font-black text-base">
+                            Payment Method
+                          </h3>
+                          <p className="text-gray-400 text-xs font-bold mt-1">
+                            Pecahan kaedah bayaran
+                          </p>
+                        </div>
+                        <CreditCard size={19} className="text-blue-500" />
+                      </div>
+
+                      <div className="space-y-3">
+                        {reportData.paymentSummary.length === 0 ? (
+                          <div className="text-center py-7 bg-gray-50 rounded-2xl">
+                            <CreditCard
+                              size={30}
+                              className="text-gray-300 mx-auto mb-2"
+                            />
+                            <div className="text-gray-400 text-xs font-bold">
+                              Belum ada rekod bayaran
+                            </div>
+                          </div>
+                        ) : (
+                          reportData.paymentSummary.map((item) => {
+                            const percent = Math.round(
+                              (Number(item.total || 0) /
+                                Math.max(reportData.totalSales, 1)) *
+                                100,
+                            );
+
+                            return (
+                              <div
+                                key={`payment-r1-${item.method}`}
+                                className="rounded-2xl bg-gray-50 border border-gray-100 p-3"
+                              >
+                                <div className="flex items-center justify-between gap-3 mb-2">
+                                  <div>
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {item.method}
+                                    </div>
+                                    <div className="text-gray-400 text-xs font-bold">
+                                      {item.count} order
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {formatRM(item.total)}
+                                    </div>
+                                    <div className="text-[var(--accent-600)] text-[10px] font-black">
+                                      {percent}%
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="h-2 rounded-full bg-white overflow-hidden border border-gray-100">
+                                  <div
+                                    className="h-full rounded-full bg-blue-500"
+                                    style={{
+                                      width: `${Math.min(Math.max(percent, 6), 100)}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-base">
+                          Recent Receipts
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Transaksi terbaru dalam filter semasa
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveReportTab("receipts")}
+                        className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
+                      >
+                        View all
+                      </button>
+                    </div>
+
+                    {reportData.recentReceipts.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400 text-sm font-bold">
+                        Tiada receipt untuk tempoh ini.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {reportData.recentReceipts
+                          .slice(0, 5)
+                          .map((receipt) => (
+                            <button
+                              key={`recent-r1-${receipt.id}`}
+                              onClick={() => setSelectedReceipt(receipt)}
+                              className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-gray-50 transition-all"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-[var(--accent-600)]">
+                                  <Receipt size={17} strokeWidth={1.9} />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-mono text-xs font-black text-gray-900 truncate">
+                                    #{receipt.id.slice(0, 8).toUpperCase()}
+                                  </div>
+                                  <div className="text-gray-400 text-xs font-bold mt-1 truncate">
+                                    {displayMejaLabel(receipt.meja)} ·{" "}
+                                    {formatReceiptDate(receipt.created_at)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-gray-900 text-sm font-black">
+                                  {formatRM(receipt.total)}
+                                </div>
+                                <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-black mt-1 inline-block">
+                                  {receipt.payment_method || "Paid"}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              {activeReportTab === "top-products" && (
+                <>
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-gray-900 font-black text-sm">
+                        <Flame size={15} className="text-orange-500" /> Top
+                        Product
+                      </h3>
+                      <span className="text-gray-400 text-xs font-bold">
+                        Top 5
+                      </span>
+                    </div>
+                    {reportData.topProducts.length === 0 ? (
+                      <div className="text-center py-6">
+                        <Utensils
+                          size={34}
+                          className="text-gray-300 mx-auto mb-2"
+                        />
+                        <div className="text-gray-400 text-sm">
+                          Belum ada produk terjual
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reportData.topProducts.map((item, index) => (
+                          <div
+                            key={`${item.nama}-${index}`}
+                            className="flex items-center gap-3"
+                          >
+                            <div
+                              className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${index === 0 ? "bg-[var(--accent-600)] text-white" : "bg-gray-100 text-gray-500"}`}
+                            >
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-gray-900 font-bold text-sm truncate">
+                                {item.nama}
+                              </div>
+                              <div className="text-gray-400 text-xs">
+                                {item.qty} terjual
+                              </div>
+                            </div>
+                            <div className="text-gray-900 text-sm font-black">
+                              {formatRM(item.total)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {activeReportTab === "payment-method" && (
+                <>
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-gray-900 font-black text-sm">
+                        <CreditCard size={15} className="text-blue-500" />{" "}
+                        Payment Method
+                      </h3>
+                      <span className="text-gray-400 text-xs font-bold">
+                        {reportData.paymentSummary.length} jenis
+                      </span>
+                    </div>
+                    {reportData.paymentSummary.length === 0 ? (
+                      <div className="text-center py-6">
+                        <CreditCard
+                          size={34}
+                          className="text-gray-300 mx-auto mb-2"
+                        />
+                        <div className="text-gray-400 text-sm">
+                          Belum ada rekod bayaran
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reportData.paymentSummary.map((item) => (
+                          <div
+                            key={item.method}
+                            className="flex items-center justify-between bg-gray-50 rounded-2xl p-3"
+                          >
+                            <div>
+                              <div className="text-gray-900 text-sm font-black">
+                                {item.method}
+                              </div>
+                              <div className="text-gray-400 text-xs">
+                                {item.count} order
+                              </div>
+                            </div>
+                            <div className="text-[var(--accent-600)] text-sm font-black">
+                              {formatRM(item.total)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {reportData.paymentSummary.some(
+                      (p) => p.method === "Belum direkod",
+                    ) && (
+                      <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                        <div className="text-amber-700 text-xs font-bold">
+                          <AlertTriangle size={14} className="inline mr-1" />
+                          Ada order yang payment method belum disimpan. Pastikan
+                          staff pilih Tunai atau DuitNow masa checkout.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {activeReportTab === "inventory-summary" && (
+                <>
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-sm">
+                          <BarChart2
+                            size={15}
+                            className="text-[var(--accent-600)]"
+                          />{" "}
+                          Ringkasan Stok
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Stok awal, masuk, keluar dan akhir ikut filter tarikh
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs font-bold">
+                        {reportData.inventorySummary.length} produk
+                      </span>
+                    </div>
+                    {reportData.inventorySummary.length === 0 ? (
+                      <div className="text-center py-6 bg-gray-50 rounded-2xl">
+                        <BoxOpen
+                          size={34}
+                          className="text-gray-300 mx-auto mb-2"
+                        />
+                        <div className="text-gray-400 text-sm font-bold">
+                          Belum ada produk aktif
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="max-h-80 overflow-y-auto pr-1">
+                        <div className="hidden sm:block overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-white z-10">
+                              <tr className="text-gray-400 font-black border-b border-gray-100">
+                                <th className="py-3 pr-3">Produk</th>
+                                <th className="py-3 px-3 text-right">
+                                  Stok Awal
+                                </th>
+                                <th className="py-3 px-3 text-right">Masuk</th>
+                                <th className="py-3 px-3 text-right">Keluar</th>
+                                <th className="py-3 pl-3 text-right">
+                                  Stok Akhir
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportData.inventorySummary.map((item) => (
+                                <tr
+                                  key={item.id}
+                                  className="border-b border-gray-50 last:border-0"
+                                >
+                                  <td className="py-3 pr-3 text-gray-900 font-black max-w-[160px] truncate">
+                                    {item.nama}
+                                  </td>
+                                  <td className="py-3 px-3 text-right text-gray-600 font-bold">
+                                    {item.stokAwal}
+                                  </td>
+                                  <td className="py-3 px-3 text-right text-[var(--accent-600)] font-black">
+                                    +{item.stockIn}
+                                  </td>
+                                  <td className="py-3 px-3 text-right text-red-500 font-black">
+                                    -{item.stockOut}
+                                  </td>
+                                  <td className="py-3 pl-3 text-right text-gray-900 font-black">
+                                    {item.stokAkhir}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="sm:hidden space-y-3">
+                          {reportData.inventorySummary.map((item) => (
+                            <div
+                              key={item.id}
+                              className="bg-gray-50 rounded-2xl p-3 border border-gray-100"
+                            >
+                              <div className="text-gray-900 text-sm font-black truncate mb-3">
+                                {item.nama}
+                              </div>
+                              <div className="grid grid-cols-4 gap-2 text-center">
+                                <div>
+                                  <div className="text-gray-900 text-sm font-black">
+                                    {item.stokAwal}
+                                  </div>
+                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    Awal
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[var(--accent-600)] text-sm font-black">
+                                    +{item.stockIn}
+                                  </div>
+                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    Masuk
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-red-500 text-sm font-black">
+                                    -{item.stockOut}
+                                  </div>
+                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    Keluar
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-gray-900 text-sm font-black">
+                                    {item.stokAkhir}
+                                  </div>
+                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    Akhir
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeReportTab === "stock-movement" && (
+                <>
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-sm">
+                          <Box size={15} className="text-amber-600" /> Rekod
+                          Pergerakan Stok
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Tambah/tolak stok manual ikut filter tarikh
+                        </p>
+                      </div>
+                      <span className="text-gray-400 text-xs font-bold">
+                        {reportData.stockMovements.length} rekod
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-2xl p-3">
+                        <div className="text-[var(--accent-700)] text-xs font-black">
+                          Stok Masuk
+                        </div>
+                        <div className="text-[var(--accent-700)] text-xl font-black mt-1">
+                          +{reportData.stockInTotal} unit
+                        </div>
+                      </div>
+                      <div className="bg-red-50 border border-red-100 rounded-2xl p-3">
+                        <div className="text-red-600 text-xs font-black">
+                          Stok Keluar
+                        </div>
+                        <div className="text-red-600 text-xl font-black mt-1">
+                          -{reportData.stockOutTotal} unit
+                        </div>
+                      </div>
+                    </div>
+                    {reportData.stockMovements.length === 0 ? (
+                      <div className="text-center py-6 bg-gray-50 rounded-2xl">
+                        <BoxOpen
+                          size={34}
+                          className="text-gray-300 mx-auto mb-2"
+                        />
+                        <div className="text-gray-400 text-sm font-bold">
+                          Belum ada pergerakan stok dalam tempoh ini
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="max-h-72 overflow-y-auto pr-1 space-y-3">
+                        {reportData.stockMovements.map((item) => {
+                          const isIn = isStockInMovement(item.type);
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl p-3"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="text-gray-900 text-sm font-black truncate">
+                                  {item.produk_nama}
+                                </div>
+                                <div className="text-gray-400 text-xs mt-1">
+                                  {formatReceiptDate(item.created_at)}
+                                </div>
+                                <div className="text-gray-500 text-xs mt-1 truncate">
+                                  {item.reason || "Tiada sebab"}
+                                </div>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <div
+                                  className={`text-sm font-black ${isIn ? "text-[var(--accent-600)]" : "text-red-500"}`}
+                                >
+                                  {isIn ? "+" : "-"}
+                                  {item.qty} unit
+                                </div>
+                                <div
+                                  className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-red-100 text-red-600"}`}
+                                >
+                                  {formatMovementType(item.type)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              {activeReportTab === "receipts" && (
+                <>
+                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-gray-900 font-black text-sm">
+                        <Receipt
+                          size={15}
+                          className="text-[var(--accent-600)]"
+                        />{" "}
+                        Receipt Preview
+                      </h3>
+                      <span className="text-gray-400 text-xs font-bold">
+                        Recent
+                      </span>
+                    </div>
+                    {reportData.recentReceipts.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Receipt
+                          size={34}
+                          className="text-gray-300 mx-auto mb-3"
+                        />
+                        <div className="text-gray-400 text-sm">
+                          Belum ada receipt dalam tempoh ini
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reportData.recentReceipts.map((receipt) => (
+                          <div
+                            key={receipt.id}
+                            className="bg-gray-50 rounded-2xl p-4"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-gray-900 text-sm font-black truncate">
+                                  #{receipt.id.slice(0, 8).toUpperCase()}
+                                </div>
+                                <div className="text-gray-400 text-xs mt-1">
+                                  {displayMejaLabel(receipt.meja)} ·{" "}
+                                  {formatReceiptDate(receipt.created_at)}
+                                </div>
+                                <div className="text-gray-400 text-xs mt-1">
+                                  {receipt.payment_method || "Belum direkod"}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">
+                                  {formatRM(receipt.total)}
+                                </div>
+                                <button
+                                  onClick={() => setSelectedReceipt(receipt)}
+                                  className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                                >
+                                  <svg
+                                    width="17"
+                                    height="17"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                  >
+                                    <path
+                                      d="M21 21L16.65 16.65"
+                                      stroke="currentColor"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                    <path
+                                      d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z"
+                                      stroke="currentColor"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => downloadReceipt(receipt)}
+                                  className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                                >
+                                  <svg
+                                    width="17"
+                                    height="17"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                  >
+                                    <path
+                                      d="M12 3V15"
+                                      stroke="currentColor"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                    <path
+                                      d="M7 10L12 15L17 10"
+                                      stroke="currentColor"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                    <path
+                                      d="M5 21H19"
+                                      stroke="currentColor"
+                                      strokeWidth="2.4"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* STAFF */}
+          {activeTab === "staff" && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-gray-900 font-bold text-lg">
+                  Staff ({staff.length})
+                </h2>
+                <button
+                  onClick={() => setShowAddStaff(true)}
+                  className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
+                >
+                  + Tambah Staff
+                </button>
+              </div>
+              {resetMsg && (
+                <div className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-bold p-3 rounded-2xl mb-3 border border-[var(--accent-200)]">
+                  {resetMsg}
+                </div>
+              )}
+              <div className="flex flex-col gap-3">
+                {staff.map((s) => (
+                  <div
+                    key={s.id}
+                    className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[var(--accent-100)] flex items-center justify-center flex-shrink-0">
+                      {s.role === "kitchen" ? (
+                        <ChefHat
+                          size={18}
+                          className="text-[var(--accent-600)]"
+                        />
+                      ) : s.role === "manager" ? (
+                        <UserCog
+                          size={18}
+                          className="text-[var(--accent-600)]"
+                        />
+                      ) : (
+                        <UserRound
+                          size={18}
+                          className="text-[var(--accent-600)]"
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-gray-900 font-bold text-sm">
+                        {s.nama}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
+                        >
+                          {s.role === "kitchen"
+                            ? "Dapur"
+                            : s.role === "manager"
+                              ? "Manager"
+                              : "Cashier"}
+                        </span>
+                        <span className="text-gray-300 text-xs">
+                          @{s.username}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => toggleStaff(s.id, s.is_active)}
+                        className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
+                      >
+                        {s.is_active ? "Nyahaktif" : "Aktifkan"}
+                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setResetStaffId(s.id);
+                            setResetStaffNama(s.nama);
+                            setNewStaffPassword("");
+                          }}
+                          className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-amber-50 text-amber-500 border-amber-200"
+                          title="Reset Password"
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M7 11V7a5 5 0 0 1 10 0v4"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            <rect
+                              x="3"
+                              y="11"
+                              width="18"
+                              height="11"
+                              rx="2"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => removeStaff(s.id)}
+                          className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200"
+                          title="Buang Staff"
+                        >
+                          <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <path
+                              d="M3 6H5H21"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            <path
+                              d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6L18.1245 19.1354C18.0544 20.1875 17.1763 21 16.1218 21H7.87824C6.82373 21 5.94563 20.1875 5.87551 19.1354L5 6"
+                              stroke="currentColor"
+                              strokeWidth="2.4"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {staff.length === 0 && (
+                  <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+                    <Users size={34} className="text-gray-300 mx-auto mb-3" />
+                    <div className="text-gray-400 text-sm">Belum ada staff</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SETTINGS */}
+          {activeTab === "settings" && (
+            <div>
+              <div className="mb-4">
+                <h2 className="text-gray-900 font-black text-xl flex items-center gap-2">
+                  <ActiveSettingsIcon
+                    size={20}
+                    strokeWidth={2}
+                    className="text-[var(--accent-600)]"
+                  />
+                  <span>{activeSettings?.label || "Tetapan"}</span>
+                </h2>
+                <p className="text-gray-400 text-xs font-bold mt-1">
+                  {activeSettings?.description || "Tetapan kedai"}
+                </p>
+              </div>
+
+              {activeSettingsTab === "table-setup" && (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <h3 className="text-gray-900 font-bold text-sm">
+                        <Armchair
+                          size={15}
+                          className="text-[var(--accent-600)]"
+                        />{" "}
+                        Setup Meja Kedai
+                      </h3>
+                      <p className="text-gray-400 text-xs mt-1">
+                        Default 6 meja. Bungkus akan kekal automatik.
+                      </p>
+                    </div>
+                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                      Max 20
+                    </span>
+                  </div>
+                  <div className="bg-gray-50 rounded-2xl p-4 mb-4">
+                    <div className="flex items-center justify-between gap-4 mb-4">
+                      <button
+                        onClick={() => changeTableCount(tableCountInput - 1)}
+                        disabled={tableCountInput <= 1}
+                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                      >
+                        −
+                      </button>
+                      <div className="text-center">
+                        <div className="text-gray-900 text-4xl font-black leading-none">
+                          {tableCountInput}
+                        </div>
+                        <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">
+                          Meja
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => changeTableCount(tableCountInput + 1)}
+                        disabled={tableCountInput >= 20}
+                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={tableCountInput}
+                      onChange={(e) => changeTableCount(Number(e.target.value))}
+                      className="w-full accent-[var(--accent-600)]"
+                    />
+                    <div className="mt-4 grid grid-cols-7 gap-1.5">
+                      {Array.from({ length: tableCountInput }).map(
+                        (_, index) => (
+                          <div
+                            key={index}
+                            className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black"
+                          >
+                            {index + 1}
+                          </div>
+                        ),
+                      )}
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
+                        <ShoppingCart size={14} />
+                      </div>
+                    </div>
+                    <div className="text-gray-400 text-xs mt-3">
+                      POS akan papar Meja 1 hingga Meja {tableCountInput}, dan
+                      pilihan Bungkus.
+                    </div>
+                  </div>
+                  {tableMsg && (
+                    <div
+                      className={`text-xs font-bold mb-3 p-3 rounded-xl ${isSuccessMessage(tableMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                    >
+                      {tableMsg}
+                    </div>
+                  )}
+                  <button
+                    onClick={saveTableCount}
+                    disabled={
+                      saving ||
+                      tableCountInput ===
+                        Math.min(
+                          Math.max(Number(kedaiInfo?.table_count || 6), 1),
+                          20,
+                        )
+                    }
+                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan Setup Meja"}
+                  </button>
+                </div>
+              )}
+
+              {activeSettingsTab === "store-setup" && (
+                <div className="space-y-4">
+                  <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div>
+                        <h3 className="text-gray-900 font-bold text-sm">
+                          <Store
+                            size={15}
+                            className="text-[var(--accent-600)]"
+                          />{" "}
+                          Setup Kedai
+                        </h3>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Upload logo kedai dan QR DuitNow untuk digunakan di
+                          owner, staff dan kitchen.
+                        </p>
+                      </div>
+                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                        Branding
+                      </span>
+                    </div>
+
+                    {storeSetupMsg && (
+                      <div
+                        className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(storeSetupMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      >
+                        {storeSetupMsg}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              Logo Kedai
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                              Untuk header app
+                            </div>
+                          </div>
+                          <ImageIcon
+                            size={20}
+                            className="text-[var(--accent-600)]"
+                          />
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
+                          {kedaiInfo?.logo_url ? (
+                            <img
+                              src={kedaiInfo.logo_url}
+                              alt="Logo kedai"
+                              className="max-h-full max-w-full object-contain p-3"
+                            />
+                          ) : (
+                            <div className="text-center px-4">
+                              <Store
+                                size={34}
+                                className="text-gray-300 mx-auto mb-2"
+                              />
+                              <div className="text-gray-400 text-xs font-bold">
+                                Belum ada logo
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <label className="block">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) =>
+                              uploadKedaiAsset(
+                                e.target.files?.[0] || null,
+                                "logo",
+                              )
+                            }
+                          />
+                          <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                            {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              QR DuitNow
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                              Untuk payment staff
+                            </div>
+                          </div>
+                          <CreditCard size={20} className="text-blue-500" />
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
+                          {kedaiInfo?.duitnow_qr_url ? (
+                            <img
+                              src={kedaiInfo.duitnow_qr_url}
+                              alt="QR DuitNow"
+                              className="max-h-full max-w-full object-contain p-3"
+                            />
+                          ) : (
+                            <div className="text-center px-4">
+                              <Smartphone
+                                size={34}
+                                className="text-gray-300 mx-auto mb-2"
+                              />
+                              <div className="text-gray-400 text-xs font-bold">
+                                Belum ada QR
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <label className="block">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) =>
+                              uploadKedaiAsset(
+                                e.target.files?.[0] || null,
+                                "duitnow_qr",
+                              )
+                            }
+                          />
+                          <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                            {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                      <div className="text-amber-700 text-xs font-bold">
+                        Nota: QR DuitNow akan digunakan di staff payment popup.
+                        Logo kedai akan digunakan untuk branding owner, staff
+                        dan kitchen selepas Phase B/C.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === "charge-setup" && (
+                <div className="space-y-4">
+                  <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                    <div className="flex items-start justify-between gap-3 mb-5">
+                      <div>
+                        <h3 className="text-gray-900 font-bold text-sm">
+                          <Receipt
+                            size={15}
+                            className="text-[var(--accent-600)]"
+                          />{" "}
+                          Setup Caj
+                        </h3>
+                        <p className="text-gray-400 text-xs mt-1">
+                          Tetapkan SST dan service charge untuk receipt dan
+                          checkout staff.
+                        </p>
+                      </div>
+                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                        Tax & Charge
+                      </span>
+                    </div>
+
+                    {chargeMsg && (
+                      <div
+                        className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(chargeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      >
+                        {chargeMsg}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                      <div
+                        className={`rounded-3xl border p-4 ${sstEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              SST
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                              Cukai SST yang dikenakan pada order
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSstEnabled(!sstEnabled)}
+                            className={`w-14 h-8 rounded-full p-1 transition-all ${sstEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                          >
+                            <span
+                              className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${sstEnabled ? "translate-x-6" : "translate-x-0"}`}
+                            />
+                          </button>
+                        </div>
+                        <label className="text-gray-500 text-xs font-black mb-2 block">
+                          RATE SST (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={sstRate}
+                            onChange={(e) => setSstRate(e.target.value)}
+                            disabled={!sstEnabled}
+                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                            %
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`rounded-3xl border p-4 ${serviceChargeEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <div className="text-gray-900 text-sm font-black">
+                              Service Charge
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                              Caj servis kedai untuk order pelanggan
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setServiceChargeEnabled(!serviceChargeEnabled)
+                            }
+                            className={`w-14 h-8 rounded-full p-1 transition-all ${serviceChargeEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                          >
+                            <span
+                              className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${serviceChargeEnabled ? "translate-x-6" : "translate-x-0"}`}
+                            />
+                          </button>
+                        </div>
+                        <label className="text-gray-500 text-xs font-black mb-2 block">
+                          RATE SERVICE CHARGE (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={serviceChargeRate}
+                            onChange={(e) =>
+                              setServiceChargeRate(e.target.value)
+                            }
+                            disabled={!serviceChargeEnabled}
+                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+                      <div className="text-gray-500 text-xs font-black mb-3">
+                        PREVIEW KIRAAN
+                      </div>
+                      {(() => {
+                        const previewSubtotal = 100;
+                        const previewService = serviceChargeEnabled
+                          ? previewSubtotal *
+                            ((Number(serviceChargeRate) || 0) / 100)
+                          : 0;
+                        const previewSst = sstEnabled
+                          ? (previewSubtotal + previewService) *
+                            ((Number(sstRate) || 0) / 100)
+                          : 0;
+                        const previewTotal =
+                          previewSubtotal + previewService + previewSst;
+
+                        return (
+                          <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
+                            <div className="flex justify-between text-sm font-bold text-gray-500">
+                              <span>Subtotal</span>
+                              <span>RM {previewSubtotal.toFixed(2)}</span>
+                            </div>
+                            {serviceChargeEnabled && (
+                              <div className="flex justify-between text-sm font-bold text-gray-500">
+                                <span>
+                                  Service Charge (
+                                  {Number(serviceChargeRate) || 0}%)
+                                </span>
+                                <span>RM {previewService.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {sstEnabled && (
+                              <div className="flex justify-between text-sm font-bold text-gray-500">
+                                <span>SST ({Number(sstRate) || 0}%)</span>
+                                <span>RM {previewSst.toFixed(2)}</span>
+                              </div>
+                            )}
+                            <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-center">
+                              <span className="text-gray-900 font-black">
+                                Total
+                              </span>
+                              <span className="text-gray-900 font-black text-xl">
+                                RM {previewTotal.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <div className="text-gray-400 text-xs font-bold mt-3">
+                        Formula: Service charge dikira dari subtotal. SST dikira
+                        selepas service charge.
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={saveChargeSetting}
+                      disabled={saving}
+                      className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                    >
+                      {saving ? "Menyimpan..." : "Simpan Setup Caj"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeSettingsTab === "theme" && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                   <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
                       <h3 className="text-gray-900 font-bold text-sm">
-                        🧾 Setup Caj
+                        <Palette
+                          size={15}
+                          className="text-[var(--accent-600)]"
+                        />{" "}
+                        Theme Kedai
                       </h3>
                       <p className="text-gray-400 text-xs mt-1">
-                        Tetapkan SST dan service charge untuk receipt dan checkout staff.
+                        Simpan pilihan warna dan mode untuk branding kedai.
                       </p>
                     </div>
-                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
-                      Tax & Charge
+                    <span
+                      className={`${selectedAccent.sample} text-white text-xs font-black px-3 py-1.5 rounded-full`}
+                    >
+                      {selectedAccent.label}
                     </span>
                   </div>
 
-                  {chargeMsg && (
+                  {themeMsg && (
                     <div
-                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${chargeMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(themeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                     >
-                      {chargeMsg}
+                      {themeMsg}
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div className={`rounded-3xl border p-4 ${sstEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}>
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <div>
-                          <div className="text-gray-900 text-sm font-black">
-                            SST
-                          </div>
-                          <div className="text-gray-400 text-xs font-bold mt-0.5">
-                            Cukai SST yang dikenakan pada order
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSstEnabled(!sstEnabled)}
-                          className={`w-14 h-8 rounded-full p-1 transition-all ${sstEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
-                        >
-                          <span
-                            className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${sstEnabled ? "translate-x-6" : "translate-x-0"}`}
-                          />
-                        </button>
-                      </div>
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
-                        RATE SST (%)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={sstRate}
-                          onChange={(e) => setSstRate(e.target.value)}
-                          disabled={!sstEnabled}
-                          className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
-                          %
-                        </span>
-                      </div>
+                  <div className="mb-5">
+                    <label className="text-gray-500 text-xs font-black mb-3 block">
+                      ACCENT COLOR
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {accentColorOptions.map((color) => {
+                        const isSelected = selectedAccentColor === color.id;
+                        return (
+                          <button
+                            key={color.id}
+                            onClick={() => setSelectedAccentColor(color.id)}
+                            className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all ${isSelected ? `${color.ring} bg-gray-50 shadow-sm` : "border-gray-100 bg-white hover:bg-gray-50"}`}
+                          >
+                            <span
+                              className={`w-4 h-4 rounded-full ${color.dot}`}
+                            />
+                            <span className="text-gray-800 text-xs font-black flex-1">
+                              {color.label}
+                            </span>
+                            {isSelected && (
+                              <CircleCheck
+                                size={14}
+                                className="text-[var(--accent-600)]"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
+                  </div>
 
-                    <div className={`rounded-3xl border p-4 ${serviceChargeEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}>
-                      <div className="flex items-start justify-between gap-3 mb-4">
-                        <div>
-                          <div className="text-gray-900 text-sm font-black">
-                            Service Charge
-                          </div>
-                          <div className="text-gray-400 text-xs font-bold mt-0.5">
-                            Caj servis kedai untuk order pelanggan
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setServiceChargeEnabled(!serviceChargeEnabled)}
-                          className={`w-14 h-8 rounded-full p-1 transition-all ${serviceChargeEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
-                        >
-                          <span
-                            className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${serviceChargeEnabled ? "translate-x-6" : "translate-x-0"}`}
-                          />
-                        </button>
-                      </div>
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
-                        RATE SERVICE CHARGE (%)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={serviceChargeRate}
-                          onChange={(e) => setServiceChargeRate(e.target.value)}
-                          disabled={!serviceChargeEnabled}
-                          className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
-                          %
-                        </span>
-                      </div>
+                  <div className="mb-5">
+                    <label className="text-gray-500 text-xs font-black mb-3 block">
+                      APPEARANCE
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        {
+                          id: "light",
+                          label: "Light",
+                          icon: Sun,
+                          desc: "Paparan cerah",
+                        },
+                        {
+                          id: "dark",
+                          label: "Dark",
+                          icon: Moon,
+                          desc: "Simpan untuk dark mode",
+                        },
+                      ].map((mode) => {
+                        const isSelected = selectedThemeMode === mode.id;
+                        const ModeIcon = mode.icon;
+                        return (
+                          <button
+                            key={mode.id}
+                            onClick={() => setSelectedThemeMode(mode.id)}
+                            className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100 bg-gray-50"}`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <ModeIcon
+                                size={22}
+                                className="text-[var(--accent-600)]"
+                              />
+                              {isSelected && (
+                                <CircleCheck
+                                  size={15}
+                                  className="text-[var(--accent-600)]"
+                                />
+                              )}
+                            </div>
+                            <div className="text-gray-900 text-sm font-black">
+                              {mode.label}
+                            </div>
+                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                              {mode.desc}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
                     <div className="text-gray-500 text-xs font-black mb-3">
-                      PREVIEW KIRAAN
+                      PREVIEW
                     </div>
-                    {(() => {
-                      const previewSubtotal = 100;
-                      const previewService = serviceChargeEnabled
-                        ? previewSubtotal * ((Number(serviceChargeRate) || 0) / 100)
-                        : 0;
-                      const previewSst = sstEnabled
-                        ? (previewSubtotal + previewService) * ((Number(sstRate) || 0) / 100)
-                        : 0;
-                      const previewTotal = previewSubtotal + previewService + previewSst;
-
-                      return (
-                        <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
-                          <div className="flex justify-between text-sm font-bold text-gray-500">
-                            <span>Subtotal</span>
-                            <span>RM {previewSubtotal.toFixed(2)}</span>
+                    <div className="bg-white rounded-2xl p-4 border border-gray-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div
+                          className={`w-11 h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}
+                        >
+                          {kedaiInfo?.logo_url ? (
+                            <img
+                              src={kedaiInfo.logo_url}
+                              alt="Logo preview"
+                              className="w-full h-full rounded-2xl object-cover"
+                            />
+                          ) : (
+                            "U"
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-gray-900 text-sm font-black">
+                            {kedaiInfo?.nama || "Kedai Saya"}
                           </div>
-                          {serviceChargeEnabled && (
-                            <div className="flex justify-between text-sm font-bold text-gray-500">
-                              <span>Service Charge ({Number(serviceChargeRate) || 0}%)</span>
-                              <span>RM {previewService.toFixed(2)}</span>
-                            </div>
-                          )}
-                          {sstEnabled && (
-                            <div className="flex justify-between text-sm font-bold text-gray-500">
-                              <span>SST ({Number(sstRate) || 0}%)</span>
-                              <span>RM {previewSst.toFixed(2)}</span>
-                            </div>
-                          )}
-                          <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-center">
-                            <span className="text-gray-900 font-black">Total</span>
-                            <span className="text-gray-900 font-black text-xl">
-                              RM {previewTotal.toFixed(2)}
-                            </span>
+                          <div className="text-gray-400 text-xs font-bold">
+                            {selectedAccent.label} · {selectedThemeMode}
                           </div>
                         </div>
-                      );
-                    })()}
-                    <div className="text-gray-400 text-xs font-bold mt-3">
-                      Formula: Service charge dikira dari subtotal. SST dikira selepas service charge.
+                      </div>
+                      <div
+                        className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-black text-center`}
+                      >
+                        Contoh Button
+                      </div>
                     </div>
                   </div>
 
                   <button
-                    onClick={saveChargeSetting}
+                    onClick={saveThemeSetting}
                     disabled={saving}
                     className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
                   >
-                    {saving ? "Menyimpan..." : "Simpan Setup Caj"}
+                    {saving ? "Menyimpan..." : "Simpan Theme"}
+                  </button>
+                </div>
+              )}
+
+              {activeSettingsTab === "password" && (
+                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                  <h3 className="text-gray-900 font-bold text-sm mb-4">
+                    <LockKeyhole
+                      size={15}
+                      className="text-[var(--accent-600)]"
+                    />{" "}
+                    Tukar Password Saya
+                  </h3>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      PASSWORD SEMASA
+                    </label>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      PASSWORD BARU
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      CONFIRM PASSWORD BARU
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                    />
+                  </div>
+                  {passwordMsg && (
+                    <div
+                      className={`text-xs font-bold mb-3 p-3 rounded-xl ${isSuccessMessage(passwordMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                    >
+                      {passwordMsg}
+                    </div>
+                  )}
+                  <button
+                    onClick={tukarPassword}
+                    disabled={
+                      !currentPassword || !newPassword || !confirmPassword
+                    }
+                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  >
+                    Tukar Password
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Custom Date Modal */}
+          {showFilterModal && (
+            <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
+              <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h3 className="text-gray-900 font-black text-lg">
+                      Tarikh Custom
+                    </h3>
+                    <p className="text-gray-400 text-xs font-bold mt-0.5">
+                      Pilih julat tarikh laporan
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowFilterModal(false)}
+                    className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div>
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        START DATE
+                      </label>
+                      <input
+                        type="date"
+                        value={pendingCustomFrom}
+                        onChange={(e) => setPendingCustomFrom(e.target.value)}
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        END DATE
+                      </label>
+                      <input
+                        type="date"
+                        value={pendingCustomTo}
+                        onChange={(e) => setPendingCustomTo(e.target.value)}
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowFilterModal(false)}
+                    className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={applyFilterModal}
+                    disabled={!pendingCustomFrom || !pendingCustomTo}
+                    className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+                  >
+                    Apply
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeSettingsTab === "theme" && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between gap-3 mb-5">
+          {/* Receipt Preview Modal */}
+          {selectedReceipt && (
+            <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-gray-900 font-bold text-sm">
-                      🎨 Theme Kedai
+                    <h3 className="text-gray-900 font-black text-lg">
+                      Receipt Preview
                     </h3>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Simpan pilihan warna dan mode untuk branding kedai.
-                    </p>
+                    <div className="text-gray-400 text-xs font-bold">
+                      #{selectedReceipt.id.slice(0, 8).toUpperCase()}
+                    </div>
                   </div>
-                  <span className={`${selectedAccent.sample} text-white text-xs font-black px-3 py-1.5 rounded-full`}>
-                    {selectedAccent.label}
-                  </span>
-                </div>
-
-                {themeMsg && (
-                  <div
-                    className={`text-xs font-bold mb-4 p-3 rounded-xl ${themeMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                  <button
+                    onClick={() => setSelectedReceipt(null)}
+                    className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black"
                   >
-                    {themeMsg}
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="border border-gray-200 rounded-2xl p-5 bg-white">
+                  <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
+                    <div className="text-gray-900 font-black text-xl">
+                      {kedaiInfo?.nama || "Kedai Saya"}
+                    </div>
+                    <div className="text-gray-400 text-xs font-bold mt-1">
+                      Powered by UrusPOS
+                    </div>
+                    <div className="text-gray-400 text-xs mt-2">
+                      {formatReceiptDate(selectedReceipt.created_at)}
+                    </div>
                   </div>
-                )}
-
-                <div className="mb-5">
-                  <label className="text-gray-500 text-xs font-black mb-3 block">
-                    ACCENT COLOR
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {accentColorOptions.map((color) => {
-                      const isSelected = selectedAccentColor === color.id;
-                      return (
-                        <button
-                          key={color.id}
-                          onClick={() => setSelectedAccentColor(color.id)}
-                          className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all ${isSelected ? `${color.ring} bg-gray-50 shadow-sm` : "border-gray-100 bg-white hover:bg-gray-50"}`}
-                        >
-                          <span className={`w-4 h-4 rounded-full ${color.dot}`} />
-                          <span className="text-gray-800 text-xs font-black flex-1">
-                            {color.label}
-                          </span>
-                          {isSelected && (
-                            <span className="text-[var(--accent-600)] text-xs font-black">
-                              ✓
-                            </span>
+                  <div className="mb-4">
+                    <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                      <span>Order</span>
+                      <span>
+                        #{selectedReceipt.id.slice(0, 8).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                      <span>Jenis</span>
+                      <span>{displayMejaLabel(selectedReceipt.meja)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 font-bold">
+                      <span>Bayaran</span>
+                      <span>
+                        {selectedReceipt.payment_method || "Belum direkod"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="border-t border-dashed border-gray-300 pt-4 space-y-3">
+                    {selectedReceipt.order_items.map((item, index) => (
+                      <div
+                        key={`${item.nama}-${index}`}
+                        className="flex justify-between gap-3 text-sm"
+                      >
+                        <div className="flex-1">
+                          <div className="text-gray-900 font-bold">
+                            {item.nama}
+                          </div>
+                          <div className="text-gray-400 text-xs">
+                            {item.qty} x {formatRM(item.harga)}
+                          </div>
+                          {item.nota && (
+                            <div className="text-amber-600 text-xs mt-1">
+                              Nota: {item.nota}
+                            </div>
                           )}
-                        </button>
-                      );
-                    })}
+                        </div>
+                        <div className="text-gray-900 font-black">
+                          {formatRM(item.qty * item.harga)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                <div className="mb-5">
-                  <label className="text-gray-500 text-xs font-black mb-3 block">
-                    APPEARANCE
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: "light", label: "Light", icon: "☀️", desc: "Paparan cerah" },
-                      { id: "dark", label: "Dark", icon: "🌙", desc: "Simpan untuk dark mode" },
-                    ].map((mode) => {
-                      const isSelected = selectedThemeMode === mode.id;
-                      return (
-                        <button
-                          key={mode.id}
-                          onClick={() => setSelectedThemeMode(mode.id)}
-                          className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100 bg-gray-50"}`}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xl">{mode.icon}</span>
-                            {isSelected && (
-                              <span className="text-[var(--accent-600)] text-xs font-black">
-                                ✓
-                              </span>
-                            )}
+                  <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
+                    {shouldShowReceiptCaj(selectedReceipt) && (
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-xs text-gray-500 font-black">
+                          <span>Subtotal</span>
+                          <span>
+                            {formatRM(getReceiptSubtotal(selectedReceipt))}
+                          </span>
+                        </div>
+                        {getReceiptServiceCharge(selectedReceipt) > 0 && (
+                          <div className="flex justify-between text-xs text-gray-500 font-black">
+                            <span>
+                              Service Charge (
+                              {formatReceiptRate(
+                                selectedReceipt.service_charge_rate,
+                              )}
+                              %)
+                            </span>
+                            <span>
+                              {formatRM(
+                                getReceiptServiceCharge(selectedReceipt),
+                              )}
+                            </span>
                           </div>
-                          <div className="text-gray-900 text-sm font-black">
-                            {mode.label}
-                          </div>
-                          <div className="text-gray-400 text-xs font-bold mt-0.5">
-                            {mode.desc}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                  <div className="text-gray-500 text-xs font-black mb-3">
-                    PREVIEW
-                  </div>
-                  <div className="bg-white rounded-2xl p-4 border border-gray-100">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`w-11 h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}>
-                        {kedaiInfo?.logo_url ? (
-                          <img
-                            src={kedaiInfo.logo_url}
-                            alt="Logo preview"
-                            className="w-full h-full rounded-2xl object-cover"
-                          />
-                        ) : (
-                          "U"
                         )}
+                        {getReceiptSst(selectedReceipt) > 0 && (
+                          <div className="flex justify-between text-xs text-gray-500 font-black">
+                            <span>
+                              SST ({formatReceiptRate(selectedReceipt.sst_rate)}
+                              %)
+                            </span>
+                            <span>
+                              {formatRM(getReceiptSst(selectedReceipt))}
+                            </span>
+                          </div>
+                        )}
+                        <div className="border-t border-dashed border-gray-300 pt-2" />
                       </div>
-                      <div>
-                        <div className="text-gray-900 text-sm font-black">
-                          {kedaiInfo?.nama || "Kedai Saya"}
-                        </div>
-                        <div className="text-gray-400 text-xs font-bold">
-                          {selectedAccent.label} · {selectedThemeMode}
-                        </div>
-                      </div>
-                    </div>
-                    <div className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-black text-center`}>
-                      Contoh Button
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-900 font-black">TOTAL</span>
+                      <span className="text-gray-900 font-black text-xl">
+                        {formatRM(selectedReceipt.total)}
+                      </span>
                     </div>
                   </div>
+                  <div className="text-center text-gray-400 text-xs mt-5">
+                    Terima kasih.
+                  </div>
                 </div>
-
                 <button
-                  onClick={saveThemeSetting}
-                  disabled={saving}
-                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                  onClick={() => setSelectedReceipt(null)}
+                  className="w-full mt-4 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl"
                 >
-                  {saving ? "Menyimpan..." : "Simpan Theme"}
+                  Tutup
                 </button>
               </div>
-            )}
+            </div>
+          )}
 
-            {activeSettingsTab === "password" && (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <h3 className="text-gray-900 font-bold text-sm mb-4">
-                  🔐 Tukar Password Saya
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <button
+                onClick={() => setShowMobileMenu(false)}
+                className="absolute inset-0 bg-black/40"
+                aria-label="Tutup menu"
+              />
+              <div className="relative h-full w-[min(16.5rem,85vw)] bg-white shadow-2xl flex flex-col overflow-hidden animate-[slideInLeft_0.2s_ease-out]">
+                <OwnerSidebarMenu expanded mobile />
+              </div>
+              <style jsx>{`
+                @keyframes slideInLeft {
+                  from {
+                    transform: translateX(calc(-100% - 12px));
+                  }
+                  to {
+                    transform: translateX(0);
+                  }
+                }
+              `}</style>
+            </div>
+          )}
+
+          {/* Add Staff Modal */}
+          {showAddStaff && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                <h3 className="text-gray-900 font-bold text-lg mb-6">
+                  <Plus
+                    size={18}
+                    className="text-[var(--accent-600)] inline mr-2"
+                  />{" "}
+                  Tambah Staff Baru
                 </h3>
-                <div className="mb-3">
-                  <label className="text-gray-500 text-xs font-bold mb-1 block">
-                    PASSWORD SEMASA
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    NAMA PENUH
                   </label>
                   <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="••••••"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label className="text-gray-500 text-xs font-bold mb-1 block">
-                    PASSWORD BARU
-                  </label>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••"
+                    type="text"
+                    value={newStaffNama}
+                    onChange={(e) => setNewStaffNama(e.target.value)}
+                    placeholder="cth: Ahmad bin Ali"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-1 block">
-                    CONFIRM PASSWORD BARU
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    USERNAME
                   </label>
                   <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••"
+                    type="text"
+                    value={newStaffUsername}
+                    onChange={(e) => setNewStaffUsername(e.target.value)}
+                    placeholder="cth: ahmad123"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
-                {passwordMsg && (
-                  <div
-                    className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsg.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                  >
-                    {passwordMsg}
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    ROLE
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: "staff", label: "Cashier" },
+                      { id: "kitchen", label: "Dapur" },
+                    ].map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => setNewStaffRole(r.id)}
+                        className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {staffError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <div className="text-red-600 text-xs font-bold">
+                      <AlertTriangle size={14} className="inline mr-1" />{" "}
+                      {staffError}
+                    </div>
                   </div>
                 )}
-                <button
-                  onClick={tukarPassword}
-                  disabled={!currentPassword || !newPassword || !confirmPassword}
-                  className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
-                >
-                  Tukar Password
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-
-      {/* Custom Date Modal */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-gray-900 font-black text-lg">
-                  Tarikh Custom
-                </h3>
-                <p className="text-gray-400 text-xs font-bold mt-0.5">
-                  Pilih julat tarikh laporan
-                </p>
-              </div>
-              <button
-                onClick={() => setShowFilterModal(false)}
-                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <label className="text-gray-500 text-xs font-black mb-2 block">
-                    START DATE
-                  </label>
-                  <input
-                    type="date"
-                    value={pendingCustomFrom}
-                    onChange={(e) => setPendingCustomFrom(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
-                  />
+                <div className="bg-[var(--accent-50)] border border-[var(--accent-200)] rounded-xl p-3 mb-4">
+                  <div className="text-[var(--accent-700)] text-xs font-bold mb-1">
+                    <KeyRound size={16} className="inline mr-2" /> Credential
+                    Staff
+                  </div>
+                  <div className="text-[var(--accent-600)] text-xs">
+                    Username: <strong>{newStaffUsername || "..."}</strong>
+                  </div>
+                  <div className="text-[var(--accent-600)] text-xs">
+                    Password: <strong>abc123</strong> (default)
+                  </div>
                 </div>
-                <div>
-                  <label className="text-gray-500 text-xs font-black mb-2 block">
-                    END DATE
-                  </label>
-                  <input
-                    type="date"
-                    value={pendingCustomTo}
-                    onChange={(e) => setPendingCustomTo(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowFilterModal(false)}
-                className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
-              >
-                Batal
-              </button>
-              <button
-                onClick={applyFilterModal}
-                disabled={!pendingCustomFrom || !pendingCustomTo}
-                className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Receipt Preview Modal */}
-      {selectedReceipt && (
-        <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-gray-900 font-black text-lg">
-                  Receipt Preview
-                </h3>
-                <div className="text-gray-400 text-xs font-bold">
-                  #{selectedReceipt.id.slice(0, 8).toUpperCase()}
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedReceipt(null)}
-                className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="border border-gray-200 rounded-2xl p-5 bg-white">
-              <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                <div className="text-gray-900 font-black text-xl">
-                  {kedaiInfo?.nama || "Kedai Saya"}
-                </div>
-                <div className="text-gray-400 text-xs font-bold mt-1">
-                  Powered by UrusPOS
-                </div>
-                <div className="text-gray-400 text-xs mt-2">
-                  {formatReceiptDate(selectedReceipt.created_at)}
-                </div>
-              </div>
-              <div className="mb-4">
-                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
-                  <span>Order</span>
-                  <span>#{selectedReceipt.id.slice(0, 8).toUpperCase()}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
-                  <span>Jenis</span>
-                  <span>{displayMejaLabel(selectedReceipt.meja)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 font-bold">
-                  <span>Bayaran</span>
-                  <span>
-                    {selectedReceipt.payment_method || "Belum direkod"}
-                  </span>
-                </div>
-              </div>
-              <div className="border-t border-dashed border-gray-300 pt-4 space-y-3">
-                {selectedReceipt.order_items.map((item, index) => (
-                  <div
-                    key={`${item.nama}-${index}`}
-                    className="flex justify-between gap-3 text-sm"
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAddStaff(false)}
+                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
                   >
-                    <div className="flex-1">
-                      <div className="text-gray-900 font-bold">{item.nama}</div>
-                      <div className="text-gray-400 text-xs">
-                        {item.qty} x {formatRM(item.harga)}
+                    Batal
+                  </button>
+                  <button
+                    onClick={addStaff}
+                    disabled={
+                      saving || !newStaffNama.trim() || !newStaffUsername.trim()
+                    }
+                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Manage Category Modal */}
+          {showAddCategory && (
+            <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 p-0 sm:p-6">
+              <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+                <div className="flex items-start justify-between gap-4 mb-5">
+                  <div>
+                    <h3 className="text-gray-900 font-black text-lg flex items-center gap-2">
+                      <FolderTree
+                        size={19}
+                        className="text-[var(--accent-600)]"
+                      />
+                      Manage Kategori
+                    </h3>
+                    <p className="text-gray-400 text-xs font-bold mt-1">
+                      Tambah, edit, aktif/nyahaktif dan buang kategori produk.
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeManageCategories}
+                    className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 flex items-center justify-center active:scale-95 transition-all"
+                    aria-label="Tutup kategori"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {categoryError && (
+                  <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-4">
+                    <div className="text-red-600 text-xs font-bold flex items-start gap-2">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>{categoryError}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-4">
+                  <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4">
+                    <div className="text-gray-900 text-sm font-black mb-1">
+                      {editCategoryId ? "Edit Kategori" : "Tambah Kategori"}
+                    </div>
+                    <div className="text-gray-400 text-xs font-bold mb-4">
+                      {editCategoryId
+                        ? "Kemaskini nama dan icon kategori."
+                        : "Kategori baru akan muncul dalam dropdown produk."}
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        NAMA KATEGORI
+                      </label>
+                      <input
+                        type="text"
+                        value={editCategoryId ? editCategoryNama : categoryNama}
+                        onChange={(e) => {
+                          if (editCategoryId)
+                            setEditCategoryNama(e.target.value);
+                          else setCategoryNama(e.target.value);
+                          setCategoryError("");
+                        }}
+                        placeholder="cth: Dessert"
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+
+                    <div className="mb-5">
+                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                        ICON
+                      </label>
+                      <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-2">
+                        {CATEGORY_ICON_OPTIONS.map((option) => {
+                          const Icon = option.icon;
+                          const currentIcon = editCategoryId
+                            ? editCategoryIcon
+                            : categoryIcon;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              title={option.label}
+                              onClick={() => {
+                                if (editCategoryId)
+                                  setEditCategoryIcon(option.id);
+                                else setCategoryIcon(option.id);
+                              }}
+                              className={`h-11 rounded-2xl border flex items-center justify-center transition-all ${
+                                currentIcon === option.id
+                                  ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]"
+                                  : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
+                              }`}
+                            >
+                              <Icon size={18} />
+                            </button>
+                          );
+                        })}
                       </div>
-                      {item.nota && (
-                        <div className="text-amber-600 text-xs mt-1">
-                          Nota: {item.nota}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {editCategoryId && (
+                        <button
+                          onClick={cancelEditCategory}
+                          className="flex-1 bg-white border border-gray-200 text-gray-600 font-black py-3 rounded-2xl text-sm active:scale-95 transition-all"
+                        >
+                          Batal Edit
+                        </button>
+                      )}
+
+                      <button
+                        onClick={editCategoryId ? updateCategory : addCategory}
+                        disabled={
+                          saving ||
+                          (editCategoryId
+                            ? !editCategoryNama.trim()
+                            : !categoryNama.trim())
+                        }
+                        className="flex-1 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+                      >
+                        {saving
+                          ? "Menyimpan..."
+                          : editCategoryId
+                            ? "Update"
+                            : "Tambah"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-gray-900 text-sm font-black">
+                          Senarai Kategori
                         </div>
+                        <div className="text-gray-400 text-xs font-bold">
+                          {categories.length} kategori tersedia
+                        </div>
+                      </div>
+                      <span className="bg-gray-50 text-gray-500 text-[10px] font-black px-3 py-1.5 rounded-full border border-gray-100">
+                        Active / Inactive
+                      </span>
+                    </div>
+
+                    <div className="max-h-[420px] overflow-y-auto divide-y divide-gray-50">
+                      {categories.length === 0 ? (
+                        <div className="p-6 text-center">
+                          <FolderTree
+                            size={32}
+                            className="text-gray-300 mx-auto mb-2"
+                          />
+                          <div className="text-gray-400 text-sm font-bold">
+                            Belum ada kategori.
+                          </div>
+                        </div>
+                      ) : (
+                        categories.map((category) => {
+                          const CategoryListIcon =
+                            CATEGORY_ICON_MAP[category.icon || ""] || Box;
+                          const productCount = produk.filter(
+                            (product) => product.kategori_id === category.id,
+                          ).length;
+                          const isEditing = editCategoryId === category.id;
+
+                          return (
+                            <div
+                              key={`category-manage-${category.id}`}
+                              className={`p-4 flex items-center justify-between gap-3 transition-all ${
+                                isEditing
+                                  ? "bg-[var(--accent-50)]"
+                                  : "hover:bg-gray-50/70"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div
+                                  className={`w-11 h-11 rounded-2xl flex items-center justify-center border shrink-0 ${
+                                    category.is_active
+                                      ? "bg-white border-gray-100 text-[var(--accent-600)]"
+                                      : "bg-gray-100 border-gray-200 text-gray-300"
+                                  }`}
+                                >
+                                  <CategoryListIcon size={18} />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="text-gray-900 text-sm font-black truncate">
+                                    {category.nama}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span
+                                      className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                        category.is_active
+                                          ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"
+                                          : "bg-gray-50 text-gray-400 border-gray-100"
+                                      }`}
+                                    >
+                                      {category.is_active
+                                        ? "Aktif"
+                                        : "Tidak aktif"}
+                                    </span>
+                                    <span className="text-gray-400 text-[10px] font-bold">
+                                      {productCount} produk
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => startEditCategory(category)}
+                                  className="w-9 h-9 rounded-xl border bg-blue-50 text-blue-600 border-blue-100 flex items-center justify-center active:scale-95 transition-all"
+                                  title="Edit kategori"
+                                  aria-label="Edit kategori"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    toggleCategory(
+                                      category.id,
+                                      category.is_active,
+                                    )
+                                  }
+                                  disabled={saving}
+                                  className={`w-9 h-9 rounded-xl border flex items-center justify-center active:scale-95 transition-all disabled:opacity-50 ${
+                                    category.is_active
+                                      ? "bg-amber-50 text-amber-600 border-amber-100"
+                                      : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"
+                                  }`}
+                                  title={
+                                    category.is_active
+                                      ? "Nyahaktif kategori"
+                                      : "Aktifkan kategori"
+                                  }
+                                  aria-label={
+                                    category.is_active
+                                      ? "Nyahaktif kategori"
+                                      : "Aktifkan kategori"
+                                  }
+                                >
+                                  {category.is_active ? (
+                                    <Pause size={14} />
+                                  ) : (
+                                    <Play size={14} />
+                                  )}
+                                </button>
+
+                                <button
+                                  onClick={() => removeCategory(category)}
+                                  disabled={saving || productCount > 0}
+                                  className={`w-9 h-9 rounded-xl border flex items-center justify-center active:scale-95 transition-all disabled:opacity-40 ${
+                                    productCount > 0
+                                      ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
+                                      : "bg-red-50 text-red-500 border-red-100"
+                                  }`}
+                                  title={
+                                    productCount > 0
+                                      ? "Kategori masih digunakan produk"
+                                      : "Buang kategori"
+                                  }
+                                  aria-label={
+                                    productCount > 0
+                                      ? "Kategori masih digunakan produk"
+                                      : "Buang kategori"
+                                  }
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
                       )}
                     </div>
-                    <div className="text-gray-900 font-black">
-                      {formatRM(item.qty * item.harga)}
-                    </div>
                   </div>
-                ))}
-              </div>
-              <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
-                {shouldShowReceiptCaj(selectedReceipt) && (
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-xs text-gray-500 font-black">
-                      <span>Subtotal</span>
-                      <span>{formatRM(getReceiptSubtotal(selectedReceipt))}</span>
-                    </div>
-                    {getReceiptServiceCharge(selectedReceipt) > 0 && (
-                      <div className="flex justify-between text-xs text-gray-500 font-black">
-                        <span>Service Charge ({formatReceiptRate(selectedReceipt.service_charge_rate)}%)</span>
-                        <span>{formatRM(getReceiptServiceCharge(selectedReceipt))}</span>
-                      </div>
-                    )}
-                    {getReceiptSst(selectedReceipt) > 0 && (
-                      <div className="flex justify-between text-xs text-gray-500 font-black">
-                        <span>SST ({formatReceiptRate(selectedReceipt.sst_rate)}%)</span>
-                        <span>{formatRM(getReceiptSst(selectedReceipt))}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-dashed border-gray-300 pt-2" />
+                </div>
+
+                <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
+                  <div className="text-amber-700 text-xs font-bold flex items-start gap-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <span>
+                      Kategori yang masih digunakan oleh produk tidak boleh
+                      dibuang terus. Tukar kategori produk dahulu atau
+                      nyahaktifkan kategori.
+                    </span>
                   </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-900 font-black">TOTAL</span>
-                  <span className="text-gray-900 font-black text-xl">
-                    {formatRM(selectedReceipt.total)}
-                  </span>
                 </div>
               </div>
-              <div className="text-center text-gray-400 text-xs mt-5">
-                Terima kasih.
-              </div>
             </div>
-            <button
-              onClick={() => setSelectedReceipt(null)}
-              className="w-full mt-4 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl"
-            >
-              Tutup
-            </button>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Mobile Menu */}
-      {showMobileMenu && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button
-            onClick={() => setShowMobileMenu(false)}
-            className="absolute inset-0 bg-black/40"
-            aria-label="Tutup menu"
-          />
-          <div className="relative h-full w-72 bg-white shadow-xl flex flex-col animate-[slideInLeft_0.2s_ease-out]">
-            <FloatingOwnerMenu expanded mobile />
-          </div>
-          <style jsx>{`
-            @keyframes slideInLeft {
-              from {
-                transform: translateX(-100%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-          `}</style>
-        </div>
-      )}
-
-      {/* Add Staff Modal */}
-      {showAddStaff && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-gray-900 font-bold text-lg mb-6">
-              ➕ Tambah Staff Baru
-            </h3>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                NAMA PENUH
-              </label>
-              <input
-                type="text"
-                value={newStaffNama}
-                onChange={(e) => setNewStaffNama(e.target.value)}
-                placeholder="cth: Ahmad bin Ali"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                USERNAME
-              </label>
-              <input
-                type="text"
-                value={newStaffUsername}
-                onChange={(e) => setNewStaffUsername(e.target.value)}
-                placeholder="cth: ahmad123"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                ROLE
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { id: "staff", label: "🧑‍💼 Cashier" },
-                  { id: "kitchen", label: "👨‍🍳 Dapur" },
-                ].map((r) => (
-                  <button
-                    key={r.id}
-                    onClick={() => setNewStaffRole(r.id)}
-                    className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
-                  >
-                    {r.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {staffError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                <div className="text-red-600 text-xs font-bold">
-                  ⚠️ {staffError}
-                </div>
-              </div>
-            )}
-            <div className="bg-[var(--accent-50)] border border-[var(--accent-200)] rounded-xl p-3 mb-4">
-              <div className="text-[var(--accent-700)] text-xs font-bold mb-1">
-                🔑 Credential Staff
-              </div>
-              <div className="text-[var(--accent-600)] text-xs">
-                Username: <strong>{newStaffUsername || "..."}</strong>
-              </div>
-              <div className="text-[var(--accent-600)] text-xs">
-                Password: <strong>abc123</strong> (default)
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddStaff(false)}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={addStaff}
-                disabled={
-                  saving || !newStaffNama.trim() || !newStaffUsername.trim()
-                }
-                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Category Modal */}
-      {showAddCategory && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-gray-900 font-bold text-lg">
-                  ➕ Tambah Kategori
+          {/* Add Produk Modal */}
+          {showAddProduk && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                <h3 className="text-gray-900 font-bold text-lg mb-6">
+                  <Plus
+                    size={18}
+                    className="text-[var(--accent-600)] inline mr-2"
+                  />{" "}
+                  Tambah Produk
                 </h3>
-                <p className="text-gray-400 text-xs font-bold mt-1">
-                  Kategori akan digunakan untuk produk & POS staff.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAddCategory(false)}
-                className="text-gray-400 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                NAMA KATEGORI
-              </label>
-              <input
-                type="text"
-                value={categoryNama}
-                onChange={(e) => {
-                  setCategoryNama(e.target.value);
-                  setCategoryError("");
-                }}
-                placeholder="cth: Dessert"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                ICON
-              </label>
-              <div className="grid grid-cols-6 gap-2">
-                {CATEGORY_ICON_OPTIONS.map((icon) => (
-                  <button
-                    key={icon}
-                    onClick={() => setCategoryIcon(icon)}
-                    className={`h-11 rounded-xl border text-xl ${
-                      categoryIcon === icon
-                        ? "bg-[var(--accent-50)] border-[var(--accent-500)]"
-                        : "bg-white border-gray-200"
-                    }`}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {categoryError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                <div className="text-red-600 text-xs font-bold">
-                  ⚠️ {categoryError}
-                </div>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddCategory(false)}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={addCategory}
-                disabled={saving || !categoryNama.trim()}
-                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Produk Modal */}
-      {showAddProduk && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-gray-900 font-bold text-lg mb-6">
-              ➕ Tambah Produk
-            </h3>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                NAMA PRODUK
-              </label>
-              <input
-                type="text"
-                value={produkNama}
-                onChange={(e) => setProdukNama(e.target.value)}
-                placeholder="cth: Nasi Lemak"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                KATEGORI
-              </label>
-              <select
-                value={produkKategoriId}
-                onChange={(e) => setProdukKategoriId(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
-              >
-                <option value="">📦 Lain-lain</option>
-                {activeCategories().map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.icon} {category.nama}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div>
-                <label className="text-gray-500 text-xs font-bold mb-2 block">
-                  HARGA JUAL (RM)
-                </label>
-                <input
-                  type="number"
-                  value={produkHarga}
-                  onChange={(e) => setProdukHarga(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                />
-              </div>
-              <div>
-                <label className="text-gray-500 text-xs font-bold mb-2 block">
-                  KOS PRODUK (RM)
-                </label>
-                <input
-                  type="number"
-                  value={produkKos}
-                  onChange={(e) => setProdukKos(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                />
-              </div>
-            </div>
-            <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                STOK AWAL
-              </label>
-              <input
-                type="number"
-                value={produkStok}
-                onChange={(e) => setProdukStok(e.target.value)}
-                placeholder="0"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
-            </div>
-            {produkHarga && produkKos && (
-              <div
-                className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-[var(--accent-50)] border border-[var(--accent-200)]" : "bg-amber-50 border border-amber-200"}`}
-              >
-                <div
-                  className={`text-xs font-bold ${marginTambah >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
-                >
-                  💡 Margin: <strong>{marginTambah}%</strong>{" "}
-                  {marginTambah >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
-                </div>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAddProduk(false)}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={addProduk}
-                disabled={saving || !produkNama.trim()}
-                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Produk Modal */}
-      {editProdukId && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div
-            className="bg-white rounded-2xl p-6 w-full max-w-sm"
-            style={{ maxHeight: "90vh", overflowY: "auto" }}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-gray-900 font-bold text-lg">
-                ✏️ Edit Produk
-              </h3>
-              <button
-                onClick={closeEditProduk}
-                className="text-gray-400 text-xl"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 mb-5">
-              <div className="text-gray-500 text-xs font-bold mb-3">
-                MAKLUMAT PRODUK
-              </div>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  NAMA PRODUK
-                </label>
-                <input
-                  type="text"
-                  value={editProdukNama}
-                  onChange={(e) => setEditProdukNama(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  KATEGORI
-                </label>
-                <select
-                  value={editProdukKategoriId}
-                  onChange={(e) => setEditProdukKategoriId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
-                >
-                  <option value="">📦 Lain-lain</option>
-                  {activeCategories().map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.icon} {category.nama}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-gray-500 text-xs font-bold mb-1 block">
-                    HARGA JUAL (RM)
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    NAMA PRODUK
                   </label>
                   <input
-                    type="number"
-                    value={editProdukHarga}
-                    onChange={(e) => setEditProdukHarga(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                    type="text"
+                    value={produkNama}
+                    onChange={(e) => setProdukNama(e.target.value)}
+                    placeholder="cth: Nasi Lemak"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
-                <div>
-                  <label className="text-gray-500 text-xs font-bold mb-1 block">
-                    KOS PRODUK (RM)
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    KATEGORI
                   </label>
-                  <input
-                    type="number"
-                    value={editProdukKos}
-                    onChange={(e) => setEditProdukKos(e.target.value)}
+                  <select
+                    value={produkKategoriId}
+                    onChange={(e) => setProdukKategoriId(e.target.value)}
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
-                  />
-                </div>
-              </div>
-              {editProdukHarga && editProdukKos && (
-                <div
-                  className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-[var(--accent-100)]" : "bg-amber-100"}`}
-                >
-                  <div
-                    className={`text-xs font-bold ${marginEdit >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                   >
-                    💡 Margin: <strong>{marginEdit}%</strong>{" "}
-                    {marginEdit >= 40 ? "— Bagus! ✓" : "— Rendah sikit ⚠️"}
-                  </div>
+                    <option value="">Lain-lain</option>
+                    {activeCategories().map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.nama}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
-            </div>
-            <div className="bg-gray-50 rounded-2xl p-4 mb-5">
-              <div className="text-gray-500 text-xs font-bold mb-3">
-                KEMASKINI STOK
-              </div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-gray-500 text-xs font-bold">
-                  STOK SEMASA
-                </span>
-                <span
-                  className={`text-lg font-black ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}
-                >
-                  {editStokSemasa} unit
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <button
-                  onClick={() => {
-                    setEditStokMode("tambah");
-                    setEditStokQty("");
-                    setEditStokError("");
-                  }}
-                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
-                >
-                  ➕ Tambah Stok
-                </button>
-                <button
-                  onClick={() => {
-                    setEditStokMode("tolak");
-                    setEditStokQty("");
-                    setEditStokError("");
-                  }}
-                  className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tolak" ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-gray-200 text-gray-400"}`}
-                >
-                  ➖ Tolak Stok
-                </button>
-              </div>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-bold mb-1 block">
-                  JUMLAH UNIT{" "}
-                  <span className="text-gray-400 font-normal">
-                    (kosongkan kalau tak nak ubah stok)
-                  </span>
-                </label>
-                <input
-                  type="number"
-                  value={editStokQty}
-                  onChange={(e) => {
-                    setEditStokQty(e.target.value);
-                    setEditStokError("");
-                  }}
-                  placeholder="0"
-                  min="1"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white text-center text-xl font-black"
-                />
-              </div>
-              {editStokQty && (
-                <>
-                  <div className="mb-3">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
                     <label className="text-gray-500 text-xs font-bold mb-2 block">
-                      SEBAB / REASON
+                      HARGA JUAL (RM)
                     </label>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      {(editStokMode === "tambah"
-                        ? ["Restock", "Pembelian Baru", "Pindahan", "Lain-lain"]
-                        : [
-                            "Rosak / Luput",
-                            "Hilang",
-                            "Guna Sendiri",
-                            "Lain-lain",
-                          ]
-                      ).map((r) => (
-                        <button
-                          key={r}
-                          onClick={() => setEditStokReason(r)}
-                          className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all text-left ${editStokReason === r ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-gray-200 text-gray-400"}`}
-                        >
-                          {r}
-                        </button>
-                      ))}
-                    </div>
                     <input
-                      type="text"
-                      value={editStokReason}
-                      onChange={(e) => setEditStokReason(e.target.value)}
-                      placeholder="Atau taip reason sendiri..."
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                      type="number"
+                      value={produkHarga}
+                      onChange={(e) => setProdukHarga(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
                     />
                   </div>
-                  {previewStokBaru !== null && (
+                  <div>
+                    <label className="text-gray-500 text-xs font-bold mb-2 block">
+                      KOS PRODUK (RM)
+                    </label>
+                    <input
+                      type="number"
+                      value={produkKos}
+                      onChange={(e) => setProdukKos(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                    />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    STOK AWAL
+                  </label>
+                  <input
+                    type="number"
+                    value={produkStok}
+                    onChange={(e) => setProdukStok(e.target.value)}
+                    placeholder="0"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                  />
+                </div>
+                {produkHarga && produkKos && (
+                  <div
+                    className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-[var(--accent-50)] border border-[var(--accent-200)]" : "bg-amber-50 border border-amber-200"}`}
+                  >
                     <div
-                      className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-[var(--accent-50)] border border-[var(--accent-200)]"}`}
+                      className={`text-xs font-bold ${marginTambah >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
+                    >
+                      <Lightbulb size={14} className="inline mr-1" /> Margin:{" "}
+                      <strong>{marginTambah}%</strong>{" "}
+                      {marginTambah >= 40 ? "— Bagus" : "— Rendah sikit"}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowAddProduk(false)}
+                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={addProduk}
+                    disabled={saving || !produkNama.trim()}
+                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Produk Modal */}
+          {editProdukId && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+              <div
+                className="bg-white rounded-2xl p-6 w-full max-w-sm"
+                style={{ maxHeight: "90vh", overflowY: "auto" }}
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-gray-900 font-bold text-lg">
+                    <Pencil size={12} /> Edit Produk
+                  </h3>
+                  <button
+                    onClick={closeEditProduk}
+                    className="text-gray-400 text-xl"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+                  <div className="text-gray-500 text-xs font-bold mb-3">
+                    MAKLUMAT PRODUK
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      NAMA PRODUK
+                    </label>
+                    <input
+                      type="text"
+                      value={editProdukNama}
+                      onChange={(e) => setEditProdukNama(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      KATEGORI
+                    </label>
+                    <select
+                      value={editProdukKategoriId}
+                      onChange={(e) => setEditProdukKategoriId(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                    >
+                      <option value="">Lain-lain</option>
+                      {activeCategories().map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.nama}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-gray-500 text-xs font-bold mb-1 block">
+                        HARGA JUAL (RM)
+                      </label>
+                      <input
+                        type="number"
+                        value={editProdukHarga}
+                        onChange={(e) => setEditProdukHarga(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-xs font-bold mb-1 block">
+                        KOS PRODUK (RM)
+                      </label>
+                      <input
+                        type="number"
+                        value={editProdukKos}
+                        onChange={(e) => setEditProdukKos(e.target.value)}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                      />
+                    </div>
+                  </div>
+                  {editProdukHarga && editProdukKos && (
+                    <div
+                      className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-[var(--accent-100)]" : "bg-amber-100"}`}
                     >
                       <div
-                        className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-[var(--accent-700)]"}`}
+                        className={`text-xs font-bold ${marginEdit >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                       >
-                        {previewStokBaru < 0
-                          ? `⚠️ Stok tidak cukup! Akan jadi ${previewStokBaru} unit.`
-                          : previewStokBaru <= 5
-                            ? `⚠️ Stok selepas: ${previewStokBaru} unit (kritikal)`
-                            : `✓ Stok selepas: ${previewStokBaru} unit`}
+                        <Lightbulb size={14} className="inline mr-1" /> Margin:{" "}
+                        <strong>{marginEdit}%</strong>{" "}
+                        {marginEdit >= 40 ? "— Bagus" : "— Rendah sikit"}
                       </div>
                     </div>
                   )}
-                </>
-              )}
-            </div>
-            {editStokError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                <div className="text-red-600 text-xs font-bold">
-                  ⚠️ {editStokError}
+                </div>
+                <div className="bg-gray-50 rounded-2xl p-4 mb-5">
+                  <div className="text-gray-500 text-xs font-bold mb-3">
+                    KEMASKINI STOK
+                  </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-gray-500 text-xs font-bold">
+                      STOK SEMASA
+                    </span>
+                    <span
+                      className={`text-lg font-black ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}
+                    >
+                      {editStokSemasa} unit
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <button
+                      onClick={() => {
+                        setEditStokMode("tambah");
+                        setEditStokQty("");
+                        setEditStokError("");
+                      }}
+                      className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
+                    >
+                      <Plus size={13} className="inline mr-1" /> Tambah Stok
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditStokMode("tolak");
+                        setEditStokQty("");
+                        setEditStokError("");
+                      }}
+                      className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tolak" ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-gray-200 text-gray-400"}`}
+                    >
+                      <Minus size={13} className="inline mr-1" /> Tolak Stok
+                    </button>
+                  </div>
+                  <div className="mb-3">
+                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      JUMLAH UNIT{" "}
+                      <span className="text-gray-400 font-normal">
+                        (kosongkan kalau tak nak ubah stok)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      value={editStokQty}
+                      onChange={(e) => {
+                        setEditStokQty(e.target.value);
+                        setEditStokError("");
+                      }}
+                      placeholder="0"
+                      min="1"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white text-center text-xl font-black"
+                    />
+                  </div>
+                  {editStokQty && (
+                    <>
+                      <div className="mb-3">
+                        <label className="text-gray-500 text-xs font-bold mb-2 block">
+                          SEBAB / REASON
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          {(editStokMode === "tambah"
+                            ? [
+                                "Restock",
+                                "Pembelian Baru",
+                                "Pindahan",
+                                "Lain-lain",
+                              ]
+                            : [
+                                "Rosak / Luput",
+                                "Hilang",
+                                "Guna Sendiri",
+                                "Lain-lain",
+                              ]
+                          ).map((r) => (
+                            <button
+                              key={r}
+                              onClick={() => setEditStokReason(r)}
+                              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all text-left ${editStokReason === r ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-gray-200 text-gray-400"}`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          value={editStokReason}
+                          onChange={(e) => setEditStokReason(e.target.value)}
+                          placeholder="Atau taip reason sendiri..."
+                          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white"
+                        />
+                      </div>
+                      {previewStokBaru !== null && (
+                        <div
+                          className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-[var(--accent-50)] border border-[var(--accent-200)]"}`}
+                        >
+                          <div
+                            className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-[var(--accent-700)]"}`}
+                          >
+                            {previewStokBaru < 0
+                              ? `Stok tidak cukup! Akan jadi ${previewStokBaru} unit.`
+                              : previewStokBaru <= 5
+                                ? `Stok selepas: ${previewStokBaru} unit (kritikal)`
+                                : `Stok selepas: ${previewStokBaru} unit`}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                {editStokError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                    <div className="text-red-600 text-xs font-bold">
+                      <AlertTriangle size={14} className="inline mr-1" />{" "}
+                      {editStokError}
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={closeEditProduk}
+                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={submitEditProduk}
+                    disabled={saving || !editProdukNama.trim()}
+                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                  >
+                    {saving ? "Menyimpan..." : "Simpan"}
+                  </button>
                 </div>
               </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={closeEditProduk}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={submitEditProduk}
-                disabled={saving || !editProdukNama.trim()}
-                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Confirm Delete Produk Modal */}
-      {confirmDeleteProdukId && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-red-100">
-            <div className="text-3xl text-center mb-3">🗑️</div>
-            <h3 className="text-gray-900 font-bold text-lg text-center mb-1">
-              Buang Produk?
-            </h3>
-            <p className="text-gray-400 text-sm text-center mb-1">
-              <strong className="text-gray-700">
-                {confirmDeleteProdukNama}
-              </strong>
-            </p>
-            <p className="text-gray-400 text-xs text-center mb-6">
-              Produk akan disembunyikan dari POS. Rekod jualan lama tidak
-              terjejas.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setConfirmDeleteProdukId(null);
-                  setConfirmDeleteProdukNama("");
-                }}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={() => {
-                  removeProduk(confirmDeleteProdukId);
-                  setConfirmDeleteProdukId(null);
-                  setConfirmDeleteProdukNama("");
-                }}
-                className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl"
-              >
-                Ya, Buang
-              </button>
+          {/* Confirm Delete Produk Modal */}
+          {confirmDeleteProdukId && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-red-100">
+                <Trash2 size={34} className="text-red-400 mx-auto mb-3" />
+                <h3 className="text-gray-900 font-bold text-lg text-center mb-1">
+                  Buang Produk?
+                </h3>
+                <p className="text-gray-400 text-sm text-center mb-1">
+                  <strong className="text-gray-700">
+                    {confirmDeleteProdukNama}
+                  </strong>
+                </p>
+                <p className="text-gray-400 text-xs text-center mb-6">
+                  Produk akan disembunyikan dari POS. Rekod jualan lama tidak
+                  terjejas.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setConfirmDeleteProdukId(null);
+                      setConfirmDeleteProdukNama("");
+                    }}
+                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => {
+                      removeProduk(confirmDeleteProdukId);
+                      setConfirmDeleteProdukId(null);
+                      setConfirmDeleteProdukNama("");
+                    }}
+                    className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl"
+                  >
+                    Ya, Buang
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Reset Password Staff Modal */}
-      {resetStaffId && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-gray-900 font-bold text-lg mb-2">
-              🔑 Reset Password
-            </h3>
-            <p className="text-gray-400 text-sm mb-6">{resetStaffNama}</p>
-            <div className="mb-6">
-              <label className="text-gray-500 text-xs font-bold mb-2 block">
-                PASSWORD BARU
-              </label>
-              <input
-                type="text"
-                value={newStaffPassword}
-                onChange={(e) => setNewStaffPassword(e.target.value)}
-                placeholder="cth: newpass123"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-              />
+          {/* Reset Password Staff Modal */}
+          {resetStaffId && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                <h3 className="text-gray-900 font-bold text-lg mb-2">
+                  <KeyRound
+                    size={18}
+                    className="text-[var(--accent-600)] inline mr-2"
+                  />{" "}
+                  Reset Password
+                </h3>
+                <p className="text-gray-400 text-sm mb-6">{resetStaffNama}</p>
+                <div className="mb-6">
+                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    PASSWORD BARU
+                  </label>
+                  <input
+                    type="text"
+                    value={newStaffPassword}
+                    onChange={(e) => setNewStaffPassword(e.target.value)}
+                    placeholder="cth: newpass123"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setResetStaffId(null)}
+                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={resetPasswordStaff}
+                    disabled={!newStaffPassword.trim()}
+                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setResetStaffId(null)}
-                className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
-              >
-                Batal
-              </button>
-              <button
-                onClick={resetPasswordStaff}
-                disabled={!newStaffPassword.trim()}
-                className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
         </div>
       </div>
     </div>
