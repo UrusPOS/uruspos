@@ -2504,7 +2504,7 @@ export default function OwnerDashboardPage() {
             pill: "bg-gray-200 text-gray-800",
           };
 
-  const urusposFee = urusposFeeEstimate.fee;
+  const urusposFee = isBeta ? 0 : urusposFeeEstimate.fee;
   const PlanIcon = isBeta
     ? Clock3
     : isActivePlan
@@ -2990,9 +2990,9 @@ export default function OwnerDashboardPage() {
   }) => (
     <>
       <div
-        className={`${expanded ? "px-5" : "px-3"} h-16 flex items-center justify-between border-b border-gray-100 bg-white`}
+        className={`${expanded ? "px-5 justify-between" : "px-0 justify-center"} h-16 flex items-center border-b border-gray-100 bg-white`}
       >
-        {expanded ? (
+        {expanded && (
           <div className="min-w-0">
             <div className="text-gray-900 font-medium text-base tracking-tight leading-none">
               Urus<span className="text-[var(--accent-600)]">POS</span>
@@ -3001,8 +3001,6 @@ export default function OwnerDashboardPage() {
               Owner Dashboard
             </div>
           </div>
-        ) : (
-          <div className="w-full" />
         )}
 
         {mobile ? (
@@ -3274,7 +3272,7 @@ export default function OwnerDashboardPage() {
                   Fee UrusPOS
                 </div>
                 <div className="text-[var(--accent-600)] text-[11px] font-medium mt-0.5">
-                  Anggaran bulan ini
+                  {isBeta ? "Beta Plan — Tiada caj" : "Anggaran bulan ini"}
                 </div>
               </div>
               <div className="w-8 h-8 rounded-xl bg-white border border-[var(--accent-100)] flex items-center justify-center text-[var(--accent-600)] shrink-0">
@@ -3282,7 +3280,12 @@ export default function OwnerDashboardPage() {
               </div>
             </div>
             <div className="text-gray-900 text-xl font-medium tracking-tight">
-              {formatRM(urusposFeeEstimate.fee)}
+              {formatRM(urusposFee)}
+            </div>
+            <div className="text-[var(--accent-600)] text-[10px] font-medium mt-1">
+              {isBeta
+                ? "Fee tidak dikenakan untuk status beta"
+                : `2% daripada jualan ${formatRM(urusposFeeEstimate.monthToDateSales)}`}
             </div>
           </div>
         )}

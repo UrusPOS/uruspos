@@ -1163,7 +1163,7 @@ export default function SuperadminDashboardPage() {
     return (
       <>
         <div
-          className={`${expanded ? "px-6" : "px-3"} py-5 flex items-center justify-between border-b border-gray-100`}
+          className={`${expanded ? "px-5" : "px-3"} py-5 flex items-center justify-between border-b border-gray-100`}
         >
           {expanded ? (
             <div className="min-w-0">
@@ -1175,16 +1175,34 @@ export default function SuperadminDashboardPage() {
               </div>
             </div>
           ) : (
-            <div className="w-full h-10" />
+            !mobile && (
+              <button
+                onClick={() => setDesktopSidebarExpanded((v) => !v)}
+                className="mx-auto w-10 h-10 flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all"
+                title="Buka menu"
+              >
+                <Menu size={20} />
+              </button>
+            )
           )}
 
-          {mobile && (
+          {mobile ? (
             <button
               onClick={() => setShowMobileMenu(false)}
               className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600"
             >
               <X size={18} />
             </button>
+          ) : (
+            expanded && (
+              <button
+                onClick={() => setDesktopSidebarExpanded((v) => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all"
+                title="Tutup menu"
+              >
+                <Menu size={20} />
+              </button>
+            )
           )}
         </div>
 
@@ -1278,13 +1296,6 @@ export default function SuperadminDashboardPage() {
             <button
               onClick={() => setShowMobileMenu(true)}
               className="md:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50"
-            >
-              <Menu size={20} />
-            </button>
-
-            <button
-              onClick={() => setDesktopSidebarExpanded((v) => !v)}
-              className="hidden md:flex w-9 h-9 items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-gray-50"
             >
               <Menu size={20} />
             </button>
