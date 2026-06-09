@@ -44,6 +44,15 @@ import {
   Minus,
   ShoppingCart,
 } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 // Safe icon aliases — replaces lucide icons that may not exist in older versions
 const FolderTree = List;
@@ -227,7 +236,9 @@ function getDateRange(
   }
   if (filter === "weekly") {
     const from = new Date(now);
-    from.setDate(now.getDate() - 6);
+    const day = from.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    from.setDate(from.getDate() + diffToMonday);
     from.setHours(0, 0, 0, 0);
     return { from: from.toISOString(), to: to.toISOString() };
   }
@@ -425,6 +436,28 @@ function getPaymentMethod(order: any) {
     order?.method ||
     null
   );
+}
+
+function formatPaymentMethod(method?: string | null) {
+  const normalized = normalizeText(method);
+  if (!normalized) return "Belum direkod";
+  if (["duitnow", "duit now", "qr", "qrcode", "qr code"].includes(normalized))
+    return "DuitNow";
+  if (["tunai", "cash"].includes(normalized)) return "Tunai";
+  if (["card", "kad"].includes(normalized)) return "Kad";
+  if (["online", "transfer", "bank_transfer", "bank transfer"].includes(normalized))
+    return "Online Transfer";
+  return String(method || "Belum direkod").trim();
+}
+
+function formatOrderType(value?: string | null) {
+  const normalized = normalizeText(value);
+  if (!normalized) return "-";
+  if (["dine-in", "dine in", "dinein", "di kedai"].includes(normalized))
+    return "Di Kedai";
+  if (["takeaway", "take away", "pickup", "bungkus"].includes(normalized))
+    return "Bungkus";
+  return String(value || "-").trim();
 }
 
 function isPaidSalesOrder(order: any) {
@@ -845,7 +878,7 @@ export default function OwnerDashboardPage() {
   const [activeReportTab, setActiveReportTab] = useState("sales-summary");
   const [activeInventoryTab, setActiveInventoryTab] = useState("inventory");
   const [recordsPage, setRecordsPage] = useState(1);
-  const [activeSettingsTab, setActiveSettingsTab] = useState("table-setup");
+  const [activeSettingsTab, setActiveSettingsTab] = useState("kedai");
 
   // useEffect 1 — fetch session & kedai info
   useEffect(() => {
@@ -922,7 +955,7 @@ export default function OwnerDashboardPage() {
       fetchStaff(resolvedKedaiId);
       fetchCategories(resolvedKedaiId);
 
-      if (activeTab === "inventory") fetchProduk(resolvedKedaiId);
+      fetchProduk(resolvedKedaiId);
     } else {
       setKedaiInfo(null);
     }
@@ -1109,7 +1142,7 @@ export default function OwnerDashboardPage() {
         const paymentMap: Record<string, PaymentSummaryItem> = {};
 
         paidOrders.forEach((order: any) => {
-          const pm = String(getPaymentMethod(order) || "Belum direkod");
+          const pm = formatPaymentMethod(getPaymentMethod(order));
           if (!paymentMap[pm])
             paymentMap[pm] = { method: pm, total: 0, count: 0 };
           paymentMap[pm].total += getOrderTotal(order);
@@ -2057,7 +2090,7 @@ export default function OwnerDashboardPage() {
     setSaving(false);
 
     if (error) {
-      setThemeMsg(`Gagal simpan theme: ${error.message}`);
+      setThemeMsg(`Gagal simpan tema: ${error.message}`);
       return;
     }
 
@@ -2070,7 +2103,7 @@ export default function OwnerDashboardPage() {
           }
         : prev,
     );
-    setThemeMsg("Theme kedai berjaya disimpan.");
+    setThemeMsg("Tema kedai berjaya disimpan.");
     setTimeout(() => setThemeMsg(""), 3000);
   }
 
@@ -2157,7 +2190,7 @@ export default function OwnerDashboardPage() {
   function filterLabel() {
     if (filter === "daily") return "Hari Ini";
     if (filter === "yesterday") return "Semalam";
-    if (filter === "weekly") return "7 Hari Lepas";
+    if (filter === "weekly") return "Minggu Ini";
     if (filter === "monthly") return "Bulan Ini";
     if (filter === "custom" && customFrom && customTo)
       return `${formatDateLabel(customFrom)} — ${formatDateLabel(customTo)}`;
@@ -2167,7 +2200,7 @@ export default function OwnerDashboardPage() {
   function pendingFilterLabel(value: FilterType) {
     if (value === "daily") return "Hari Ini";
     if (value === "yesterday") return "Semalam";
-    if (value === "weekly") return "7 Hari Lepas";
+    if (value === "weekly") return "Minggu Ini";
     if (value === "monthly") return "Bulan Ini";
     return "Tarikh Custom";
   }
@@ -2273,6 +2306,9 @@ export default function OwnerDashboardPage() {
 
   function displayMejaLabel(meja?: string | null) {
     if (!meja) return "-";
+    const normalized = normalizeText(meja);
+    if (["dine-in", "dine in", "dinein"].includes(normalized)) return "Di Kedai";
+    if (["takeaway", "take away", "pickup", "bungkus"].includes(normalized)) return "Bungkus";
     if (meja === "Bungkus") return "Bungkus";
     if (meja.startsWith("Meja")) return meja;
     if (meja.startsWith("T")) return `Meja ${meja.replace("T", "")}`;
@@ -2288,7 +2324,7 @@ export default function OwnerDashboardPage() {
       `Receipt: #${receiptNo}`,
       `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
       `Jenis: ${displayMejaLabel(receipt.meja)}`,
-      `Bayaran: ${receipt.payment_method || "Belum direkod"}`,
+      `Bayaran: ${formatPaymentMethod(receipt.payment_method)}`,
       "",
       "ITEM",
       ...receipt.order_items.flatMap((item) => {
@@ -2754,7 +2790,7 @@ export default function OwnerDashboardPage() {
       id: "sales-summary",
       icon: DollarSign,
       label: "Rumusan Jualan",
-      description: "Sales, order, margin & payment",
+      description: "Jualan, pesanan, margin & bayaran",
     },
     {
       id: "receipts",
@@ -2787,28 +2823,16 @@ export default function OwnerDashboardPage() {
 
   const settingsMenuItems = [
     {
-      id: "table-setup",
-      icon: Armchair,
-      label: "Setup Meja",
-      description: "Bilangan meja POS",
-    },
-    {
-      id: "store-setup",
+      id: "kedai",
       icon: Store,
-      label: "Setup Kedai",
-      description: "Logo & QR DuitNow",
-    },
-    {
-      id: "charge-setup",
-      icon: BadgePercent,
-      label: "Setup Caj",
-      description: "SST & service charge",
+      label: "Kedai",
+      description: "Setup meja, kedai & caj",
     },
     {
       id: "theme",
       icon: Palette,
-      label: "Theme",
-      description: "Warna & mode paparan",
+      label: "Tema",
+      description: "Mode paparan & warna",
     },
     {
       id: "password",
@@ -2905,7 +2929,7 @@ export default function OwnerDashboardPage() {
   );
 
   const FilterBar = () => (
-    <div className="relative inline-block mb-4">
+    <div className="relative inline-block">
       <button
         onClick={openFilterDropdown}
         className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
@@ -2994,11 +3018,9 @@ export default function OwnerDashboardPage() {
             onClick={() => setDesktopSidebarExpanded((value) => !value)}
             className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all"
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-            title={expanded ? "Collapse menu" : "Expand menu"}
+            title={expanded ? "Tutup menu" : "Buka menu"}
           >
-            <span className="text-sm font-medium leading-none">
-              {expanded ? "‹‹" : "››"}
-            </span>
+            <Menu size={18} strokeWidth={1.8} />
           </button>
         )}
       </div>
@@ -3052,10 +3074,6 @@ export default function OwnerDashboardPage() {
                       : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                   }`}
                 >
-                  {expanded && parentActive && (
-                    <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-[var(--accent-600)]" />
-                  )}
-
                   <Icon
                     size={17}
                     strokeWidth={1.8}
@@ -3194,7 +3212,7 @@ export default function OwnerDashboardPage() {
       </nav>
 
       <div
-        className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100 bg-white`}
+        className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100 bg-white space-y-3`}
       >
         <a
           href="/auth/logout"
@@ -3206,6 +3224,68 @@ export default function OwnerDashboardPage() {
           <LogOut size={16} strokeWidth={1.8} />
           {expanded && <span>Log Keluar</span>}
         </a>
+
+        {expanded ? (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] text-sm font-medium shrink-0">
+                {userProfilePhotoUrl ? (
+                  <img
+                    src={userProfilePhotoUrl}
+                    alt={sessionUser?.nama || "Profile user"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  userInitial
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-gray-900 text-sm font-medium leading-tight truncate">
+                  {sessionUser?.nama || "Owner"}
+                </div>
+                <div className="text-gray-400 text-xs font-medium mt-0.5 truncate">
+                  Owner
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div
+            title={sessionUser?.nama || "Owner"}
+            className="mx-auto w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] text-sm font-medium"
+          >
+            {userProfilePhotoUrl ? (
+              <img
+                src={userProfilePhotoUrl}
+                alt={sessionUser?.nama || "Profile user"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              userInitial
+            )}
+          </div>
+        )}
+
+        {expanded && (
+          <div className="rounded-2xl border border-[var(--accent-100)] bg-[var(--accent-50)] p-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <div className="text-[var(--accent-800)] text-sm font-medium">
+                  Fee UrusPOS
+                </div>
+                <div className="text-[var(--accent-600)] text-[11px] font-medium mt-0.5">
+                  Anggaran bulan ini
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-xl bg-white border border-[var(--accent-100)] flex items-center justify-center text-[var(--accent-600)] shrink-0">
+                <Receipt size={15} strokeWidth={1.8} />
+              </div>
+            </div>
+            <div className="text-gray-900 text-xl font-medium tracking-tight">
+              {formatRM(urusposFeeEstimate.fee)}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -3251,26 +3331,8 @@ export default function OwnerDashboardPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="hidden sm:block text-right">
-              <div className="text-gray-900 text-sm font-medium leading-tight">
-                {sessionUser?.nama || "Owner"}
-              </div>
-              <div className="text-gray-400 text-[11px] font-medium mt-0.5">
-                Owner
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] font-medium">
-              {userProfilePhotoUrl ? (
-                <img
-                  src={userProfilePhotoUrl}
-                  alt={sessionUser?.nama || "Profile user"}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                userInitial
-              )}
-            </div>
+          <div className="hidden sm:block text-gray-900 font-medium text-base tracking-tight shrink-0">
+            Urus<span className="text-[var(--accent-600)]">POS</span>
           </div>
         </div>
       </div>
@@ -3418,9 +3480,9 @@ export default function OwnerDashboardPage() {
                   <div className="bg-gray-50 border border-gray-100 rounded-2xl p-1 flex items-center gap-1 shrink-0">
                     {(
                       [
-                        { id: "daily", label: "Daily" },
-                        { id: "weekly", label: "Weekly" },
-                        { id: "monthly", label: "Monthly" },
+                        { id: "daily", label: "Hari Ini" },
+                        { id: "weekly", label: "Minggu Ini" },
+                        { id: "monthly", label: "Bulan Ini" },
                       ] as { id: FilterType; label: string }[]
                     ).map((option) => (
                       <button
@@ -3456,7 +3518,12 @@ export default function OwnerDashboardPage() {
                 ) : (
                   <div>
                     {(() => {
-                      const chartData = reportData.salesTrend;
+                      const chartData = reportData.salesTrend.map((item) => ({
+                        ...item,
+                        total: Number(item.total || 0),
+                        profit: Number(item.profit || 0),
+                        orders: Number(item.orders || 0),
+                      }));
                       const maxSales = Math.max(
                         ...chartData.map((item) => Number(item.total || 0)),
                         1,
@@ -3469,177 +3536,92 @@ export default function OwnerDashboardPage() {
                         (sum, item) => sum + Number(item.orders || 0),
                         0,
                       );
-                      const width = 720;
-                      const height = 270;
-                      const padX = 34;
-                      const padTop = 34;
-                      const chartHeight = 160;
-                      const baseY = padTop + chartHeight;
-                      const points = chartData.map((item, index) => {
-                        const x =
-                          chartData.length === 1
-                            ? width / 2
-                            : padX +
-                              (index / (chartData.length - 1)) *
-                                (width - padX * 2);
-                        const y =
-                          padTop +
-                          (1 - Number(item.total || 0) / maxSales) *
-                            chartHeight;
-
-                        return {
-                          ...item,
-                          x,
-                          y,
-                          value: Number(item.total || 0),
-                        };
-                      });
-                      const linePath = points
-                        .map(
-                          (point, index) =>
-                            `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
-                        )
-                        .join(" ");
-                      const areaPath = points.length
-                        ? `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`
-                        : "";
-                      const peakPoint = points.reduce(
-                        (selected, point) =>
-                          point.value > selected.value ? point : selected,
-                        points[0],
-                      );
-                      const labelIndexes = new Set([
-                        0,
-                        Math.floor((points.length - 1) / 2),
-                        points.length - 1,
-                      ]);
 
                       return (
                         <>
-                          <div className="relative h-72 rounded-3xl bg-gray-50 border border-gray-100 px-3 pt-4 pb-2 overflow-hidden">
-                            <svg
-                              viewBox={`0 0 ${width} ${height}`}
-                              className="w-full h-full"
-                              preserveAspectRatio="none"
-                            >
-                              <defs>
-                                <linearGradient
-                                  id="dashboardOwnerSalesArea"
-                                  x1="0"
-                                  y1="0"
-                                  x2="0"
-                                  y2="1"
-                                >
-                                  <stop
-                                    offset="0%"
-                                    stopColor="var(--accent-500)"
-                                    stopOpacity="0.18"
-                                  />
-                                  <stop
-                                    offset="100%"
-                                    stopColor="var(--accent-500)"
-                                    stopOpacity="0"
-                                  />
-                                </linearGradient>
-                              </defs>
-
-                              {[0, 1, 2, 3].map((grid) => {
-                                const gridY = padTop + (grid / 3) * chartHeight;
-                                return (
-                                  <line
-                                    key={`dashboard-line-grid-${grid}`}
-                                    x1={padX}
-                                    y1={gridY}
-                                    x2={width - padX}
-                                    y2={gridY}
-                                    stroke="#e5e7eb"
-                                    strokeWidth="1"
-                                    strokeDasharray="5 7"
-                                  />
-                                );
-                              })}
-
-                              {areaPath && (
-                                <path
-                                  d={areaPath}
-                                  fill="url(#dashboardOwnerSalesArea)"
-                                />
-                              )}
-
-                              {linePath && (
-                                <path
-                                  d={linePath}
-                                  fill="none"
-                                  stroke="var(--accent-600)"
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  vectorEffect="non-scaling-stroke"
-                                />
-                              )}
-
-                              {points.map((point, index) => (
-                                <g key={`dashboard-sales-point-${point.label}-${index}`}>
-                                  <circle
-                                    cx={point.x}
-                                    cy={point.y}
-                                    r={point.value > 0 ? "5" : "0"}
-                                    fill="white"
-                                    stroke="var(--accent-600)"
-                                    strokeWidth="3"
-                                    vectorEffect="non-scaling-stroke"
-                                  />
-                                  {labelIndexes.has(index) && (
-                                    <text
-                                      x={point.x}
-                                      y={height - 25}
-                                      textAnchor="middle"
-                                      fontSize="13"
-                                      fontWeight="700"
-                                      fill="#9ca3af"
-                                    >
-                                      {point.label}
-                                    </text>
-                                  )}
-                                </g>
-                              ))}
-
-                              {peakPoint && peakPoint.value > 0 && (
-                                <g>
-                                  <line
-                                    x1={peakPoint.x}
-                                    y1={peakPoint.y + 8}
-                                    x2={peakPoint.x}
-                                    y2={baseY}
-                                    stroke="var(--accent-500)"
-                                    strokeWidth="1"
-                                    strokeDasharray="4 5"
-                                    vectorEffect="non-scaling-stroke"
-                                  />
-                                  <circle
-                                    cx={peakPoint.x}
-                                    cy={peakPoint.y}
-                                    r="7"
-                                    fill="white"
-                                    stroke="var(--accent-600)"
-                                    strokeWidth="3"
-                                    vectorEffect="non-scaling-stroke"
-                                  />
-                                </g>
-                              )}
-                            </svg>
-
-                            {peakPoint && peakPoint.value > 0 && (
-                              <div
-                                className="absolute -translate-x-1/2 -translate-y-full bg-[var(--accent-600)] text-white text-[10px] font-medium px-3 py-2 rounded-xl shadow-lg"
-                                style={{
-                                  left: `${(peakPoint.x / width) * 100}%`,
-                                  top: `${Math.max((peakPoint.y / height) * 100, 18)}%`,
-                                }}
+                          <div className="h-72 rounded-3xl bg-gray-50 border border-gray-100 px-3 pt-5 pb-2 overflow-hidden">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <AreaChart
+                                data={chartData}
+                                margin={{ top: 12, right: 12, left: 0, bottom: 6 }}
                               >
-                                {formatRM(peakPoint.value)}
-                              </div>
-                            )}
+                                <defs>
+                                  <linearGradient
+                                    id="dashboardOwnerSalesRechartsArea"
+                                    x1="0"
+                                    y1="0"
+                                    x2="0"
+                                    y2="1"
+                                  >
+                                    <stop
+                                      offset="0%"
+                                      stopColor="var(--accent-500)"
+                                      stopOpacity={0.2}
+                                    />
+                                    <stop
+                                      offset="100%"
+                                      stopColor="var(--accent-500)"
+                                      stopOpacity={0}
+                                    />
+                                  </linearGradient>
+                                </defs>
+
+                                <CartesianGrid
+                                  vertical={false}
+                                  stroke="#e5e7eb"
+                                  strokeDasharray="5 7"
+                                />
+                                <XAxis
+                                  dataKey="label"
+                                  axisLine={false}
+                                  tickLine={false}
+                                  interval="preserveStartEnd"
+                                  tick={{ fill: "#9ca3af", fontSize: 11, fontWeight: 500 }}
+                                  dy={10}
+                                />
+                                <YAxis
+                                  hide
+                                  domain={[0, Math.ceil(maxSales * 1.15)]}
+                                />
+                                <Tooltip
+                                  cursor={{
+                                    stroke: "var(--accent-500)",
+                                    strokeWidth: 1,
+                                    strokeDasharray: "4 5",
+                                  }}
+                                  formatter={(value: any, name: any) => [
+                                    name === "total" ? formatRM(Number(value || 0)) : value,
+                                    name === "total" ? "Jualan" : name,
+                                  ]}
+                                  labelFormatter={(label) => String(label)}
+                                  contentStyle={{
+                                    border: "1px solid #e5e7eb",
+                                    borderRadius: 14,
+                                    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+                                    fontSize: 12,
+                                  }}
+                                />
+                                <Area
+                                  type="monotone"
+                                  dataKey="total"
+                                  stroke="var(--accent-600)"
+                                  strokeWidth={3}
+                                  fill="url(#dashboardOwnerSalesRechartsArea)"
+                                  activeDot={{
+                                    r: 6,
+                                    stroke: "var(--accent-600)",
+                                    strokeWidth: 3,
+                                    fill: "#ffffff",
+                                  }}
+                                  dot={{
+                                    r: 4,
+                                    stroke: "var(--accent-600)",
+                                    strokeWidth: 2,
+                                    fill: "#ffffff",
+                                  }}
+                                />
+                              </AreaChart>
+                            </ResponsiveContainer>
                           </div>
 
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
@@ -3831,6 +3813,12 @@ export default function OwnerDashboardPage() {
                       "Urus menu, kategori, stok dan rekod pergerakan menu kedai."}
                   </p>
                 </div>
+
+                {(activeInventoryTab === "summary" || activeInventoryTab === "records") && (
+                  <div className="flex items-center sm:justify-end">
+                    <FilterBar />
+                  </div>
+                )}
 
                 {activeInventoryTab === "inventory" && (
                   <div className="flex items-center gap-2">
@@ -4290,7 +4278,6 @@ export default function OwnerDashboardPage() {
 
               {activeInventoryTab === "summary" && (
                 <div className="space-y-4">
-                  <FilterBar />
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
                       <div className="text-gray-400 text-[10px] font-medium">
@@ -4497,7 +4484,6 @@ export default function OwnerDashboardPage() {
 
               {activeInventoryTab === "records" && (
                 <div className="space-y-4">
-                  <FilterBar />
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>
@@ -4708,7 +4694,7 @@ export default function OwnerDashboardPage() {
           {/* LAPORAN */}
           {activeTab === "laporan" && (
             <div>
-              <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-gray-900 font-medium text-xl">
                     {activeReport?.label || "Jualan"}
@@ -4718,15 +4704,17 @@ export default function OwnerDashboardPage() {
                       "Rumusan jualan dan rekod resit ikut tempoh dipilih"}
                   </p>
                 </div>
-                <button
-                  onClick={() => fetchAllData(sessionUser?.kedai_id)}
-                  disabled={loadingReport}
-                  className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
-                >
-                  {loadingReport ? "Loading..." : "Refresh"}
-                </button>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <FilterBar />
+                  <button
+                    onClick={() => fetchAllData(sessionUser?.kedai_id)}
+                    disabled={loadingReport}
+                    className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50"
+                  >
+                    {loadingReport ? "Memuat..." : "Muat Semula"}
+                  </button>
+                </div>
               </div>
-              <FilterBar />
               {activeReportTab === "sales-summary" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -4744,13 +4732,10 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="relative z-10 mt-5">
                           <div className="text-[var(--accent-100)] text-xs font-medium">
-                            Total Sales
+                            Jumlah Jualan
                           </div>
                           <div className="text-white text-3xl sm:text-4xl font-medium mt-1 tracking-tight">
                             {formatRM(reportData.totalSales)}
-                          </div>
-                          <div className="text-[var(--accent-100)] text-xs font-medium mt-2">
-                            {reportData.totalOrders} order dalam tempoh ini
                           </div>
                         </div>
                       </div>
@@ -4766,13 +4751,13 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="mt-5">
                           <div className="text-gray-400 text-xs font-medium">
-                            Total Orders
+                            Jumlah Pesanan
                           </div>
                           <div className="text-gray-950 text-3xl font-medium mt-1">
                             {reportData.totalOrders}
                           </div>
                           <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
-                            Purata nilai setiap order
+                            Purata nilai setiap pesanan
                           </div>
                         </div>
                       </div>
@@ -4788,7 +4773,7 @@ export default function OwnerDashboardPage() {
                         </div>
                         <div className="mt-5">
                           <div className="text-gray-400 text-xs font-medium">
-                            Gross Profit
+                            Untung Kasar
                           </div>
                           <div className="text-gray-950 text-3xl font-medium mt-1">
                             {formatRM(reportData.grossProfit)}
@@ -4805,12 +4790,12 @@ export default function OwnerDashboardPage() {
                             <TrendingDown size={21} strokeWidth={1.9} />
                           </div>
                           <span className="bg-red-50 text-red-500 text-[11px] font-medium px-2.5 py-1 rounded-full border border-red-100">
-                            Cost
+                            Kos
                           </span>
                         </div>
                         <div className="mt-5">
                           <div className="text-gray-400 text-xs font-medium">
-                            COGS
+                            Kos Menu Terjual
                           </div>
                           <div className="text-gray-950 text-3xl font-medium mt-1">
                             {formatRM(reportData.cogs)}
@@ -4826,10 +4811,10 @@ export default function OwnerDashboardPage() {
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
                           <h3 className="text-gray-900 font-medium text-base">
-                            Menu Statistic
+                            Statistik Menu
                           </h3>
                           <p className="text-gray-400 text-xs font-medium mt-1">
-                            Top menu ikut kuantiti terjual
+                            Menu terbaik ikut kuantiti terjual
                           </p>
                         </div>
                         <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
@@ -4867,7 +4852,7 @@ export default function OwnerDashboardPage() {
                             )}
                           </div>
                           <div className="text-gray-500 text-[11px] font-medium mt-2">
-                            Sales top menu
+                            Jualan menu terbaik
                           </div>
                         </div>
                       </div>
@@ -4943,10 +4928,10 @@ export default function OwnerDashboardPage() {
                     <div className="flex items-start justify-between gap-3 mb-5">
                       <div>
                         <h3 className="text-gray-900 font-medium text-base">
-                          Sales Trend
+                          Trend Jualan
                         </h3>
                         <p className="text-gray-400 text-xs font-medium mt-1">
-                          Trend jualan dan order ikut tempoh filter
+                          Trend jualan dan pesanan ikut tempoh filter
                         </p>
                       </div>
                       <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
@@ -4971,170 +4956,102 @@ export default function OwnerDashboardPage() {
                       </div>
                     ) : (
                       <div>
-                        <div className="rounded-3xl bg-gray-50 border border-gray-100 p-4 overflow-hidden">
+                        <div className="h-72 rounded-3xl bg-gray-50 border border-gray-100 px-3 pt-5 pb-2 overflow-hidden">
                           {(() => {
-                            const chartData = reportData.salesTrend;
+                            const chartData = reportData.salesTrend.map((item) => ({
+                              ...item,
+                              total: Number(item.total || 0),
+                              profit: Number(item.profit || 0),
+                              orders: Number(item.orders || 0),
+                            }));
                             const maxSales = Math.max(
-                              ...chartData.map((trend) =>
-                                Number(trend.total || 0),
-                              ),
+                              ...chartData.map((trend) => Number(trend.total || 0)),
                               1,
                             );
-                            const width = 560;
-                            const height = 210;
-                            const padX = 34;
-                            const padTop = 24;
-                            const chartHeight = 132;
-                            const baseY = padTop + chartHeight;
-                            const points = chartData.map((item, index) => {
-                              const x =
-                                chartData.length === 1
-                                  ? width / 2
-                                  : padX +
-                                    (index / (chartData.length - 1)) *
-                                      (width - padX * 2);
-                              const y =
-                                padTop +
-                                (1 - Number(item.total || 0) / maxSales) *
-                                  chartHeight;
-                              return {
-                                ...item,
-                                x,
-                                y,
-                                totalValue: Number(item.total || 0),
-                              };
-                            });
-                            const linePath = points
-                              .map(
-                                (point, index) =>
-                                  `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
-                              )
-                              .join(" ");
-                            const areaPath = points.length
-                              ? `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`
-                              : "";
-                            const labelIndexes = new Set([
-                              0,
-                              Math.floor((points.length - 1) / 2),
-                              points.length - 1,
-                            ]);
 
                             return (
-                              <div>
-                                <div className="relative h-56">
-                                  <svg
-                                    viewBox={`0 0 ${width} ${height}`}
-                                    className="w-full h-full"
-                                    preserveAspectRatio="none"
-                                  >
-                                    <defs>
-                                      <linearGradient
-                                        id="ownerSalesTrendArea"
-                                        x1="0"
-                                        y1="0"
-                                        x2="0"
-                                        y2="1"
-                                      >
-                                        <stop
-                                          offset="0%"
-                                          stopColor="var(--accent-500)"
-                                          stopOpacity="0.22"
-                                        />
-                                        <stop
-                                          offset="100%"
-                                          stopColor="var(--accent-500)"
-                                          stopOpacity="0"
-                                        />
-                                      </linearGradient>
-                                    </defs>
-
-                                    {[0, 1, 2, 3].map((grid) => {
-                                      const gridY =
-                                        padTop + (grid / 3) * chartHeight;
-                                      return (
-                                        <line
-                                          key={`grid-${grid}`}
-                                          x1={padX}
-                                          y1={gridY}
-                                          x2={width - padX}
-                                          y2={gridY}
-                                          stroke="#e5e7eb"
-                                          strokeWidth="1"
-                                          strokeDasharray="5 7"
-                                        />
-                                      );
-                                    })}
-
-                                    {areaPath && (
-                                      <path
-                                        d={areaPath}
-                                        fill="url(#ownerSalesTrendArea)"
+                              <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart
+                                  data={chartData}
+                                  margin={{ top: 12, right: 12, left: 0, bottom: 6 }}
+                                >
+                                  <defs>
+                                    <linearGradient
+                                      id="ownerSalesSummaryRechartsArea"
+                                      x1="0"
+                                      y1="0"
+                                      x2="0"
+                                      y2="1"
+                                    >
+                                      <stop
+                                        offset="0%"
+                                        stopColor="var(--accent-500)"
+                                        stopOpacity={0.2}
                                       />
-                                    )}
-                                    {linePath && (
-                                      <path
-                                        d={linePath}
-                                        fill="none"
-                                        stroke="var(--accent-600)"
-                                        strokeWidth="5"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        vectorEffect="non-scaling-stroke"
+                                      <stop
+                                        offset="100%"
+                                        stopColor="var(--accent-500)"
+                                        stopOpacity={0}
                                       />
-                                    )}
+                                    </linearGradient>
+                                  </defs>
 
-                                    {points.map((point, index) => (
-                                      <g key={`${point.label}-${index}`}>
-                                        <circle
-                                          cx={point.x}
-                                          cy={point.y}
-                                          r="6"
-                                          fill="white"
-                                          stroke="var(--accent-600)"
-                                          strokeWidth="4"
-                                          vectorEffect="non-scaling-stroke"
-                                        />
-                                        {labelIndexes.has(index) && (
-                                          <text
-                                            x={point.x}
-                                            y={height - 22}
-                                            textAnchor="middle"
-                                            fontSize="13"
-                                            fontWeight="800"
-                                            fill="#9ca3af"
-                                          >
-                                            {point.label}
-                                          </text>
-                                        )}
-                                      </g>
-                                    ))}
-                                  </svg>
-
-                                  <div className="absolute left-3 top-3 bg-white/90 backdrop-blur border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
-                                    <div className="text-gray-400 text-[10px] font-medium">
-                                      Peak Sales
-                                    </div>
-                                    <div className="text-gray-900 text-sm font-medium mt-0.5">
-                                      {formatRM(maxSales)}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-medium text-gray-400">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-600)]" />
-                                    <span>Sales amount</span>
-                                  </div>
-                                  <div className="text-gray-500">
-                                    {chartData.reduce(
-                                      (sum, item) =>
-                                        sum + Number(item.orders || 0),
-                                      0,
-                                    )}{" "}
-                                    order
-                                  </div>
-                                </div>
-                              </div>
+                                  <CartesianGrid
+                                    vertical={false}
+                                    stroke="#e5e7eb"
+                                    strokeDasharray="5 7"
+                                  />
+                                  <XAxis
+                                    dataKey="label"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    interval="preserveStartEnd"
+                                    tick={{ fill: "#9ca3af", fontSize: 11, fontWeight: 500 }}
+                                    dy={10}
+                                  />
+                                  <YAxis
+                                    hide
+                                    domain={[0, Math.ceil(maxSales * 1.15)]}
+                                  />
+                                  <Tooltip
+                                    cursor={{
+                                      stroke: "var(--accent-500)",
+                                      strokeWidth: 1,
+                                      strokeDasharray: "4 5",
+                                    }}
+                                    formatter={(value: any, name: any) => [
+                                      name === "total" ? formatRM(Number(value || 0)) : value,
+                                      name === "total" ? "Jualan" : name,
+                                    ]}
+                                    labelFormatter={(label) => String(label)}
+                                    contentStyle={{
+                                      border: "1px solid #e5e7eb",
+                                      borderRadius: 14,
+                                      boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+                                      fontSize: 12,
+                                    }}
+                                  />
+                                  <Area
+                                    type="monotone"
+                                    dataKey="total"
+                                    stroke="var(--accent-600)"
+                                    strokeWidth={3}
+                                    fill="url(#ownerSalesSummaryRechartsArea)"
+                                    activeDot={{
+                                      r: 6,
+                                      stroke: "var(--accent-600)",
+                                      strokeWidth: 3,
+                                      fill: "#ffffff",
+                                    }}
+                                    dot={{
+                                      r: 4,
+                                      stroke: "var(--accent-600)",
+                                      strokeWidth: 2,
+                                      fill: "#ffffff",
+                                    }}
+                                  />
+                                </AreaChart>
+                              </ResponsiveContainer>
                             );
                           })()}
                         </div>
@@ -5142,7 +5059,7 @@ export default function OwnerDashboardPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                           <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
                             <div className="text-[var(--accent-700)] text-[10px] font-medium">
-                              Peak Sales
+                              Jualan Tertinggi
                             </div>
                             <div className="text-[var(--accent-800)] text-sm font-medium mt-1">
                               {formatRM(
@@ -5157,7 +5074,7 @@ export default function OwnerDashboardPage() {
                           </div>
                           <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
                             <div className="text-gray-400 text-[10px] font-medium">
-                              Total Order
+                              Jumlah Pesanan
                             </div>
                             <div className="text-gray-900 text-sm font-medium mt-1">
                               {reportData.salesTrend.reduce(
@@ -5168,7 +5085,7 @@ export default function OwnerDashboardPage() {
                           </div>
                           <div className="rounded-2xl bg-green-50 border border-green-100 p-3">
                             <div className="text-green-600 text-[10px] font-medium">
-                              Gross Profit
+                              Untung Kasar
                             </div>
                             <div className="text-green-700 text-sm font-medium mt-1">
                               {formatRM(reportData.grossProfit)}
@@ -5176,7 +5093,7 @@ export default function OwnerDashboardPage() {
                           </div>
                           <div className="rounded-2xl bg-red-50 border border-red-100 p-3">
                             <div className="text-red-500 text-[10px] font-medium">
-                              COGS
+                              Kos Menu Terjual
                             </div>
                             <div className="text-red-600 text-sm font-medium mt-1">
                               {formatRM(reportData.cogs)}
@@ -5192,10 +5109,10 @@ export default function OwnerDashboardPage() {
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
                           <h3 className="text-gray-900 font-medium text-base">
-                            Order Habits
+                            Corak Pesanan
                           </h3>
                           <p className="text-gray-400 text-xs font-medium mt-1">
-                            Pecahan dine-in, bungkus dan nilai order
+                            Pecahan Di Kedai, Bungkus dan nilai pesanan
                           </p>
                         </div>
                         <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
@@ -5208,7 +5125,7 @@ export default function OwnerDashboardPage() {
                           <div className="space-y-5">
                             {[
                               {
-                                label: "Dine-in",
+                                label: "Di Kedai",
                                 value: reportData.dineInOrders,
                                 total: Math.max(reportData.totalOrders, 1),
                                 icon: Store,
@@ -5220,7 +5137,7 @@ export default function OwnerDashboardPage() {
                                 icon: ShoppingCart,
                               },
                               {
-                                label: "Order Direkod",
+                                label: "Pesanan Direkod",
                                 value: reportData.totalOrders,
                                 total: Math.max(reportData.totalOrders, 1),
                                 icon: Receipt,
@@ -5246,7 +5163,7 @@ export default function OwnerDashboardPage() {
                                           {habit.label}
                                         </div>
                                         <div className="text-gray-400 text-[11px] font-medium">
-                                          {habit.value} order
+                                          {habit.value} pesanan
                                         </div>
                                       </div>
                                     </div>
@@ -5271,13 +5188,13 @@ export default function OwnerDashboardPage() {
                         <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
                           <div className="rounded-3xl bg-gray-950 text-white p-4">
                             <div className="text-gray-400 text-xs font-medium">
-                              Average Order
+                              Purata Pesanan
                             </div>
                             <div className="text-white text-2xl font-medium mt-2">
                               {formatRM(reportData.averageOrderValue)}
                             </div>
                             <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
-                              Per transaksi
+                              Setiap transaksi
                             </div>
                           </div>
                           <div className="rounded-3xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-4">
@@ -5288,7 +5205,7 @@ export default function OwnerDashboardPage() {
                               {reportData.margin}%
                             </div>
                             <div className="text-[var(--accent-600)] text-xs font-medium mt-2">
-                              Gross profit rate
+                              Kadar untung kasar
                             </div>
                           </div>
                         </div>
@@ -5299,7 +5216,7 @@ export default function OwnerDashboardPage() {
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
                           <h3 className="text-gray-900 font-medium text-base">
-                            Payment Method
+                            Kaedah Bayaran
                           </h3>
                           <p className="text-gray-400 text-xs font-medium mt-1">
                             Pecahan kaedah bayaran
@@ -5329,16 +5246,16 @@ export default function OwnerDashboardPage() {
 
                             return (
                               <div
-                                key={`payment-r1-${item.method}`}
+                                key={`payment-r1-${formatPaymentMethod(item.method)}`}
                                 className="rounded-2xl bg-gray-50 border border-gray-100 p-3"
                               >
                                 <div className="flex items-center justify-between gap-3 mb-2">
                                   <div>
                                     <div className="text-gray-900 text-sm font-medium">
-                                      {item.method}
+                                      {formatPaymentMethod(item.method)}
                                     </div>
                                     <div className="text-gray-400 text-xs font-medium">
-                                      {item.count} order
+                                      {item.count} pesanan
                                     </div>
                                   </div>
                                   <div className="text-right">
@@ -5370,7 +5287,7 @@ export default function OwnerDashboardPage() {
                     <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-gray-900 font-medium text-base">
-                          Recent Receipts
+                          Resit Terkini
                         </h3>
                         <p className="text-gray-400 text-xs font-medium mt-1">
                           Transaksi terbaru dalam filter semasa
@@ -5380,7 +5297,7 @@ export default function OwnerDashboardPage() {
                         onClick={() => setActiveReportTab("receipts")}
                         className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
                       >
-                        View all
+                        Lihat semua
                       </button>
                     </div>
 
@@ -5417,7 +5334,7 @@ export default function OwnerDashboardPage() {
                                   {formatRM(receipt.total)}
                                 </div>
                                 <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-medium mt-1 inline-block">
-                                  {receipt.payment_method || "Paid"}
+                                  {formatPaymentMethod(receipt.payment_method)}
                                 </div>
                               </div>
                             </button>
@@ -5485,7 +5402,7 @@ export default function OwnerDashboardPage() {
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-gray-900 font-medium text-sm">
                         <CreditCard size={15} className="text-blue-500" />{" "}
-                        Payment Method
+                        Kaedah Bayaran
                       </h3>
                       <span className="text-gray-400 text-xs font-medium">
                         {reportData.paymentSummary.length} jenis
@@ -5505,15 +5422,15 @@ export default function OwnerDashboardPage() {
                       <div className="space-y-3">
                         {reportData.paymentSummary.map((item) => (
                           <div
-                            key={item.method}
+                            key={formatPaymentMethod(item.method)}
                             className="flex items-center justify-between bg-gray-50 rounded-2xl p-3"
                           >
                             <div>
                               <div className="text-gray-900 text-sm font-medium">
-                                {item.method}
+                                {formatPaymentMethod(item.method)}
                               </div>
                               <div className="text-gray-400 text-xs">
-                                {item.count} order
+                                {item.count} pesanan
                               </div>
                             </div>
                             <div className="text-[var(--accent-600)] text-sm font-medium">
@@ -5530,7 +5447,7 @@ export default function OwnerDashboardPage() {
                         <div className="text-amber-700 text-xs font-medium">
                           <AlertTriangle size={14} className="inline mr-1" />
                           Ada order yang payment method belum disimpan. Pastikan
-                          staff pilih Tunai atau DuitNow masa checkout.
+                          staff pilih Tunai atau DuitNow semasa checkout.
                         </div>
                       </div>
                     )}
@@ -5834,7 +5751,7 @@ export default function OwnerDashboardPage() {
                                   <td className="px-4 py-4">
                                     <span className="inline-flex items-center gap-1.5 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full">
                                       <CreditCard size={13} strokeWidth={2} />
-                                      {receipt.payment_method || "Belum direkod"}
+                                      {formatPaymentMethod(receipt.payment_method)}
                                     </span>
                                   </td>
                                   <td className="px-4 py-4 text-right text-gray-900 font-medium">
@@ -5882,7 +5799,7 @@ export default function OwnerDashboardPage() {
                                     {formatRM(receipt.total)}
                                   </div>
                                   <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-medium mt-1 inline-block">
-                                    {receipt.payment_method || "Belum direkod"}
+                                    {formatPaymentMethod(receipt.payment_method)}
                                   </div>
                                 </div>
                               </div>
@@ -5931,129 +5848,211 @@ export default function OwnerDashboardPage() {
                   {resetMsg}
                 </div>
               )}
-              <div className="flex flex-col gap-3">
-                {staff.map((s) => (
-                  <div
-                    key={s.id}
-                    className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-[var(--accent-100)] flex items-center justify-center flex-shrink-0">
-                      {s.role === "kitchen" ? (
-                        <ChefHat
-                          size={18}
-                          className="text-[var(--accent-600)]"
-                        />
-                      ) : s.role === "manager" ? (
-                        <UserCog
-                          size={18}
-                          className="text-[var(--accent-600)]"
-                        />
-                      ) : (
-                        <UserRound
-                          size={18}
-                          className="text-[var(--accent-600)]"
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-gray-900 font-medium text-sm">
-                        {s.nama}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
-                        >
-                          {s.role === "kitchen"
-                            ? "Dapur"
-                            : s.role === "manager"
-                              ? "Manager"
-                              : "Cashier"}
-                        </span>
-                        <span className="text-gray-300 text-xs">
-                          @{s.username}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => toggleStaff(s.id, s.is_active)}
-                        className={`text-xs font-medium px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
+
+              {staff.length === 0 ? (
+                <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+                  <Users size={34} className="text-gray-300 mx-auto mb-3" />
+                  <div className="text-gray-400 text-sm">Belum ada staff</div>
+                </div>
+              ) : (
+                <>
+                  <div className="hidden lg:block bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <table className="w-full table-fixed text-left text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <th className="w-[8%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            Icon
+                          </th>
+                          <th className="w-[22%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            Nama
+                          </th>
+                          <th className="w-[20%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            ID Pengguna
+                          </th>
+                          <th className="w-[16%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                            Jawatan
+                          </th>
+                          <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                            Suspend
+                          </th>
+                          <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                            Ubah Password
+                          </th>
+                          <th className="w-[10%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                            Remove
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {staff.map((s) => {
+                          const StaffIcon =
+                            s.role === "kitchen"
+                              ? ChefHat
+                              : s.role === "manager"
+                                ? UserCog
+                                : UserRound;
+                          const roleLabel =
+                            s.role === "kitchen"
+                              ? "Dapur"
+                              : s.role === "manager"
+                                ? "Manager"
+                                : "Cashier";
+                          const roleBadgeClass =
+                            s.role === "kitchen"
+                              ? "bg-orange-50 text-orange-600 border-orange-100"
+                              : s.role === "manager"
+                                ? "bg-amber-50 text-amber-600 border-amber-100"
+                                : "bg-blue-50 text-blue-600 border-blue-100";
+
+                          return (
+                            <tr
+                              key={s.id}
+                              className="hover:bg-gray-50/70 transition-all"
+                            >
+                              <td className="px-4 py-4">
+                                <div className="w-10 h-10 rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] flex items-center justify-center text-[var(--accent-600)]">
+                                  <StaffIcon size={17} strokeWidth={1.9} />
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <div className="text-gray-900 text-sm font-medium truncate">
+                                  {s.nama}
+                                </div>
+                                <div className="text-gray-400 text-[11px] font-medium mt-1">
+                                  {s.is_active ? "Aktif" : "Tidak aktif"}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <span className="font-mono text-xs font-medium text-gray-500">
+                                  @{s.username}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4">
+                                <span
+                                  className={`inline-flex px-2.5 py-1 rounded-full border text-xs font-medium ${roleBadgeClass}`}
+                                >
+                                  {roleLabel}
+                                </span>
+                              </td>
+                              <td className="px-4 py-4 text-center">
+                                <button
+                                  onClick={() => toggleStaff(s.id, s.is_active)}
+                                  className={`inline-flex items-center justify-center px-3 py-2 rounded-xl border text-xs font-medium active:scale-95 transition-all ${
+                                    s.is_active
+                                      ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+                                      : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-200)] hover:bg-[var(--accent-100)]"
+                                  }`}
+                                >
+                                  {s.is_active ? "Nyahaktif" : "Aktifkan"}
+                                </button>
+                              </td>
+                              <td className="px-4 py-4 text-center">
+                                <button
+                                  onClick={() => {
+                                    setResetStaffId(s.id);
+                                    setResetStaffNama(s.nama);
+                                    setNewStaffPassword("");
+                                  }}
+                                  className="inline-flex w-9 h-9 items-center justify-center rounded-xl border bg-amber-50 text-amber-500 border-amber-200 hover:bg-amber-100 active:scale-95 transition-all"
+                                  title="Ubah Password"
+                                  aria-label="Ubah Password"
+                                >
+                                  <Lock size={14} strokeWidth={2} />
+                                </button>
+                              </td>
+                              <td className="px-4 py-4 text-center">
+                                <button
+                                  onClick={() => removeStaff(s.id)}
+                                  className="inline-flex w-9 h-9 items-center justify-center rounded-xl border bg-red-50 text-red-500 border-red-200 hover:bg-red-100 active:scale-95 transition-all"
+                                  title="Remove Staff"
+                                  aria-label="Remove Staff"
+                                >
+                                  <Trash2 size={14} strokeWidth={2} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="lg:hidden flex flex-col gap-3">
+                    {staff.map((s) => (
+                      <div
+                        key={s.id}
+                        className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center gap-3"
                       >
-                        {s.is_active ? "Nyahaktif" : "Aktifkan"}
-                      </button>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => {
-                            setResetStaffId(s.id);
-                            setResetStaffNama(s.nama);
-                            setNewStaffPassword("");
-                          }}
-                          className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-amber-50 text-amber-500 border-amber-200"
-                          title="Reset Password"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
+                        <div className="w-10 h-10 rounded-full bg-[var(--accent-100)] flex items-center justify-center flex-shrink-0">
+                          {s.role === "kitchen" ? (
+                            <ChefHat
+                              size={18}
+                              className="text-[var(--accent-600)]"
+                            />
+                          ) : s.role === "manager" ? (
+                            <UserCog
+                              size={18}
+                              className="text-[var(--accent-600)]"
+                            />
+                          ) : (
+                            <UserRound
+                              size={18}
+                              className="text-[var(--accent-600)]"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-gray-900 font-medium text-sm">
+                            {s.nama}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
+                            >
+                              {s.role === "kitchen"
+                                ? "Dapur"
+                                : s.role === "manager"
+                                  ? "Manager"
+                                  : "Cashier"}
+                            </span>
+                            <span className="text-gray-300 text-xs">
+                              @{s.username}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => toggleStaff(s.id, s.is_active)}
+                            className={`text-xs font-medium px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
                           >
-                            <path
-                              d="M7 11V7a5 5 0 0 1 10 0v4"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <rect
-                              x="3"
-                              y="11"
-                              width="18"
-                              height="11"
-                              rx="2"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => removeStaff(s.id)}
-                          className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200"
-                          title="Buang Staff"
-                        >
-                          <svg
-                            width="13"
-                            height="13"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                          >
-                            <path
-                              d="M3 6H5H21"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                            <path
-                              d="M8 6V4C8 3.44772 8.44772 3 9 3H15C15.5523 3 16 3.44772 16 4V6M19 6L18.1245 19.1354C18.0544 20.1875 17.1763 21 16.1218 21H7.87824C6.82373 21 5.94563 20.1875 5.87551 19.1354L5 6"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
+                            {s.is_active ? "Nyahaktif" : "Aktifkan"}
+                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => {
+                                setResetStaffId(s.id);
+                                setResetStaffNama(s.nama);
+                                setNewStaffPassword("");
+                              }}
+                              className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-amber-50 text-amber-500 border-amber-200"
+                              title="Reset Password"
+                            >
+                              <Lock size={13} strokeWidth={2.2} />
+                            </button>
+                            <button
+                              onClick={() => removeStaff(s.id)}
+                              className="flex-1 flex items-center justify-center py-1.5 rounded-xl border bg-red-50 text-red-500 border-red-200"
+                              title="Buang Staff"
+                            >
+                              <Trash2 size={13} strokeWidth={2.2} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-                {staff.length === 0 && (
-                  <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
-                    <Users size={34} className="text-gray-300 mx-auto mb-3" />
-                    <div className="text-gray-400 text-sm">Belum ada staff</div>
-                  </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 
@@ -6074,432 +6073,374 @@ export default function OwnerDashboardPage() {
                 </p>
               </div>
 
-              {activeSettingsTab === "table-setup" && (
-                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div>
-                      <h3 className="text-gray-900 font-medium text-sm">
-                        <Armchair
-                          size={15}
-                          className="text-[var(--accent-600)]"
-                        />{" "}
-                        Setup Meja Kedai
-                      </h3>
-                      <p className="text-gray-400 text-xs mt-1">
-                        Default 6 meja. Bungkus akan kekal automatik.
-                      </p>
-                    </div>
-                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
-                      Max 20
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 rounded-2xl p-4 mb-4">
-                    <div className="flex items-center justify-between gap-4 mb-4">
-                      <button
-                        onClick={() => changeTableCount(tableCountInput - 1)}
-                        disabled={tableCountInput <= 1}
-                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-medium text-xl disabled:opacity-40 active:scale-95 transition-all"
-                      >
-                        −
-                      </button>
-                      <div className="text-center">
-                        <div className="text-gray-900 text-4xl font-medium leading-none">
-                          {tableCountInput}
+              {activeSettingsTab === "kedai" && (
+                <div className="max-w-3xl space-y-8">
+                  {/* Setup Meja */}
+                  <div className="bg-white rounded-2xl border border-[#e8e7e0] overflow-hidden shadow-sm">
+                    <div className="px-5 sm:px-6 py-5 border-b border-[#f0efe8] flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[var(--accent-50)] border border-[var(--accent-100)] flex items-center justify-center shrink-0">
+                          <Armchair size={16} className="text-[var(--accent-600)]" />
                         </div>
-                        <div className="text-gray-400 text-xs font-medium mt-1 uppercase tracking-wide">
-                          Meja
+                        <div>
+                          <h3 className="text-gray-900 font-medium text-sm">Bilangan Meja</h3>
+                          <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                            Tetapkan berapa meja yang dipapar di skrin POS. Pilihan Bungkus sentiasa ada.
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => changeTableCount(tableCountInput + 1)}
-                        disabled={tableCountInput >= 20}
-                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-medium text-xl disabled:opacity-40 active:scale-95 transition-all"
-                      >
-                        +
-                      </button>
+                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)] shrink-0">
+                        Maks 20
+                      </span>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={tableCountInput}
-                      onChange={(e) => changeTableCount(Number(e.target.value))}
-                      className="w-full accent-[var(--accent-600)]"
-                    />
-                    <div className="mt-4 grid grid-cols-7 gap-1.5">
-                      {Array.from({ length: tableCountInput }).map(
-                        (_, index) => (
-                          <div
-                            key={index}
-                            className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-medium"
-                          >
-                            {index + 1}
-                          </div>
-                        ),
-                      )}
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-medium">
-                        <ShoppingCart size={14} />
-                      </div>
-                    </div>
-                    <div className="text-gray-400 text-xs mt-3">
-                      POS akan papar Meja 1 hingga Meja {tableCountInput}, dan
-                      pilihan Bungkus.
-                    </div>
-                  </div>
-                  {tableMsg && (
-                    <div
-                      className={`text-xs font-medium mb-3 p-3 rounded-xl ${isSuccessMessage(tableMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                    >
-                      {tableMsg}
-                    </div>
-                  )}
-                  <button
-                    onClick={saveTableCount}
-                    disabled={
-                      saving ||
-                      tableCountInput ===
-                        Math.min(
-                          Math.max(Number(kedaiInfo?.table_count || 6), 1),
-                          20,
-                        )
-                    }
-                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
-                  >
-                    {saving ? "Menyimpan..." : "Simpan Setup Meja"}
-                  </button>
-                </div>
-              )}
 
-              {activeSettingsTab === "store-setup" && (
-                <div className="space-y-4">
-                  <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                    <div className="flex items-start justify-between gap-3 mb-5">
-                      <div>
-                        <h3 className="text-gray-900 font-medium text-sm">
-                          <Store
-                            size={15}
-                            className="text-[var(--accent-600)]"
-                          />{" "}
-                          Setup Kedai
-                        </h3>
-                        <p className="text-gray-400 text-xs mt-1">
-                          Upload logo kedai dan QR DuitNow untuk digunakan di
-                          owner, staff dan kitchen.
-                        </p>
+                    <div className="p-5 sm:p-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-5 items-start">
+                        <div>
+                          <div className="text-gray-400 text-[11px] font-medium uppercase tracking-wide mb-3">
+                            Pratonton meja
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {Array.from({ length: tableCountInput }).map((_, index) => (
+                              <div
+                                key={index}
+                                className="w-10 h-9 rounded-lg bg-[var(--accent-50)] border border-[var(--accent-200)] text-[var(--accent-700)] flex items-center justify-center text-xs font-medium"
+                              >
+                                {index + 1}
+                              </div>
+                            ))}
+                            <div className="h-9 px-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center gap-1.5 text-xs font-medium">
+                              <ShoppingCart size={13} /> Bungkus
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex sm:justify-end">
+                          <div className="inline-flex items-center rounded-xl bg-[#f6f7f2] border border-[#e8e7e0] overflow-hidden">
+                            <button
+                              onClick={() => changeTableCount(tableCountInput - 1)}
+                              disabled={tableCountInput <= 1}
+                              className="w-10 h-10 flex items-center justify-center text-gray-700 text-xl font-medium disabled:opacity-40 active:scale-95 transition-all"
+                            >
+                              −
+                            </button>
+                            <div className="w-12 h-10 border-l border-r border-[#e8e7e0] flex items-center justify-center text-gray-900 text-base font-medium">
+                              {tableCountInput}
+                            </div>
+                            <button
+                              onClick={() => changeTableCount(tableCountInput + 1)}
+                              disabled={tableCountInput >= 20}
+                              className="w-10 h-10 flex items-center justify-center text-gray-700 text-xl font-medium disabled:opacity-40 active:scale-95 transition-all"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+
+                      <div className="mt-5 flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex-1 bg-[#f6f7f2] rounded-xl px-4 py-3 text-gray-400 text-xs leading-relaxed">
+                          POS akan papar Meja 1 hingga Meja {tableCountInput}, dan pilihan Bungkus.
+                        </div>
+                        <button
+                          onClick={saveTableCount}
+                          disabled={
+                            saving ||
+                            tableCountInput ===
+                              Math.min(
+                                Math.max(Number(kedaiInfo?.table_count || 6), 1),
+                                20,
+                              )
+                          }
+                          className="self-end sm:self-auto w-auto h-10 px-5 bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
+                        >
+                          {saving ? "Menyimpan..." : "Simpan"}
+                        </button>
+                      </div>
+
+                      {tableMsg && (
+                        <div
+                          className={`text-xs font-medium mt-4 p-3 rounded-xl ${isSuccessMessage(tableMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                        >
+                          {tableMsg}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Setup Kedai */}
+                  <div className="bg-white rounded-2xl border border-[#e8e7e0] overflow-hidden shadow-sm">
+                    <div className="px-5 sm:px-6 py-5 border-b border-[#f0efe8] flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                          <Store size={16} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-gray-900 font-medium text-sm">Branding Kedai</h3>
+                          <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                            Logo dan QR DuitNow digunakan di skrin POS, resit, dan paparan dapur.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="bg-blue-50 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full border border-blue-100 shrink-0">
                         Branding
                       </span>
                     </div>
 
-                    {storeSetupMsg && (
-                      <div
-                        className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(storeSetupMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                      >
-                        {storeSetupMsg}
-                      </div>
-                    )}
+                    <div className="p-5 sm:p-6">
+                      {storeSetupMsg && (
+                        <div
+                          className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(storeSetupMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                        >
+                          {storeSetupMsg}
+                        </div>
+                      )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="text-gray-900 text-sm font-medium">
-                              Logo Kedai
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div className="bg-[#fafaf8] border border-[#e8e7e0] rounded-2xl overflow-hidden">
+                          <div className="px-4 py-3 bg-white border-b border-[#f0efe8] flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-gray-900 text-sm font-medium">Logo Kedai</div>
+                              <div className="text-gray-400 text-xs mt-0.5">Dipapar di header app</div>
                             </div>
-                            <div className="text-gray-400 text-xs font-medium mt-0.5">
-                              Untuk header app
+                            <div className="w-8 h-8 rounded-xl bg-[#f6f7f2] border border-[#e8e7e0] flex items-center justify-center">
+                              <ImageIcon size={15} className="text-gray-500" />
                             </div>
                           </div>
-                          <ImageIcon
-                            size={20}
-                            className="text-[var(--accent-600)]"
-                          />
-                        </div>
 
-                        <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
-                          {kedaiInfo?.logo_url ? (
-                            <img
-                              src={kedaiInfo.logo_url}
-                              alt="Logo kedai"
-                              className="max-h-full max-w-full object-contain p-3"
-                            />
-                          ) : (
-                            <div className="text-center px-4">
-                              <Store
-                                size={34}
-                                className="text-gray-300 mx-auto mb-2"
+                          <div className="h-36 bg-[#f6f7f2] flex items-center justify-center overflow-hidden">
+                            {kedaiInfo?.logo_url ? (
+                              <img
+                                src={kedaiInfo.logo_url}
+                                alt="Logo kedai"
+                                className="max-h-full max-w-full object-contain p-3"
                               />
-                              <div className="text-gray-400 text-xs font-medium">
-                                Belum ada logo
+                            ) : (
+                              <div className="text-center px-4">
+                                <Store size={30} className="text-gray-300 mx-auto mb-2" />
+                                <div className="text-gray-400 text-xs font-medium">Belum ada logo</div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
+
+                          <div className="p-3">
+                            <label className="block">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) =>
+                                  uploadKedaiAsset(
+                                    e.target.files?.[0] || null,
+                                    "logo",
+                                  )
+                                }
+                              />
+                              <span className="w-full h-10 inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs active:scale-95 transition-all cursor-pointer">
+                                {uploadingLogo ? "Memuat naik..." : "Muat naik logo"}
+                              </span>
+                            </label>
+                          </div>
                         </div>
 
-                        <label className="block">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) =>
-                              uploadKedaiAsset(
-                                e.target.files?.[0] || null,
-                                "logo",
-                              )
-                            }
-                          />
-                          <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
-                            {uploadingLogo ? "Uploading..." : "Upload Logo"}
-                          </span>
-                        </label>
-                      </div>
-
-                      <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="text-gray-900 text-sm font-medium">
-                              QR DuitNow
+                        <div className="bg-[#fafaf8] border border-[#e8e7e0] rounded-2xl overflow-hidden">
+                          <div className="px-4 py-3 bg-white border-b border-[#f0efe8] flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-gray-900 text-sm font-medium">QR DuitNow</div>
+                              <div className="text-gray-400 text-xs mt-0.5">Dipapar semasa checkout</div>
                             </div>
-                            <div className="text-gray-400 text-xs font-medium mt-0.5">
-                              Untuk payment staff
+                            <div className="w-8 h-8 rounded-xl bg-[var(--accent-50)] border border-[var(--accent-100)] flex items-center justify-center">
+                              <CreditCard size={15} className="text-[var(--accent-600)]" />
                             </div>
                           </div>
-                          <CreditCard size={20} className="text-blue-500" />
-                        </div>
 
-                        <div className="bg-white border border-gray-200 rounded-2xl h-36 flex items-center justify-center overflow-hidden mb-3">
-                          {kedaiInfo?.duitnow_qr_url ? (
-                            <img
-                              src={kedaiInfo.duitnow_qr_url}
-                              alt="QR DuitNow"
-                              className="max-h-full max-w-full object-contain p-3"
-                            />
-                          ) : (
-                            <div className="text-center px-4">
-                              <Smartphone
-                                size={34}
-                                className="text-gray-300 mx-auto mb-2"
+                          <div className="h-36 bg-[#f6f7f2] flex items-center justify-center overflow-hidden">
+                            {kedaiInfo?.duitnow_qr_url ? (
+                              <img
+                                src={kedaiInfo.duitnow_qr_url}
+                                alt="QR DuitNow"
+                                className="max-h-full max-w-full object-contain p-3"
                               />
-                              <div className="text-gray-400 text-xs font-medium">
-                                Belum ada QR
+                            ) : (
+                              <div className="text-center px-4">
+                                <Smartphone size={30} className="text-gray-300 mx-auto mb-2" />
+                                <div className="text-gray-400 text-xs font-medium">Belum ada QR</div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
+
+                          <div className="p-3">
+                            <label className="block">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) =>
+                                  uploadKedaiAsset(
+                                    e.target.files?.[0] || null,
+                                    "duitnow_qr",
+                                  )
+                                }
+                              />
+                              <span className="w-full h-10 inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs active:scale-95 transition-all cursor-pointer">
+                                {uploadingQr ? "Memuat naik..." : "Muat naik QR"}
+                              </span>
+                            </label>
+                          </div>
                         </div>
-
-                        <label className="block">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) =>
-                              uploadKedaiAsset(
-                                e.target.files?.[0] || null,
-                                "duitnow_qr",
-                              )
-                            }
-                          />
-                          <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
-                            {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
-                          </span>
-                        </label>
                       </div>
-                    </div>
 
-                    <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                      <div className="text-amber-700 text-xs font-medium">
-                        Nota: QR DuitNow akan digunakan di staff payment popup.
-                        Logo kedai akan digunakan untuk branding owner, staff
-                        dan kitchen selepas Phase B/C.
+                      <div className="mt-5 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                        <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-amber-800 text-xs leading-relaxed">
+                          QR DuitNow akan dipapar semasa staff proses pembayaran. Logo kedai akan digunakan untuk branding di semua skrin selepas fasa seterusnya.
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {activeSettingsTab === "charge-setup" && (
-                <div className="space-y-4">
-                  <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                    <div className="flex items-start justify-between gap-3 mb-5">
-                      <div>
-                        <h3 className="text-gray-900 font-medium text-sm">
-                          <Receipt
-                            size={15}
-                            className="text-[var(--accent-600)]"
-                          />{" "}
-                          Setup Caj
-                        </h3>
-                        <p className="text-gray-400 text-xs mt-1">
-                          Tetapkan SST dan service charge untuk receipt dan
-                          checkout staff.
-                        </p>
+                  {/* Setup Caj */}
+                  <div className="bg-white rounded-2xl border border-[#e8e7e0] overflow-hidden shadow-sm">
+                    <div className="px-5 sm:px-6 py-5 border-b border-[#f0efe8] flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
+                          <Receipt size={16} className="text-purple-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-gray-900 font-medium text-sm">Setup Caj</h3>
+                          <p className="text-gray-400 text-xs mt-1 leading-relaxed">
+                            Tetapkan SST dan service charge untuk resit dan checkout staff.
+                          </p>
+                        </div>
                       </div>
-                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                      <span className="bg-purple-50 text-purple-700 text-xs font-medium px-3 py-1.5 rounded-full border border-purple-100 shrink-0">
                         Tax & Charge
                       </span>
                     </div>
 
-                    {chargeMsg && (
-                      <div
-                        className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(chargeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                      >
-                        {chargeMsg}
-                      </div>
-                    )}
+                    <div className="p-5 sm:p-6">
+                      {chargeMsg && (
+                        <div
+                          className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(chargeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                        >
+                          {chargeMsg}
+                        </div>
+                      )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                      <div
-                        className={`rounded-3xl border p-4 ${sstEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div>
-                            <div className="text-gray-900 text-sm font-medium">
-                              SST
-                            </div>
-                            <div className="text-gray-400 text-xs font-medium mt-0.5">
-                              Cukai SST yang dikenakan pada order
-                            </div>
+                      <div className="border border-[#e8e7e0] rounded-2xl overflow-hidden mb-5">
+                        <div className="bg-white px-4 py-4 flex items-center gap-4 border-b border-[#f0efe8]">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-900 text-sm font-medium">SST</div>
+                            <div className="text-gray-400 text-xs mt-0.5">Cukai perkhidmatan dan jualan</div>
+                          </div>
+                          <div className="relative w-24">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={sstRate}
+                              onChange={(e) => setSstRate(e.target.value)}
+                              disabled={!sstEnabled}
+                              className="w-full h-9 border border-[#e8e7e0] rounded-xl px-3 pr-7 text-right text-gray-900 text-sm font-medium outline-none bg-[#f6f7f2] disabled:text-gray-400"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => setSstEnabled(!sstEnabled)}
-                            className={`w-14 h-8 rounded-full p-1 transition-all ${sstEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                            className={`w-11 h-6 rounded-full p-0.5 transition-all shrink-0 ${sstEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
                           >
                             <span
-                              className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${sstEnabled ? "translate-x-6" : "translate-x-0"}`}
+                              className={`block w-5 h-5 rounded-full bg-white shadow transition-all ${sstEnabled ? "translate-x-5" : "translate-x-0"}`}
                             />
                           </button>
                         </div>
-                        <label className="text-gray-500 text-xs font-medium mb-2 block">
-                          RATE SST (%)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={sstRate}
-                            onChange={(e) => setSstRate(e.target.value)}
-                            disabled={!sstEnabled}
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                            %
-                          </span>
-                        </div>
-                      </div>
 
-                      <div
-                        className={`rounded-3xl border p-4 ${serviceChargeEnabled ? "bg-[var(--accent-50)] border-[var(--accent-200)]" : "bg-gray-50 border-gray-100"}`}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div>
-                            <div className="text-gray-900 text-sm font-medium">
-                              Service Charge
-                            </div>
-                            <div className="text-gray-400 text-xs font-medium mt-0.5">
-                              Caj servis kedai untuk order pelanggan
-                            </div>
+                        <div className="bg-white px-4 py-4 flex items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-900 text-sm font-medium">Service Charge</div>
+                            <div className="text-gray-400 text-xs mt-0.5">Caj servis dikenakan pada setiap order</div>
+                          </div>
+                          <div className="relative w-24">
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={serviceChargeRate}
+                              onChange={(e) => setServiceChargeRate(e.target.value)}
+                              disabled={!serviceChargeEnabled}
+                              className="w-full h-9 border border-[#e8e7e0] rounded-xl px-3 pr-7 text-right text-gray-900 text-sm font-medium outline-none bg-[#f6f7f2] disabled:text-gray-400"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
                           </div>
                           <button
                             type="button"
-                            onClick={() =>
-                              setServiceChargeEnabled(!serviceChargeEnabled)
-                            }
-                            className={`w-14 h-8 rounded-full p-1 transition-all ${serviceChargeEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
+                            onClick={() => setServiceChargeEnabled(!serviceChargeEnabled)}
+                            className={`w-11 h-6 rounded-full p-0.5 transition-all shrink-0 ${serviceChargeEnabled ? "bg-[var(--accent-600)]" : "bg-gray-300"}`}
                           >
                             <span
-                              className={`block w-6 h-6 rounded-full bg-white shadow transition-all ${serviceChargeEnabled ? "translate-x-6" : "translate-x-0"}`}
+                              className={`block w-5 h-5 rounded-full bg-white shadow transition-all ${serviceChargeEnabled ? "translate-x-5" : "translate-x-0"}`}
                             />
                           </button>
                         </div>
-                        <label className="text-gray-500 text-xs font-medium mb-2 block">
-                          RATE SERVICE CHARGE (%)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={serviceChargeRate}
-                            onChange={(e) =>
-                              setServiceChargeRate(e.target.value)
-                            }
-                            disabled={!serviceChargeEnabled}
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
-                          />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                            %
-                          </span>
+                      </div>
+
+                      <div className="mb-5">
+                        <div className="text-gray-400 text-[11px] font-medium uppercase tracking-wide mb-3">
+                          Pratonton kiraan
                         </div>
+                        {(() => {
+                          const previewSubtotal = 100;
+                          const previewService = serviceChargeEnabled
+                            ? previewSubtotal * ((Number(serviceChargeRate) || 0) / 100)
+                            : 0;
+                          const previewSst = sstEnabled
+                            ? (previewSubtotal + previewService) * ((Number(sstRate) || 0) / 100)
+                            : 0;
+                          const previewTotal = previewSubtotal + previewService + previewSst;
+
+                          return (
+                            <div className="space-y-0">
+                              <div className="flex justify-between py-2 border-b border-[#f0efe8] text-sm text-gray-500">
+                                <span>Subtotal</span>
+                                <span>RM {previewSubtotal.toFixed(2)}</span>
+                              </div>
+                              {serviceChargeEnabled && (
+                                <div className="flex justify-between py-2 border-b border-[#f0efe8] text-sm text-gray-500">
+                                  <span>Service Charge ({Number(serviceChargeRate) || 0}%)</span>
+                                  <span>RM {previewService.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {sstEnabled && (
+                                <div className="flex justify-between py-2 border-b border-dashed border-[#e8e7e0] text-sm text-gray-500">
+                                  <span>SST ({Number(sstRate) || 0}%)</span>
+                                  <span>RM {previewSst.toFixed(2)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-baseline pt-3">
+                                <span className="text-gray-900 text-sm font-medium">Jumlah</span>
+                                <span className="text-gray-900 text-xl font-medium tracking-tight">RM {previewTotal.toFixed(2)}</span>
+                              </div>
+                              <div className="text-gray-400 text-xs mt-3">
+                                Service charge dikira dari subtotal. SST dikira selepas service charge.
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      <div className="flex justify-end">
+                        <button
+                          onClick={saveChargeSetting}
+                          disabled={saving}
+                          className="h-10 px-5 bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
+                        >
+                          {saving ? "Menyimpan..." : "Simpan"}
+                        </button>
                       </div>
                     </div>
-
-                    <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                      <div className="text-gray-500 text-xs font-medium mb-3">
-                        PREVIEW KIRAAN
-                      </div>
-                      {(() => {
-                        const previewSubtotal = 100;
-                        const previewService = serviceChargeEnabled
-                          ? previewSubtotal *
-                            ((Number(serviceChargeRate) || 0) / 100)
-                          : 0;
-                        const previewSst = sstEnabled
-                          ? (previewSubtotal + previewService) *
-                            ((Number(sstRate) || 0) / 100)
-                          : 0;
-                        const previewTotal =
-                          previewSubtotal + previewService + previewSst;
-
-                        return (
-                          <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
-                            <div className="flex justify-between text-sm font-medium text-gray-500">
-                              <span>Subtotal</span>
-                              <span>RM {previewSubtotal.toFixed(2)}</span>
-                            </div>
-                            {serviceChargeEnabled && (
-                              <div className="flex justify-between text-sm font-medium text-gray-500">
-                                <span>
-                                  Service Charge (
-                                  {Number(serviceChargeRate) || 0}%)
-                                </span>
-                                <span>RM {previewService.toFixed(2)}</span>
-                              </div>
-                            )}
-                            {sstEnabled && (
-                              <div className="flex justify-between text-sm font-medium text-gray-500">
-                                <span>SST ({Number(sstRate) || 0}%)</span>
-                                <span>RM {previewSst.toFixed(2)}</span>
-                              </div>
-                            )}
-                            <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-center">
-                              <span className="text-gray-900 font-medium">
-                                Total
-                              </span>
-                              <span className="text-gray-900 font-medium text-xl">
-                                RM {previewTotal.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                      <div className="text-gray-400 text-xs font-medium mt-3">
-                        Formula: Service charge dikira dari subtotal. SST dikira
-                        selepas service charge.
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={saveChargeSetting}
-                      disabled={saving}
-                      className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
-                    >
-                      {saving ? "Menyimpan..." : "Simpan Setup Caj"}
-                    </button>
                   </div>
                 </div>
               )}
@@ -6513,7 +6454,7 @@ export default function OwnerDashboardPage() {
                           size={15}
                           className="text-[var(--accent-600)]"
                         />{" "}
-                        Theme Kedai
+                        Tema
                       </h3>
                       <p className="text-gray-400 text-xs mt-1">
                         Simpan pilihan warna dan mode untuk branding kedai.
@@ -6534,54 +6475,41 @@ export default function OwnerDashboardPage() {
                     </div>
                   )}
 
-                  <div className="mb-5">
-                    <label className="text-gray-500 text-xs font-medium mb-3 block">
-                      ACCENT COLOR
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      {accentColorOptions.map((color) => {
-                        const isSelected = selectedAccentColor === color.id;
-                        return (
-                          <button
-                            key={color.id}
-                            onClick={() => setSelectedAccentColor(color.id)}
-                            className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left transition-all ${isSelected ? `${color.ring} bg-gray-50 shadow-sm` : "border-gray-100 bg-white hover:bg-gray-50"}`}
-                          >
-                            <span
-                              className={`w-4 h-4 rounded-full ${color.dot}`}
-                            />
-                            <span className="text-gray-800 text-xs font-medium flex-1">
-                              {color.label}
-                            </span>
-                            {isSelected && (
-                              <CircleCheck
-                                size={14}
-                                className="text-[var(--accent-600)]"
-                              />
-                            )}
-                          </button>
-                        );
-                      })}
+                  <div className="mb-6">
+                    <div className="mb-4">
+                      <h4 className="text-gray-900 text-sm font-medium">
+                        Pilih Tema
+                      </h4>
+                      <p className="text-gray-400 text-xs font-medium mt-1">
+                        Sesuaikan paparan workspace owner dashboard.
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="mb-5">
-                    <label className="text-gray-500 text-xs font-medium mb-3 block">
-                      APPEARANCE
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8">
                       {[
                         {
-                          id: "light",
-                          label: "Light",
-                          icon: Sun,
-                          desc: "Paparan cerah",
+                          id: "dark",
+                          label: "Tema Gelap",
+                          icon: Moon,
+                          desc: "Paparan gelap untuk suasana cahaya rendah.",
+                          cardClass: "bg-[#10251f] border-[#183c32]",
+                          titleClass: "text-white",
+                          descClass: "text-emerald-100/70",
+                          previewClass: "bg-[#0b1d18] border-[#24483e]",
+                          lineClass: "bg-emerald-100/35",
+                          buttonClass: "bg-emerald-200 text-emerald-950",
                         },
                         {
-                          id: "dark",
-                          label: "Dark",
-                          icon: Moon,
-                          desc: "Simpan untuk dark mode",
+                          id: "light",
+                          label: "Tema Cerah",
+                          icon: Sun,
+                          desc: "Paparan lebih cerah dan bersih.",
+                          cardClass: "bg-white border-gray-200",
+                          titleClass: "text-gray-900",
+                          descClass: "text-gray-400",
+                          previewClass: "bg-gray-50 border-gray-100",
+                          lineClass: "bg-gray-300",
+                          buttonClass: `${selectedAccent.sample} text-white`,
                         },
                       ].map((mode) => {
                         const isSelected = selectedThemeMode === mode.id;
@@ -6589,26 +6517,48 @@ export default function OwnerDashboardPage() {
                         return (
                           <button
                             key={mode.id}
+                            type="button"
                             onClick={() => setSelectedThemeMode(mode.id)}
-                            className={`rounded-2xl border p-4 text-left transition-all ${isSelected ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100 bg-gray-50"}`}
+                            className={`rounded-3xl border p-4 text-left transition-all h-full ${mode.cardClass} ${isSelected ? "ring-2 ring-gray-800 shadow-sm" : "hover:shadow-sm"}`}
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <ModeIcon
-                                size={22}
-                                className="text-[var(--accent-600)]"
-                              />
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className={`w-9 h-9 rounded-2xl flex items-center justify-center ${mode.id === "dark" ? "bg-white/10" : "bg-gray-100"}`}>
+                                <ModeIcon
+                                  size={17}
+                                  className={mode.id === "dark" ? "text-white" : "text-gray-700"}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className={`text-sm font-medium ${mode.titleClass}`}>
+                                  {mode.label}
+                                </div>
+                                <div className={`text-xs font-medium mt-1 leading-relaxed ${mode.descClass}`}>
+                                  {mode.desc}
+                                </div>
+                              </div>
                               {isSelected && (
                                 <CircleCheck
-                                  size={15}
-                                  className="text-[var(--accent-600)]"
+                                  size={17}
+                                  className={mode.id === "dark" ? "text-emerald-200" : "text-gray-900"}
                                 />
                               )}
                             </div>
-                            <div className="text-gray-900 text-sm font-medium">
-                              {mode.label}
-                            </div>
-                            <div className="text-gray-400 text-xs font-medium mt-0.5">
-                              {mode.desc}
+
+                            <div className={`rounded-2xl border p-3 ${mode.previewClass}`}>
+                              <div className="flex gap-1.5 mb-3">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-300" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-300" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 mb-3">
+                                <span className={`h-2 rounded-full ${mode.buttonClass}`} />
+                                <span className={`h-2 rounded-full ${mode.lineClass}`} />
+                                <span className={`h-2 rounded-full ${mode.lineClass}`} />
+                              </div>
+                              <div className="space-y-2">
+                                <span className={`block h-2 rounded-full w-3/4 ${mode.lineClass}`} />
+                                <span className={`block h-2 rounded-full w-1/2 ${mode.lineClass}`} />
+                              </div>
                             </div>
                           </button>
                         );
@@ -6616,49 +6566,41 @@ export default function OwnerDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                    <div className="text-gray-500 text-xs font-medium mb-3">
-                      PREVIEW
-                    </div>
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div
-                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-medium`}
-                        >
-                          {kedaiInfo?.logo_url ? (
-                            <img
-                              src={kedaiInfo.logo_url}
-                              alt="Logo preview"
-                              className="w-full h-full rounded-2xl object-cover"
-                            />
-                          ) : (
-                            "U"
-                          )}
-                        </div>
-                        <div>
-                          <div className="text-gray-900 text-sm font-medium">
-                            {kedaiInfo?.nama || "Kedai Saya"}
-                          </div>
-                          <div className="text-gray-400 text-xs font-medium">
-                            {selectedAccent.label} · {selectedThemeMode}
-                          </div>
-                        </div>
-                      </div>
-                      <div
-                        className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-medium text-center`}
-                      >
-                        Contoh Button
-                      </div>
+                  <div className="mb-6">
+                    <h4 className="text-gray-900 text-sm font-medium">
+                      Warna Utama
+                    </h4>
+                    <p className="text-gray-400 text-xs font-medium mt-1 mb-3">
+                      Pilih warna utama untuk button dan highlight sistem.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {accentColorOptions.map((color) => {
+                        const isSelected = selectedAccentColor === color.id;
+                        return (
+                          <button
+                            key={color.id}
+                            type="button"
+                            onClick={() => setSelectedAccentColor(color.id)}
+                            title={color.label}
+                            className={`w-9 h-9 rounded-full border flex items-center justify-center transition-all ${isSelected ? "border-gray-900 shadow-sm" : "border-gray-200 hover:border-gray-400"}`}
+                          >
+                            <span className={`w-6 h-6 rounded-full ${color.dot}`} />
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <button
-                    onClick={saveThemeSetting}
-                    disabled={saving}
-                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
-                  >
-                    {saving ? "Menyimpan..." : "Simpan Theme"}
-                  </button>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={saveThemeSetting}
+                      disabled={saving}
+                      className="h-10 px-5 bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
+                    >
+                      {saving ? "Menyimpan..." : "Simpan"}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -6714,15 +6656,17 @@ export default function OwnerDashboardPage() {
                       {passwordMsg}
                     </div>
                   )}
-                  <button
-                    onClick={tukarPassword}
-                    disabled={
-                      !currentPassword || !newPassword || !confirmPassword
-                    }
-                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
-                  >
-                    Tukar Password
-                  </button>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={tukarPassword}
+                      disabled={
+                        !currentPassword || !newPassword || !confirmPassword
+                      }
+                      className="h-10 px-5 bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
+                    >
+                      Tukar Password
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
