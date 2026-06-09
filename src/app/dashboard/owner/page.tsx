@@ -2700,6 +2700,8 @@ export default function OwnerDashboardPage() {
   const accentTheme =
     accentThemeMap[selectedAccentColor] || accentThemeMap.green;
   const accentStyle = {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
     "--accent-200": accentTheme["200"],
@@ -2906,7 +2908,7 @@ export default function OwnerDashboardPage() {
     <div className="relative inline-block mb-4">
       <button
         onClick={openFilterDropdown}
-        className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+        className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
       >
         <CalendarDays
           size={15}
@@ -2931,7 +2933,7 @@ export default function OwnerDashboardPage() {
             <button
               key={option}
               onClick={() => applyQuickFilter(option)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${filter === option ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-medium transition-all ${filter === option ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-600 hover:bg-gray-50"}`}
             >
               <span>{pendingFilterLabel(option)}</span>
               {filter === option && (
@@ -2968,10 +2970,10 @@ export default function OwnerDashboardPage() {
       >
         {expanded ? (
           <div className="min-w-0">
-            <div className="text-gray-950 font-black text-base tracking-tight leading-none">
+            <div className="text-gray-900 font-medium text-base tracking-tight leading-none">
               Urus<span className="text-[var(--accent-600)]">POS</span>
             </div>
-            <div className="text-gray-400 text-[9px] font-black tracking-widest uppercase mt-1.5">
+            <div className="text-gray-400 text-[9px] font-medium tracking-widest uppercase mt-1.5">
               Owner Dashboard
             </div>
           </div>
@@ -2994,7 +2996,7 @@ export default function OwnerDashboardPage() {
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
             title={expanded ? "Collapse menu" : "Expand menu"}
           >
-            <span className="text-sm font-black leading-none">
+            <span className="text-sm font-medium leading-none">
               {expanded ? "‹‹" : "››"}
             </span>
           </button>
@@ -3005,7 +3007,7 @@ export default function OwnerDashboardPage() {
         className={`${expanded ? "px-4" : "px-3"} flex-1 py-5 overflow-y-auto bg-white`}
       >
         {expanded && (
-          <div className="text-gray-400 text-[10px] font-black tracking-widest uppercase px-1 mb-3">
+          <div className="text-gray-300 text-[10px] font-medium tracking-widest uppercase px-1 mb-3">
             Overview
           </div>
         )}
@@ -3042,7 +3044,7 @@ export default function OwnerDashboardPage() {
                     }
                     changeTab(item.id);
                   }}
-                  className={`relative w-full flex items-center rounded-lg text-sm font-bold transition-all ${
+                  className={`relative w-full flex items-center rounded-lg text-sm font-medium transition-all ${
                     expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                   } ${
                     parentActive
@@ -3056,7 +3058,7 @@ export default function OwnerDashboardPage() {
 
                   <Icon
                     size={17}
-                    strokeWidth={1.9}
+                    strokeWidth={1.8}
                     className={
                       parentActive
                         ? "text-[var(--accent-600)]"
@@ -3073,7 +3075,7 @@ export default function OwnerDashboardPage() {
                       {(isInventoryItem || isReportItem || isSettingsItem) && (
                         <ChevronDown
                           size={14}
-                          strokeWidth={1.9}
+                          strokeWidth={1.8}
                           className={`transition-transform ${
                             parentActive
                               ? "rotate-180 text-[var(--accent-600)]"
@@ -3097,7 +3099,7 @@ export default function OwnerDashboardPage() {
                         <button
                           key={sub.id}
                           onClick={() => changeInventoryTab(sub.id)}
-                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium transition-all ${
                             isSubActive
                               ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
@@ -3105,7 +3107,7 @@ export default function OwnerDashboardPage() {
                         >
                           <SubIcon
                             size={14}
-                            strokeWidth={1.9}
+                            strokeWidth={1.8}
                             className={
                               isSubActive
                                 ? "text-[var(--accent-600)]"
@@ -3130,7 +3132,7 @@ export default function OwnerDashboardPage() {
                         <button
                           key={sub.id}
                           onClick={() => changeReportTab(sub.id)}
-                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium transition-all ${
                             isSubActive
                               ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
@@ -3138,7 +3140,7 @@ export default function OwnerDashboardPage() {
                         >
                           <SubIcon
                             size={14}
-                            strokeWidth={1.9}
+                            strokeWidth={1.8}
                             className={
                               isSubActive
                                 ? "text-[var(--accent-600)]"
@@ -3164,7 +3166,7 @@ export default function OwnerDashboardPage() {
                         <button
                           key={sub.id}
                           onClick={() => changeSettingsTab(sub.id)}
-                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-medium transition-all ${
                             isSubActive
                               ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                               : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
@@ -3172,7 +3174,7 @@ export default function OwnerDashboardPage() {
                         >
                           <SubIcon
                             size={14}
-                            strokeWidth={1.9}
+                            strokeWidth={1.8}
                             className={
                               isSubActive
                                 ? "text-[var(--accent-600)]"
@@ -3197,11 +3199,11 @@ export default function OwnerDashboardPage() {
         <a
           href="/auth/logout"
           title={!expanded ? "Log Keluar" : undefined}
-          className={`flex items-center rounded-lg text-sm font-bold text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
+          className={`flex items-center rounded-lg text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
             expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
           }`}
         >
-          <LogOut size={16} strokeWidth={1.9} />
+          <LogOut size={16} strokeWidth={1.8} />
           {expanded && <span>Log Keluar</span>}
         </a>
       </div>
@@ -3236,14 +3238,14 @@ export default function OwnerDashboardPage() {
             </button>
 
             <div className="min-w-0">
-              <div className="text-gray-900 font-black text-sm sm:text-base truncate">
+              <div className="text-gray-900 font-medium text-sm sm:text-base truncate">
                 {activeTab === "laporan"
                   ? activeReport?.label || "Jualan"
                   : activeTab === "settings"
                     ? activeSettings?.label || "Tetapan"
                     : activeNav?.label || "Owner"}
               </div>
-              <div className="hidden sm:block text-gray-400 text-xs font-bold truncate mt-0.5">
+              <div className="hidden sm:block text-gray-400 text-xs font-medium truncate mt-0.5">
                 {kedaiInfo?.nama || "Owner Dashboard"}
               </div>
             </div>
@@ -3251,14 +3253,14 @@ export default function OwnerDashboardPage() {
 
           <div className="flex items-center gap-3 shrink-0">
             <div className="hidden sm:block text-right">
-              <div className="text-gray-900 text-sm font-black leading-tight">
+              <div className="text-gray-900 text-sm font-medium leading-tight">
                 {sessionUser?.nama || "Owner"}
               </div>
-              <div className="text-gray-400 text-[11px] font-bold mt-0.5">
+              <div className="text-gray-400 text-[11px] font-medium mt-0.5">
                 Owner
               </div>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] font-black">
+            <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] font-medium">
               {userProfilePhotoUrl ? (
                 <img
                   src={userProfilePhotoUrl}
@@ -3284,10 +3286,10 @@ export default function OwnerDashboardPage() {
             <div>
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
                 <div>
-                  <h1 className="text-gray-950 font-black text-2xl tracking-tight">
+                  <h1 className="text-gray-950 font-medium text-2xl tracking-tight">
                     Dashboard
                   </h1>
-                  <p className="text-gray-400 text-sm font-bold mt-1">
+                  <p className="text-gray-400 text-sm font-medium mt-1">
                     Ringkasan operasi {kedaiInfo?.nama || "kedai"}.
                   </p>
                 </div>
@@ -3308,16 +3310,16 @@ export default function OwnerDashboardPage() {
                         <AlertTriangle size={18} strokeWidth={2} />
                       </div>
                       <div>
-                        <div className="text-amber-800 text-sm font-black">
+                        <div className="text-amber-800 text-sm font-medium">
                           {stats.stokKritikal} menu sedang kritikal
                         </div>
-                        <div className="text-amber-700 text-xs font-bold mt-1">
+                        <div className="text-amber-700 text-xs font-medium mt-1">
                           Semak dan restock item yang rendah atau habis sebelum
                           operasi terganggu.
                         </div>
                       </div>
                     </div>
-                    <span className="text-amber-800 text-xs font-black bg-white border border-amber-100 px-3 py-2 rounded-2xl shrink-0">
+                    <span className="text-amber-800 text-xs font-medium bg-white border border-amber-100 px-3 py-2 rounded-2xl shrink-0">
                       Lihat inventori
                     </span>
                   </div>
@@ -3328,13 +3330,13 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                         Jualan
                       </div>
-                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-medium mt-3 tracking-tight">
                         {formatRM(stats.jumlahJualan)}
                       </div>
-                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                         {filterLabel()}
                       </div>
                     </div>
@@ -3347,13 +3349,13 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                         Untung
                       </div>
-                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-medium mt-3 tracking-tight">
                         {formatRM(stats.jumlahUntung)}
                       </div>
-                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                         Margin {stats.jumlahMargin}%
                       </div>
                     </div>
@@ -3366,13 +3368,13 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                         Pesanan
                       </div>
-                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-medium mt-3 tracking-tight">
                         {stats.jumlahTransaksi}
                       </div>
-                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                         Order berbayar
                       </div>
                     </div>
@@ -3385,13 +3387,13 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                         Menu
                       </div>
-                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-medium mt-3 tracking-tight">
                         {produk.length}
                       </div>
-                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                         Menu aktif
                       </div>
                     </div>
@@ -3402,131 +3404,285 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
-                <div className="lg:col-span-8 bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-start justify-between gap-3 mb-5">
-                    <div>
-                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
-                        Jualan {filterLabel()}
-                      </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1">
-                        Bar chart jualan mengikut filter semasa. Tempoh tanpa
-                        jualan dibiarkan kosong.
-                      </div>
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 mb-4 overflow-hidden">
+                <div className="flex items-start justify-between gap-3 mb-5">
+                  <div>
+                    <div className="text-gray-900 font-medium text-sm">
+                      Graf Jualan
                     </div>
-                    <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-3 py-2 rounded-2xl">
-                      {filterLabel()}
-                    </span>
+                    <div className="text-gray-400 text-xs font-medium mt-1">
+                      Trend jualan ikut pilihan harian, mingguan atau bulanan.
+                    </div>
                   </div>
 
-                  {reportData.salesTrend.length === 0 ||
-                  reportData.salesTrend.every(
-                    (item) => Number(item.total || 0) <= 0,
-                  ) ? (
-                    <div className="h-64 rounded-3xl bg-gray-50 border border-gray-100 flex items-center justify-center text-center p-6">
-                      <div>
-                        <BarChart2
-                          size={34}
-                          className="text-gray-300 mx-auto mb-3"
-                        />
-                        <div className="text-gray-400 text-sm font-bold">
-                          Belum ada jualan untuk filter ini.
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      {(() => {
-                        const chartData = reportData.salesTrend;
-                        const maxSales = Math.max(
-                          ...chartData.map((item) => Number(item.total || 0)),
-                          1,
-                        );
-                        const totalSalesSelected = chartData.reduce(
-                          (sum, item) => sum + Number(item.total || 0),
-                          0,
-                        );
-                        const totalOrdersSelected = chartData.reduce(
-                          (sum, item) => sum + Number(item.orders || 0),
-                          0,
-                        );
-
-                        return (
-                          <>
-                            <div className="h-64 rounded-3xl bg-gray-50 border border-gray-100 px-4 pt-5 pb-3 overflow-hidden">
-                              <div className="h-48 flex items-end gap-1.5 sm:gap-2">
-                                {chartData.map((item, index) => {
-                                  const value = Number(item.total || 0);
-                                  const height =
-                                    value > 0
-                                      ? Math.max((value / maxSales) * 100, 6)
-                                      : 0;
-                                  const shouldShowLabel =
-                                    index === 0 ||
-                                    index === chartData.length - 1 ||
-                                    index === Math.floor(chartData.length / 2);
-
-                                  return (
-                                    <div
-                                      key={`dashboard-sales-${item.label}-${index}`}
-                                      className="h-full flex-1 flex flex-col items-center justify-end min-w-0 group"
-                                      title={`${item.label}: ${formatRM(value)}`}
-                                    >
-                                      <div className="relative w-full flex justify-center flex-1 items-end">
-                                        <div
-                                          className="w-2.5 sm:w-3.5 rounded-t-full bg-[var(--accent-500)] transition-all group-hover:bg-[var(--accent-700)]"
-                                          style={{ height: `${height}%` }}
-                                        />
-                                      </div>
-                                      <div className="h-7 pt-2 text-[10px] font-bold text-gray-400 truncate max-w-[44px]">
-                                        {shouldShowLabel ? item.label : ""}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-                              <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
-                                <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
-                                  Total
-                                </div>
-                                <div className="text-[var(--accent-800)] text-sm font-black mt-1">
-                                  {formatRM(totalSalesSelected)}
-                                </div>
-                              </div>
-                              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                                <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                                  Pesanan
-                                </div>
-                                <div className="text-gray-900 text-sm font-black mt-1">
-                                  {totalOrdersSelected}
-                                </div>
-                              </div>
-                              <div className="hidden sm:block rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                                <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                                  Peak
-                                </div>
-                                <div className="text-gray-900 text-sm font-black mt-1">
-                                  {formatRM(maxSales)}
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  )}
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl p-1 flex items-center gap-1 shrink-0">
+                    {(
+                      [
+                        { id: "daily", label: "Daily" },
+                        { id: "weekly", label: "Weekly" },
+                        { id: "monthly", label: "Monthly" },
+                      ] as { id: FilterType; label: string }[]
+                    ).map((option) => (
+                      <button
+                        key={`dashboard-chart-filter-${option.id}`}
+                        onClick={() => applyQuickFilter(option.id)}
+                        className={`px-3 py-2 rounded-xl text-[11px] font-medium transition-all ${
+                          filter === option.id
+                            ? "bg-[var(--accent-600)] text-white shadow-sm"
+                            : "text-gray-400 hover:text-gray-700 hover:bg-white"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="lg:col-span-4 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                {reportData.salesTrend.length === 0 ||
+                reportData.salesTrend.every(
+                  (item) => Number(item.total || 0) <= 0,
+                ) ? (
+                  <div className="h-64 rounded-3xl bg-gray-50 border border-gray-100 flex items-center justify-center text-center p-6">
+                    <div>
+                      <BarChart2
+                        size={34}
+                        className="text-gray-300 mx-auto mb-3"
+                      />
+                      <div className="text-gray-400 text-sm font-medium">
+                        Belum ada jualan untuk filter ini.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {(() => {
+                      const chartData = reportData.salesTrend;
+                      const maxSales = Math.max(
+                        ...chartData.map((item) => Number(item.total || 0)),
+                        1,
+                      );
+                      const totalSalesSelected = chartData.reduce(
+                        (sum, item) => sum + Number(item.total || 0),
+                        0,
+                      );
+                      const totalOrdersSelected = chartData.reduce(
+                        (sum, item) => sum + Number(item.orders || 0),
+                        0,
+                      );
+                      const width = 720;
+                      const height = 270;
+                      const padX = 34;
+                      const padTop = 34;
+                      const chartHeight = 160;
+                      const baseY = padTop + chartHeight;
+                      const points = chartData.map((item, index) => {
+                        const x =
+                          chartData.length === 1
+                            ? width / 2
+                            : padX +
+                              (index / (chartData.length - 1)) *
+                                (width - padX * 2);
+                        const y =
+                          padTop +
+                          (1 - Number(item.total || 0) / maxSales) *
+                            chartHeight;
+
+                        return {
+                          ...item,
+                          x,
+                          y,
+                          value: Number(item.total || 0),
+                        };
+                      });
+                      const linePath = points
+                        .map(
+                          (point, index) =>
+                            `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`,
+                        )
+                        .join(" ");
+                      const areaPath = points.length
+                        ? `${linePath} L ${points[points.length - 1].x} ${baseY} L ${points[0].x} ${baseY} Z`
+                        : "";
+                      const peakPoint = points.reduce(
+                        (selected, point) =>
+                          point.value > selected.value ? point : selected,
+                        points[0],
+                      );
+                      const labelIndexes = new Set([
+                        0,
+                        Math.floor((points.length - 1) / 2),
+                        points.length - 1,
+                      ]);
+
+                      return (
+                        <>
+                          <div className="relative h-72 rounded-3xl bg-gray-50 border border-gray-100 px-3 pt-4 pb-2 overflow-hidden">
+                            <svg
+                              viewBox={`0 0 ${width} ${height}`}
+                              className="w-full h-full"
+                              preserveAspectRatio="none"
+                            >
+                              <defs>
+                                <linearGradient
+                                  id="dashboardOwnerSalesArea"
+                                  x1="0"
+                                  y1="0"
+                                  x2="0"
+                                  y2="1"
+                                >
+                                  <stop
+                                    offset="0%"
+                                    stopColor="var(--accent-500)"
+                                    stopOpacity="0.18"
+                                  />
+                                  <stop
+                                    offset="100%"
+                                    stopColor="var(--accent-500)"
+                                    stopOpacity="0"
+                                  />
+                                </linearGradient>
+                              </defs>
+
+                              {[0, 1, 2, 3].map((grid) => {
+                                const gridY = padTop + (grid / 3) * chartHeight;
+                                return (
+                                  <line
+                                    key={`dashboard-line-grid-${grid}`}
+                                    x1={padX}
+                                    y1={gridY}
+                                    x2={width - padX}
+                                    y2={gridY}
+                                    stroke="#e5e7eb"
+                                    strokeWidth="1"
+                                    strokeDasharray="5 7"
+                                  />
+                                );
+                              })}
+
+                              {areaPath && (
+                                <path
+                                  d={areaPath}
+                                  fill="url(#dashboardOwnerSalesArea)"
+                                />
+                              )}
+
+                              {linePath && (
+                                <path
+                                  d={linePath}
+                                  fill="none"
+                                  stroke="var(--accent-600)"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  vectorEffect="non-scaling-stroke"
+                                />
+                              )}
+
+                              {points.map((point, index) => (
+                                <g key={`dashboard-sales-point-${point.label}-${index}`}>
+                                  <circle
+                                    cx={point.x}
+                                    cy={point.y}
+                                    r={point.value > 0 ? "5" : "0"}
+                                    fill="white"
+                                    stroke="var(--accent-600)"
+                                    strokeWidth="3"
+                                    vectorEffect="non-scaling-stroke"
+                                  />
+                                  {labelIndexes.has(index) && (
+                                    <text
+                                      x={point.x}
+                                      y={height - 25}
+                                      textAnchor="middle"
+                                      fontSize="13"
+                                      fontWeight="700"
+                                      fill="#9ca3af"
+                                    >
+                                      {point.label}
+                                    </text>
+                                  )}
+                                </g>
+                              ))}
+
+                              {peakPoint && peakPoint.value > 0 && (
+                                <g>
+                                  <line
+                                    x1={peakPoint.x}
+                                    y1={peakPoint.y + 8}
+                                    x2={peakPoint.x}
+                                    y2={baseY}
+                                    stroke="var(--accent-500)"
+                                    strokeWidth="1"
+                                    strokeDasharray="4 5"
+                                    vectorEffect="non-scaling-stroke"
+                                  />
+                                  <circle
+                                    cx={peakPoint.x}
+                                    cy={peakPoint.y}
+                                    r="7"
+                                    fill="white"
+                                    stroke="var(--accent-600)"
+                                    strokeWidth="3"
+                                    vectorEffect="non-scaling-stroke"
+                                  />
+                                </g>
+                              )}
+                            </svg>
+
+                            {peakPoint && peakPoint.value > 0 && (
+                              <div
+                                className="absolute -translate-x-1/2 -translate-y-full bg-[var(--accent-600)] text-white text-[10px] font-medium px-3 py-2 rounded-xl shadow-lg"
+                                style={{
+                                  left: `${(peakPoint.x / width) * 100}%`,
+                                  top: `${Math.max((peakPoint.y / height) * 100, 18)}%`,
+                                }}
+                              >
+                                {formatRM(peakPoint.value)}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                            <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
+                              <div className="text-[var(--accent-700)] text-[10px] font-medium">
+                                Total
+                              </div>
+                              <div className="text-[var(--accent-800)] text-sm font-medium mt-1">
+                                {formatRM(totalSalesSelected)}
+                              </div>
+                            </div>
+                            <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                              <div className="text-gray-400 text-[10px] font-medium">
+                                Pesanan
+                              </div>
+                              <div className="text-gray-900 text-sm font-medium mt-1">
+                                {totalOrdersSelected}
+                              </div>
+                            </div>
+                            <div className="hidden sm:block rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                              <div className="text-gray-400 text-[10px] font-medium">
+                                Peak
+                              </div>
+                              <div className="text-gray-900 text-sm font-medium mt-1">
+                                {formatRM(maxSales)}
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
+                      <div className="text-gray-900 font-medium text-sm">
                         Pesanan Hari Ini
                       </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1">
+                      <div className="text-gray-400 text-xs font-medium mt-1">
                         Order berbayar untuk hari ini
                       </div>
                     </div>
@@ -3538,18 +3694,18 @@ export default function OwnerDashboardPage() {
                   <div className="p-5">
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                        <div className="text-gray-400 text-[10px] font-medium">
                           Order
                         </div>
-                        <div className="text-gray-950 text-2xl font-black mt-1">
+                        <div className="text-gray-950 text-2xl font-medium mt-1">
                           {reportData.todayReceipts.length}
                         </div>
                       </div>
                       <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
-                        <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
+                        <div className="text-[var(--accent-700)] text-[10px] font-medium">
                           Sales
                         </div>
-                        <div className="text-[var(--accent-800)] text-sm font-black mt-2">
+                        <div className="text-[var(--accent-800)] text-sm font-medium mt-2">
                           {formatRM(
                             reportData.todayReceipts.reduce(
                               (sum, receipt) =>
@@ -3563,25 +3719,25 @@ export default function OwnerDashboardPage() {
 
                     <div className="space-y-2">
                       {reportData.todayReceipts.length === 0 ? (
-                        <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-bold">
+                        <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-medium">
                           Belum ada pesanan hari ini.
                         </div>
                       ) : (
-                        reportData.todayReceipts.slice(0, 4).map((receipt) => (
+                        reportData.todayReceipts.slice(0, 5).map((receipt) => (
                           <button
                             key={`dashboard-today-${receipt.id}`}
                             onClick={() => setSelectedReceipt(receipt)}
                             className="w-full flex items-center justify-between gap-3 rounded-2xl bg-gray-50 border border-gray-100 p-3 text-left hover:bg-gray-100 transition-all"
                           >
                             <div className="min-w-0">
-                              <div className="font-mono text-[11px] font-black text-gray-900 truncate">
+                              <div className="font-mono text-[11px] font-medium text-gray-900 truncate">
                                 ORD-{receipt.id.slice(0, 8).toUpperCase()}
                               </div>
-                              <div className="text-gray-400 text-xs font-bold mt-1 truncate">
+                              <div className="text-gray-400 text-xs font-medium mt-1 truncate">
                                 {displayMejaLabel(receipt.meja)}
                               </div>
                             </div>
-                            <div className="text-gray-900 text-xs font-black shrink-0">
+                            <div className="text-gray-900 text-xs font-medium shrink-0">
                               {formatRM(receipt.total)}
                             </div>
                           </button>
@@ -3590,16 +3746,14 @@ export default function OwnerDashboardPage() {
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
                   <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
-                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
-                        Top 5 Menu
+                      <div className="text-gray-900 font-medium text-sm">
+                        5 Menu Terbaik
                       </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1">
+                      <div className="text-gray-400 text-xs font-medium mt-1">
                         Menu paling laris {filterLabel().toLowerCase()}
                       </div>
                     </div>
@@ -3610,7 +3764,7 @@ export default function OwnerDashboardPage() {
 
                   <div className="space-y-4">
                     {reportData.topProducts.length === 0 ? (
-                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-bold">
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-medium">
                         Tiada menu terjual untuk tempoh ini.
                       </div>
                     ) : (
@@ -3632,18 +3786,18 @@ export default function OwnerDashboardPage() {
                             <div key={`dashboard-top-${product.nama}-${index}`}>
                               <div className="flex items-center justify-between gap-3 text-sm mb-2">
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className="w-6 h-6 rounded-lg bg-gray-50 text-gray-400 text-xs font-black flex items-center justify-center shrink-0">
+                                  <span className="w-6 h-6 rounded-lg bg-gray-50 text-gray-400 text-xs font-medium flex items-center justify-center shrink-0">
                                     {index + 1}
                                   </span>
-                                  <span className="text-gray-900 font-black truncate">
+                                  <span className="text-gray-900 font-medium truncate">
                                     {product.nama}
                                   </span>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <div className="text-gray-900 text-xs font-black">
+                                  <div className="text-gray-900 text-xs font-medium">
                                     {formatRM(Number(product.total || 0))}
                                   </div>
-                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                  <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                     {product.qty} unit
                                   </div>
                                 </div>
@@ -3660,62 +3814,6 @@ export default function OwnerDashboardPage() {
                     )}
                   </div>
                 </div>
-
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
-                        Recent 5 Orders
-                      </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1">
-                        Transaksi terbaru {filterLabel().toLowerCase()}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setActiveTab("laporan");
-                        setActiveReportTab("receipts");
-                      }}
-                      className="bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-3 py-2 rounded-xl hover:bg-[var(--accent-50)] hover:text-[var(--accent-700)] hover:border-[var(--accent-100)] transition-all"
-                    >
-                      View all
-                    </button>
-                  </div>
-
-                  <div className="divide-y divide-gray-50">
-                    {reportData.recentReceipts.length === 0 ? (
-                      <div className="p-5 text-sm text-gray-400 font-bold">
-                        Tiada order untuk tempoh ini.
-                      </div>
-                    ) : (
-                      reportData.recentReceipts.slice(0, 5).map((receipt) => (
-                        <button
-                          key={`dashboard-order-${receipt.id}`}
-                          onClick={() => setSelectedReceipt(receipt)}
-                          className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-gray-50/70 transition-all"
-                        >
-                          <div className="min-w-0">
-                            <div className="font-mono text-xs font-black text-gray-900 truncate">
-                              ORD-{receipt.id.slice(0, 8).toUpperCase()}
-                            </div>
-                            <div className="text-gray-400 text-xs font-bold mt-1 truncate">
-                              {displayMejaLabel(receipt.meja)} ·{" "}
-                              {formatReceiptDate(receipt.created_at)}
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-gray-900 text-xs font-black">
-                              {formatRM(receipt.total)}
-                            </div>
-                            <span className="inline-block mt-1 text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2.5 py-1 text-[10px] font-black">
-                              {receipt.payment_method || "Bayar"}
-                            </span>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -3725,10 +3823,10 @@ export default function OwnerDashboardPage() {
             <div>
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
                 <div>
-                  <h2 className="text-gray-900 font-black text-xl">
+                  <h2 className="text-gray-900 font-medium text-xl">
                     {activeInventory?.label || "Menu"}
                   </h2>
-                  <p className="text-gray-400 text-xs font-bold mt-1">
+                  <p className="text-gray-400 text-xs font-medium mt-1">
                     {activeInventory?.description ||
                       "Urus menu, kategori, stok dan rekod pergerakan menu kedai."}
                   </p>
@@ -3738,7 +3836,7 @@ export default function OwnerDashboardPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={openManageCategories}
-                      className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                      className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-medium px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
                     >
                       <FolderTree size={14} strokeWidth={2} />
                       <span className="hidden sm:inline">Kategori</span>
@@ -3746,7 +3844,7 @@ export default function OwnerDashboardPage() {
 
                     <button
                       onClick={() => setShowAddProduk(true)}
-                      className="inline-flex items-center justify-center gap-2 bg-[var(--accent-600)] text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-700)] active:scale-95 transition-all"
+                      className="inline-flex items-center justify-center gap-2 bg-[var(--accent-600)] text-white text-xs font-medium px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-700)] active:scale-95 transition-all"
                     >
                       <Plus size={14} strokeWidth={2.2} />
                       Tambah Menu
@@ -3761,13 +3859,13 @@ export default function OwnerDashboardPage() {
                     <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                             Menu Aktif
                           </div>
-                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                          <div className="text-gray-950 text-2xl font-medium mt-2 tracking-tight">
                             {produk.length}
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-xs font-medium mt-2">
                             Menu tersedia
                           </div>
                         </div>
@@ -3780,10 +3878,10 @@ export default function OwnerDashboardPage() {
                     <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                             Stok Rendah
                           </div>
-                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                          <div className="text-gray-950 text-2xl font-medium mt-2 tracking-tight">
                             {
                               produk.filter(
                                 (product) =>
@@ -3792,7 +3890,7 @@ export default function OwnerDashboardPage() {
                               ).length
                             }
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-xs font-medium mt-2">
                             Perlu restock
                           </div>
                         </div>
@@ -3805,17 +3903,17 @@ export default function OwnerDashboardPage() {
                     <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
                             Habis
                           </div>
-                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                          <div className="text-gray-950 text-2xl font-medium mt-2 tracking-tight">
                             {
                               produk.filter(
                                 (product) => Number(product.stok || 0) <= 0,
                               ).length
                             }
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-xs font-medium mt-2">
                             Tidak boleh dijual
                           </div>
                         </div>
@@ -3830,14 +3928,14 @@ export default function OwnerDashboardPage() {
                     <div className="p-4 sm:p-5 border-b border-gray-50">
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                         <div>
-                          <div className="text-gray-900 text-sm font-black flex items-center gap-2">
+                          <div className="text-gray-900 text-sm font-medium flex items-center gap-2">
                             <Utensils
                               size={16}
                               className="text-[var(--accent-600)]"
                             />
                             Inventori Menu
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-1">
+                          <div className="text-gray-400 text-xs font-medium mt-1">
                             {filteredProduk.length} daripada {produk.length}{" "}
                             menu dipaparkan
                           </div>
@@ -3857,7 +3955,7 @@ export default function OwnerDashboardPage() {
                                 setInventorySearch(event.target.value)
                               }
                               placeholder="Cari menu atau kategori..."
-                              className="w-full sm:w-72 border border-gray-200 bg-white rounded-2xl pl-10 pr-4 py-3 text-gray-900 text-xs font-bold outline-none focus:border-[var(--accent-500)]"
+                              className="w-full sm:w-72 border border-gray-200 bg-white rounded-2xl pl-10 pr-4 py-3 text-gray-900 text-xs font-medium outline-none focus:border-[var(--accent-500)]"
                             />
                           </div>
 
@@ -3866,7 +3964,7 @@ export default function OwnerDashboardPage() {
                               onClick={() =>
                                 setShowCategoryFilterDropdown((value) => !value)
                               }
-                              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-2xl text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-2xl text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
                             >
                               <Tag
                                 size={14}
@@ -3883,7 +3981,7 @@ export default function OwnerDashboardPage() {
                               <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
                                 <button
                                   onClick={() => applyCategoryFilter("all")}
-                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-medium transition-all ${
                                     selectedCategoryFilter === "all"
                                       ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                                       : "text-gray-600 hover:bg-gray-50"
@@ -3910,7 +4008,7 @@ export default function OwnerDashboardPage() {
                                     onClick={() =>
                                       applyCategoryFilter(category.id)
                                     }
-                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-medium transition-all ${
                                       selectedCategoryFilter === category.id
                                         ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
                                         : category.is_active
@@ -3949,7 +4047,7 @@ export default function OwnerDashboardPage() {
                           size={36}
                           className="text-gray-300 mx-auto mb-3"
                         />
-                        <div className="text-gray-900 text-sm font-black">
+                        <div className="text-gray-900 text-sm font-medium">
                           Belum ada menu lagi
                         </div>
                         <div className="text-gray-400 text-xs mt-1">
@@ -3962,7 +4060,7 @@ export default function OwnerDashboardPage() {
                           size={36}
                           className="text-gray-300 mx-auto mb-3"
                         />
-                        <div className="text-gray-900 text-sm font-black">
+                        <div className="text-gray-900 text-sm font-medium">
                           Tiada menu dijumpai
                         </div>
                         <div className="text-gray-400 text-xs mt-1">
@@ -3975,28 +4073,28 @@ export default function OwnerDashboardPage() {
                           <table className="w-full table-fixed text-left text-xs">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="w-[5%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[5%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   No
                                 </th>
-                                <th className="w-[26%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[26%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Menu
                                 </th>
-                                <th className="w-[13%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[13%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   ID
                                 </th>
-                                <th className="w-[18%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[18%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Kategori
                                 </th>
-                                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[12%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Harga
                                 </th>
-                                <th className="w-[10%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[10%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Kos
                                 </th>
-                                <th className="w-[10%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[10%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Margin
                                 </th>
-                                <th className="w-[11%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[11%] px-3 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Action
                                 </th>
                               </tr>
@@ -4010,7 +4108,7 @@ export default function OwnerDashboardPage() {
                                     key={p.id}
                                     className="hover:bg-gray-50/70 transition-all"
                                   >
-                                    <td className="px-3 py-4 text-gray-500 font-bold">
+                                    <td className="px-3 py-4 text-gray-500 font-medium">
                                       {String(index + 1).padStart(2, "0")}
                                     </td>
                                     <td className="px-3 py-4">
@@ -4022,10 +4120,10 @@ export default function OwnerDashboardPage() {
                                           />
                                         </div>
                                         <div className="min-w-0">
-                                          <div className="text-gray-900 font-black truncate">
+                                          <div className="text-gray-900 font-medium truncate">
                                             {p.nama}
                                           </div>
-                                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                                          <div className="text-gray-400 text-xs font-medium mt-0.5">
                                             {p.is_active
                                               ? "Aktif"
                                               : "Tidak aktif"}
@@ -4034,12 +4132,12 @@ export default function OwnerDashboardPage() {
                                       </div>
                                     </td>
                                     <td className="px-3 py-4">
-                                      <span className="font-mono text-xs font-black text-gray-500">
+                                      <span className="font-mono text-xs font-medium text-gray-500">
                                         {getProductDisplayId(p)}
                                       </span>
                                     </td>
                                     <td className="px-3 py-4">
-                                      <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-2 py-1 rounded-lg">
+                                      <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs font-medium px-2 py-1 rounded-lg">
                                         <CategoryIcon
                                           value={category.icon}
                                           size={13}
@@ -4047,14 +4145,14 @@ export default function OwnerDashboardPage() {
                                         {category.nama}
                                       </span>
                                     </td>
-                                    <td className="px-3 py-4 text-right text-gray-900 font-black">
+                                    <td className="px-3 py-4 text-right text-gray-900 font-medium">
                                       {formatRM(p.harga_jual)}
                                     </td>
-                                    <td className="px-3 py-4 text-right text-gray-600 font-bold">
+                                    <td className="px-3 py-4 text-right text-gray-600 font-medium">
                                       {formatRM(p.kos_produk)}
                                     </td>
                                     <td
-                                      className={`px-3 py-4 text-right font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                      className={`px-3 py-4 text-right font-medium ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
                                     >
                                       {margin}%
                                     </td>
@@ -4108,17 +4206,17 @@ export default function OwnerDashboardPage() {
                                     </div>
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-gray-400 text-xs font-black">
+                                        <span className="text-gray-400 text-xs font-medium">
                                           {String(index + 1).padStart(2, "0")}
                                         </span>
-                                        <span className="font-mono text-[11px] font-black text-gray-400">
+                                        <span className="font-mono text-[11px] font-medium text-gray-400">
                                           {getProductDisplayId(p)}
                                         </span>
                                       </div>
-                                      <div className="text-gray-900 font-black truncate mt-0.5">
+                                      <div className="text-gray-900 font-medium truncate mt-0.5">
                                         {p.nama}
                                       </div>
-                                      <div className="inline-flex items-center gap-1.5 bg-white border border-gray-100 text-gray-500 text-xs font-black px-2.5 py-1 rounded-full mt-2">
+                                      <div className="inline-flex items-center gap-1.5 bg-white border border-gray-100 text-gray-500 text-xs font-medium px-2.5 py-1 rounded-full mt-2">
                                         <CategoryIcon
                                           value={category.icon}
                                           size={12}
@@ -4131,28 +4229,28 @@ export default function OwnerDashboardPage() {
 
                                 <div className="grid grid-cols-3 gap-2 mb-3">
                                   <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {formatRM(p.harga_jual)}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Harga
                                     </div>
                                   </div>
                                   <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {formatRM(p.kos_produk)}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Kos
                                     </div>
                                   </div>
                                   <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
                                     <div
-                                      className={`text-sm font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                      className={`text-sm font-medium ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
                                     >
                                       {margin}%
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Margin
                                     </div>
                                   </div>
@@ -4163,7 +4261,7 @@ export default function OwnerDashboardPage() {
                                   <div className="flex items-center gap-2">
                                     <button
                                       onClick={() => openEditProduk(p)}
-                                      className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition-all"
+                                      className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-2 rounded-xl text-xs font-medium active:scale-95 transition-all"
                                     >
                                       <Pencil size={13} />
                                       Edit
@@ -4195,34 +4293,34 @@ export default function OwnerDashboardPage() {
                   <FilterBar />
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                      <div className="text-gray-400 text-[10px] font-medium">
                         Menu Aktif
                       </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2">
+                      <div className="text-gray-950 text-2xl font-medium mt-2">
                         {produk.length}
                       </div>
                     </div>
                     <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                      <div className="text-gray-400 text-[10px] font-medium">
                         Stok Masuk
                       </div>
-                      <div className="text-[var(--accent-700)] text-2xl font-black mt-2">
+                      <div className="text-[var(--accent-700)] text-2xl font-medium mt-2">
                         +{reportData.stockInTotal}
                       </div>
                     </div>
                     <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                      <div className="text-gray-400 text-[10px] font-medium">
                         Stok Keluar
                       </div>
-                      <div className="text-red-500 text-2xl font-black mt-2">
+                      <div className="text-red-500 text-2xl font-medium mt-2">
                         -{reportData.stockOutTotal}
                       </div>
                     </div>
                     <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                      <div className="text-gray-400 text-[10px] font-medium">
                         Stok Kritikal
                       </div>
-                      <div className="text-amber-600 text-2xl font-black mt-2">
+                      <div className="text-amber-600 text-2xl font-medium mt-2">
                         {
                           produk.filter(
                             (product) => Number(product.stok || 0) <= 5,
@@ -4234,20 +4332,20 @@ export default function OwnerDashboardPage() {
 
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-gray-50">
-                      <h3 className="text-gray-900 font-black text-sm flex items-center gap-2">
+                      <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2">
                         <ClipboardList
                           size={16}
                           className="text-[var(--accent-600)]"
                         />
                         Rumusan Menu
                       </h3>
-                      <p className="text-gray-400 text-xs font-bold mt-1">
+                      <p className="text-gray-400 text-xs font-medium mt-1">
                         Stok awal, masuk, keluar dan akhir ikut filter tarikh.
                       </p>
                     </div>
 
                     {reportData.inventorySummary.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400 text-sm font-bold">
+                      <div className="p-8 text-center text-gray-400 text-sm font-medium">
                         Belum ada menu aktif.
                       </div>
                     ) : (
@@ -4256,22 +4354,22 @@ export default function OwnerDashboardPage() {
                           <table className="w-full text-left text-xs">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Menu
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Stok Awal
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Masuk
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Keluar
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Stok Akhir
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Status
                                 </th>
                               </tr>
@@ -4295,24 +4393,24 @@ export default function OwnerDashboardPage() {
                                     key={item.id}
                                     className="hover:bg-gray-50/70"
                                   >
-                                    <td className="px-4 py-4 text-gray-900 font-black max-w-[260px] truncate">
+                                    <td className="px-4 py-4 text-gray-900 font-medium max-w-[260px] truncate">
                                       {item.nama}
                                     </td>
-                                    <td className="px-4 py-4 text-right text-gray-600 font-bold">
+                                    <td className="px-4 py-4 text-right text-gray-600 font-medium">
                                       {item.stokAwal}
                                     </td>
-                                    <td className="px-4 py-4 text-right text-[var(--accent-700)] font-black">
+                                    <td className="px-4 py-4 text-right text-[var(--accent-700)] font-medium">
                                       +{item.stockIn}
                                     </td>
-                                    <td className="px-4 py-4 text-right text-red-500 font-black">
+                                    <td className="px-4 py-4 text-right text-red-500 font-medium">
                                       -{item.stockOut}
                                     </td>
-                                    <td className="px-4 py-4 text-right text-gray-950 font-black">
+                                    <td className="px-4 py-4 text-right text-gray-950 font-medium">
                                       {item.stokAkhir}
                                     </td>
                                     <td className="px-4 py-4">
                                       <span
-                                        className={`inline-flex px-3 py-1.5 rounded-full border text-xs font-black ${badgeClass}`}
+                                        className={`inline-flex px-3 py-1.5 rounded-full border text-xs font-medium ${badgeClass}`}
                                       >
                                         {status}
                                       </span>
@@ -4344,45 +4442,45 @@ export default function OwnerDashboardPage() {
                                 className="bg-gray-50 border border-gray-100 rounded-3xl p-4"
                               >
                                 <div className="flex items-start justify-between gap-3 mb-4">
-                                  <div className="text-gray-900 text-sm font-black truncate">
+                                  <div className="text-gray-900 text-sm font-medium truncate">
                                     {item.nama}
                                   </div>
                                   <span
-                                    className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black ${badgeClass}`}
+                                    className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-medium ${badgeClass}`}
                                   >
                                     {status}
                                   </span>
                                 </div>
                                 <div className="grid grid-cols-4 gap-2 text-center">
                                   <div className="bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {item.stokAwal}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Awal
                                     </div>
                                   </div>
                                   <div className="bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-[var(--accent-700)] text-sm font-black">
+                                    <div className="text-[var(--accent-700)] text-sm font-medium">
                                       +{item.stockIn}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Masuk
                                     </div>
                                   </div>
                                   <div className="bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-red-500 text-sm font-black">
+                                    <div className="text-red-500 text-sm font-medium">
                                       -{item.stockOut}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Keluar
                                     </div>
                                   </div>
                                   <div className="bg-white rounded-2xl p-3 border border-gray-100">
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {item.stokAkhir}
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-1">
                                       Akhir
                                     </div>
                                   </div>
@@ -4403,30 +4501,30 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>
-                        <h3 className="text-gray-900 font-black text-sm flex items-center gap-2">
+                        <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2">
                           <History
                             size={16}
                             className="text-[var(--accent-600)]"
                           />
                           Rekod Menu
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Auto = stok keluar bila order dibayar. Manual =
                           restock, buang atau adjustment.
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="bg-[var(--accent-50)] text-[var(--accent-700)] border border-[var(--accent-100)] rounded-full px-3 py-1.5 text-[10px] font-black">
+                        <span className="bg-[var(--accent-50)] text-[var(--accent-700)] border border-[var(--accent-100)] rounded-full px-3 py-1.5 text-[10px] font-medium">
                           Auto
                         </span>
-                        <span className="bg-gray-50 text-gray-600 border border-gray-100 rounded-full px-3 py-1.5 text-[10px] font-black">
+                        <span className="bg-gray-50 text-gray-600 border border-gray-100 rounded-full px-3 py-1.5 text-[10px] font-medium">
                           Manual
                         </span>
                       </div>
                     </div>
 
                     {reportData.stockMovements.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400 text-sm font-bold">
+                      <div className="p-8 text-center text-gray-400 text-sm font-medium">
                         Belum ada rekod menu dalam tempoh ini.
                       </div>
                     ) : (
@@ -4435,25 +4533,25 @@ export default function OwnerDashboardPage() {
                           <table className="w-full text-left text-xs">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Tarikh
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Item
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Jenis
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Kuantiti
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Sebab
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Auto/Manual
                                 </th>
-                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Oleh
                                 </th>
                               </tr>
@@ -4470,36 +4568,36 @@ export default function OwnerDashboardPage() {
                                     key={item.id}
                                     className="hover:bg-gray-50/70"
                                   >
-                                    <td className="px-4 py-4 text-gray-500 font-bold whitespace-nowrap">
+                                    <td className="px-4 py-4 text-gray-500 font-medium whitespace-nowrap">
                                       {formatReceiptDate(item.created_at)}
                                     </td>
-                                    <td className="px-4 py-4 text-gray-900 font-black max-w-[220px] truncate">
+                                    <td className="px-4 py-4 text-gray-900 font-medium max-w-[220px] truncate">
                                       {item.produk_nama}
                                     </td>
                                     <td className="px-4 py-4">
                                       <span
-                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
+                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
                                       >
                                         {formatMovementShortType(item.type)}
                                       </span>
                                     </td>
                                     <td
-                                      className={`px-4 py-4 text-right font-black ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
+                                      className={`px-4 py-4 text-right font-medium ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
                                     >
                                       {isIn ? "+" : "-"}
                                       {item.qty}
                                     </td>
-                                    <td className="px-4 py-4 text-gray-600 font-bold max-w-[240px] truncate">
+                                    <td className="px-4 py-4 text-gray-600 font-medium max-w-[240px] truncate">
                                       {item.reason || "-"}
                                     </td>
                                     <td className="px-4 py-4">
                                       <span
-                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
+                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
                                       >
                                         {sourceLabel}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-4 text-gray-700 font-bold max-w-[160px] truncate">
+                                    <td className="px-4 py-4 text-gray-700 font-medium max-w-[160px] truncate">
                                       {formatMovementActor(item)}
                                     </td>
                                   </tr>
@@ -4523,15 +4621,15 @@ export default function OwnerDashboardPage() {
                               >
                                 <div className="flex items-start justify-between gap-3 mb-3">
                                   <div className="min-w-0">
-                                    <div className="text-gray-900 text-sm font-black truncate">
+                                    <div className="text-gray-900 text-sm font-medium truncate">
                                       {item.produk_nama}
                                     </div>
-                                    <div className="text-gray-400 text-xs font-bold mt-1">
+                                    <div className="text-gray-400 text-xs font-medium mt-1">
                                       {formatReceiptDate(item.created_at)}
                                     </div>
                                   </div>
                                   <div
-                                    className={`shrink-0 text-sm font-black ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
+                                    className={`shrink-0 text-sm font-medium ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
                                   >
                                     {isIn ? "+" : "-"}
                                     {item.qty}
@@ -4540,25 +4638,25 @@ export default function OwnerDashboardPage() {
 
                                 <div className="flex flex-wrap items-center gap-2 mb-3">
                                   <span
-                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
+                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
                                   >
                                     {formatMovementShortType(item.type)}
                                   </span>
                                   <span
-                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
+                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
                                   >
                                     {sourceLabel}
                                   </span>
-                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black bg-white border border-gray-100 text-gray-500">
+                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium bg-white border border-gray-100 text-gray-500">
                                     Oleh: {formatMovementActor(item)}
                                   </span>
                                 </div>
 
                                 <div className="bg-white border border-gray-100 rounded-2xl p-3">
-                                  <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide mb-1">
+                                  <div className="text-gray-400 text-[10px] font-medium mb-1">
                                     Sebab
                                   </div>
-                                  <div className="text-gray-700 text-xs font-bold">
+                                  <div className="text-gray-700 text-xs font-medium">
                                     {item.reason || "-"}
                                   </div>
                                 </div>
@@ -4569,7 +4667,7 @@ export default function OwnerDashboardPage() {
 
                         {reportData.stockMovements.length > RECORDS_PER_PAGE && (
                           <div className="border-t border-gray-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div className="text-gray-400 text-xs font-bold text-center sm:text-left">
+                            <div className="text-gray-400 text-xs font-medium text-center sm:text-left">
                               Papar {recordsStartIndex}–{recordsEndIndex} daripada {reportData.stockMovements.length} rekod
                             </div>
                             <div className="flex items-center justify-center gap-2">
@@ -4578,11 +4676,11 @@ export default function OwnerDashboardPage() {
                                   setRecordsPage((page) => Math.max(1, page - 1))
                                 }
                                 disabled={safeRecordsPage <= 1}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
                               >
                                 Sebelum
                               </button>
-                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-black">
+                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-medium">
                                 {safeRecordsPage} / {recordsTotalPages}
                               </div>
                               <button
@@ -4592,7 +4690,7 @@ export default function OwnerDashboardPage() {
                                   )
                                 }
                                 disabled={safeRecordsPage >= recordsTotalPages}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
                               >
                                 Seterusnya
                               </button>
@@ -4612,10 +4710,10 @@ export default function OwnerDashboardPage() {
             <div>
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  <h2 className="text-gray-900 font-black text-xl">
+                  <h2 className="text-gray-900 font-medium text-xl">
                     {activeReport?.label || "Jualan"}
                   </h2>
-                  <p className="text-gray-400 text-xs font-bold mt-1">
+                  <p className="text-gray-400 text-xs font-medium mt-1">
                     {activeReport?.description ||
                       "Rumusan jualan dan rekod resit ikut tempoh dipilih"}
                   </p>
@@ -4623,7 +4721,7 @@ export default function OwnerDashboardPage() {
                 <button
                   onClick={() => fetchAllData(sessionUser?.kedai_id)}
                   disabled={loadingReport}
-                  className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
+                  className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2 rounded-full shadow-sm disabled:opacity-50"
                 >
                   {loadingReport ? "Loading..." : "Refresh"}
                 </button>
@@ -4640,18 +4738,18 @@ export default function OwnerDashboardPage() {
                           <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/10 flex items-center justify-center">
                             <DollarSign size={21} strokeWidth={1.9} />
                           </div>
-                          <span className="bg-white/15 text-white text-[11px] font-black px-2.5 py-1 rounded-full">
+                          <span className="bg-white/15 text-white text-[11px] font-medium px-2.5 py-1 rounded-full">
                             {filterLabel()}
                           </span>
                         </div>
                         <div className="relative z-10 mt-5">
-                          <div className="text-[var(--accent-100)] text-xs font-black uppercase tracking-wide">
+                          <div className="text-[var(--accent-100)] text-xs font-medium">
                             Total Sales
                           </div>
-                          <div className="text-white text-3xl sm:text-4xl font-black mt-1 tracking-tight">
+                          <div className="text-white text-3xl sm:text-4xl font-medium mt-1 tracking-tight">
                             {formatRM(reportData.totalSales)}
                           </div>
-                          <div className="text-[var(--accent-100)] text-xs font-bold mt-2">
+                          <div className="text-[var(--accent-100)] text-xs font-medium mt-2">
                             {reportData.totalOrders} order dalam tempoh ini
                           </div>
                         </div>
@@ -4662,18 +4760,18 @@ export default function OwnerDashboardPage() {
                           <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-700 flex items-center justify-center">
                             <Receipt size={21} strokeWidth={1.9} />
                           </div>
-                          <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-[11px] font-black px-2.5 py-1 rounded-full border border-[var(--accent-100)]">
+                          <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-[11px] font-medium px-2.5 py-1 rounded-full border border-[var(--accent-100)]">
                             Avg {formatRM(reportData.averageOrderValue)}
                           </span>
                         </div>
                         <div className="mt-5">
-                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-400 text-xs font-medium">
                             Total Orders
                           </div>
-                          <div className="text-gray-950 text-3xl font-black mt-1">
+                          <div className="text-gray-950 text-3xl font-medium mt-1">
                             {reportData.totalOrders}
                           </div>
-                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                             Purata nilai setiap order
                           </div>
                         </div>
@@ -4684,18 +4782,18 @@ export default function OwnerDashboardPage() {
                           <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
                             <TrendingUp size={21} strokeWidth={1.9} />
                           </div>
-                          <span className="bg-green-50 text-green-600 text-[11px] font-black px-2.5 py-1 rounded-full border border-green-100">
+                          <span className="bg-green-50 text-green-600 text-[11px] font-medium px-2.5 py-1 rounded-full border border-green-100">
                             {reportData.margin}% margin
                           </span>
                         </div>
                         <div className="mt-5">
-                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-400 text-xs font-medium">
                             Gross Profit
                           </div>
-                          <div className="text-gray-950 text-3xl font-black mt-1">
+                          <div className="text-gray-950 text-3xl font-medium mt-1">
                             {formatRM(reportData.grossProfit)}
                           </div>
-                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                             Jualan selepas tolak kos menu
                           </div>
                         </div>
@@ -4706,18 +4804,18 @@ export default function OwnerDashboardPage() {
                           <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center">
                             <TrendingDown size={21} strokeWidth={1.9} />
                           </div>
-                          <span className="bg-red-50 text-red-500 text-[11px] font-black px-2.5 py-1 rounded-full border border-red-100">
+                          <span className="bg-red-50 text-red-500 text-[11px] font-medium px-2.5 py-1 rounded-full border border-red-100">
                             Cost
                           </span>
                         </div>
                         <div className="mt-5">
-                          <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                          <div className="text-gray-400 text-xs font-medium">
                             COGS
                           </div>
-                          <div className="text-gray-950 text-3xl font-black mt-1">
+                          <div className="text-gray-950 text-3xl font-medium mt-1">
                             {formatRM(reportData.cogs)}
                           </div>
-                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                             Anggaran kos menu terjual
                           </div>
                         </div>
@@ -4727,14 +4825,14 @@ export default function OwnerDashboardPage() {
                     <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
-                          <h3 className="text-gray-900 font-black text-base">
+                          <h3 className="text-gray-900 font-medium text-base">
                             Menu Statistic
                           </h3>
-                          <p className="text-gray-400 text-xs font-bold mt-1">
+                          <p className="text-gray-400 text-xs font-medium mt-1">
                             Top menu ikut kuantiti terjual
                           </p>
                         </div>
-                        <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                        <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
                           Top 5
                         </span>
                       </div>
@@ -4744,13 +4842,13 @@ export default function OwnerDashboardPage() {
                           <div className="w-10 h-10 rounded-2xl bg-white text-[var(--accent-600)] flex items-center justify-center mb-4 border border-[var(--accent-100)]">
                             <Package size={18} strokeWidth={1.9} />
                           </div>
-                          <div className="text-gray-950 text-3xl font-black leading-none">
+                          <div className="text-gray-950 text-3xl font-medium leading-none">
                             {reportData.topProducts.reduce(
                               (sum, product) => sum + Number(product.qty || 0),
                               0,
                             )}
                           </div>
-                          <div className="text-gray-500 text-[11px] font-bold mt-2">
+                          <div className="text-gray-500 text-[11px] font-medium mt-2">
                             Total unit terjual
                           </div>
                         </div>
@@ -4759,7 +4857,7 @@ export default function OwnerDashboardPage() {
                           <div className="w-10 h-10 rounded-2xl bg-white text-gray-600 flex items-center justify-center mb-4 border border-gray-100">
                             <DollarSign size={18} strokeWidth={1.9} />
                           </div>
-                          <div className="text-gray-950 text-xl font-black leading-tight">
+                          <div className="text-gray-950 text-xl font-medium leading-tight">
                             {formatRM(
                               reportData.topProducts.reduce(
                                 (sum, product) =>
@@ -4768,7 +4866,7 @@ export default function OwnerDashboardPage() {
                               ),
                             )}
                           </div>
-                          <div className="text-gray-500 text-[11px] font-bold mt-2">
+                          <div className="text-gray-500 text-[11px] font-medium mt-2">
                             Sales top menu
                           </div>
                         </div>
@@ -4781,7 +4879,7 @@ export default function OwnerDashboardPage() {
                               size={30}
                               className="text-gray-300 mx-auto mb-2"
                             />
-                            <div className="text-gray-400 text-xs font-bold">
+                            <div className="text-gray-400 text-xs font-medium">
                               Belum ada menu terjual
                             </div>
                           </div>
@@ -4810,7 +4908,7 @@ export default function OwnerDashboardPage() {
                                     <CategoryIcon value="food" size={14} />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="text-gray-900 text-xs font-black truncate">
+                                    <div className="text-gray-900 text-xs font-medium truncate">
                                       {item.nama}
                                     </div>
                                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1.5">
@@ -4823,13 +4921,13 @@ export default function OwnerDashboardPage() {
                                     </div>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <div className="text-gray-900 text-xs font-black">
+                                    <div className="text-gray-900 text-xs font-medium">
                                       {item.qty} unit
                                     </div>
-                                    <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                       {formatRM(Number(item.total || 0))}
                                     </div>
-                                    <div className="text-[var(--accent-600)] text-[10px] font-black bg-[var(--accent-50)] px-2 py-0.5 rounded-full mt-1 inline-block">
+                                    <div className="text-[var(--accent-600)] text-[10px] font-medium bg-[var(--accent-50)] px-2 py-0.5 rounded-full mt-1 inline-block">
                                       {percent}%
                                     </div>
                                   </div>
@@ -4844,14 +4942,14 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-start justify-between gap-3 mb-5">
                       <div>
-                        <h3 className="text-gray-900 font-black text-base">
+                        <h3 className="text-gray-900 font-medium text-base">
                           Sales Trend
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Trend jualan dan order ikut tempoh filter
                         </p>
                       </div>
-                      <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                      <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
                         {filterLabel()}
                       </span>
                     </div>
@@ -4866,7 +4964,7 @@ export default function OwnerDashboardPage() {
                             size={34}
                             className="text-gray-300 mx-auto mb-3"
                           />
-                          <div className="text-gray-400 text-sm font-bold">
+                          <div className="text-gray-400 text-sm font-medium">
                             Belum ada trend jualan untuk tempoh ini.
                           </div>
                         </div>
@@ -5013,16 +5111,16 @@ export default function OwnerDashboardPage() {
                                   </svg>
 
                                   <div className="absolute left-3 top-3 bg-white/90 backdrop-blur border border-gray-100 rounded-2xl px-3 py-2 shadow-sm">
-                                    <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                                    <div className="text-gray-400 text-[10px] font-medium">
                                       Peak Sales
                                     </div>
-                                    <div className="text-gray-900 text-sm font-black mt-0.5">
+                                    <div className="text-gray-900 text-sm font-medium mt-0.5">
                                       {formatRM(maxSales)}
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-bold text-gray-400">
+                                <div className="mt-3 flex items-center justify-between gap-3 text-xs font-medium text-gray-400">
                                   <div className="flex items-center gap-2">
                                     <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-600)]" />
                                     <span>Sales amount</span>
@@ -5043,10 +5141,10 @@ export default function OwnerDashboardPage() {
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                           <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
-                            <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
+                            <div className="text-[var(--accent-700)] text-[10px] font-medium">
                               Peak Sales
                             </div>
-                            <div className="text-[var(--accent-800)] text-sm font-black mt-1">
+                            <div className="text-[var(--accent-800)] text-sm font-medium mt-1">
                               {formatRM(
                                 Math.max(
                                   ...reportData.salesTrend.map((trend) =>
@@ -5058,10 +5156,10 @@ export default function OwnerDashboardPage() {
                             </div>
                           </div>
                           <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                            <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                            <div className="text-gray-400 text-[10px] font-medium">
                               Total Order
                             </div>
-                            <div className="text-gray-900 text-sm font-black mt-1">
+                            <div className="text-gray-900 text-sm font-medium mt-1">
                               {reportData.salesTrend.reduce(
                                 (sum, trend) => sum + Number(trend.orders || 0),
                                 0,
@@ -5069,18 +5167,18 @@ export default function OwnerDashboardPage() {
                             </div>
                           </div>
                           <div className="rounded-2xl bg-green-50 border border-green-100 p-3">
-                            <div className="text-green-600 text-[10px] font-black uppercase tracking-wide">
+                            <div className="text-green-600 text-[10px] font-medium">
                               Gross Profit
                             </div>
-                            <div className="text-green-700 text-sm font-black mt-1">
+                            <div className="text-green-700 text-sm font-medium mt-1">
                               {formatRM(reportData.grossProfit)}
                             </div>
                           </div>
                           <div className="rounded-2xl bg-red-50 border border-red-100 p-3">
-                            <div className="text-red-500 text-[10px] font-black uppercase tracking-wide">
+                            <div className="text-red-500 text-[10px] font-medium">
                               COGS
                             </div>
-                            <div className="text-red-600 text-sm font-black mt-1">
+                            <div className="text-red-600 text-sm font-medium mt-1">
                               {formatRM(reportData.cogs)}
                             </div>
                           </div>
@@ -5093,14 +5191,14 @@ export default function OwnerDashboardPage() {
                     <div className="lg:col-span-8 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
-                          <h3 className="text-gray-900 font-black text-base">
+                          <h3 className="text-gray-900 font-medium text-base">
                             Order Habits
                           </h3>
-                          <p className="text-gray-400 text-xs font-bold mt-1">
+                          <p className="text-gray-400 text-xs font-medium mt-1">
                             Pecahan dine-in, bungkus dan nilai order
                           </p>
                         </div>
-                        <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
+                        <span className="text-gray-400 text-xs font-medium bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
                           {filterLabel()}
                         </span>
                       </div>
@@ -5144,15 +5242,15 @@ export default function OwnerDashboardPage() {
                                         />
                                       </div>
                                       <div>
-                                        <div className="text-gray-900 text-sm font-black">
+                                        <div className="text-gray-900 text-sm font-medium">
                                           {habit.label}
                                         </div>
-                                        <div className="text-gray-400 text-[11px] font-bold">
+                                        <div className="text-gray-400 text-[11px] font-medium">
                                           {habit.value} order
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {percent}%
                                     </div>
                                   </div>
@@ -5172,24 +5270,24 @@ export default function OwnerDashboardPage() {
 
                         <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
                           <div className="rounded-3xl bg-gray-950 text-white p-4">
-                            <div className="text-gray-400 text-xs font-black uppercase tracking-wide">
+                            <div className="text-gray-400 text-xs font-medium">
                               Average Order
                             </div>
-                            <div className="text-white text-2xl font-black mt-2">
+                            <div className="text-white text-2xl font-medium mt-2">
                               {formatRM(reportData.averageOrderValue)}
                             </div>
-                            <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                            <div className="text-gray-400 text-[11px] sm:text-xs font-medium mt-2">
                               Per transaksi
                             </div>
                           </div>
                           <div className="rounded-3xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-4">
-                            <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide">
+                            <div className="text-[var(--accent-700)] text-xs font-medium">
                               Margin
                             </div>
-                            <div className="text-[var(--accent-800)] text-2xl font-black mt-2">
+                            <div className="text-[var(--accent-800)] text-2xl font-medium mt-2">
                               {reportData.margin}%
                             </div>
-                            <div className="text-[var(--accent-600)] text-xs font-bold mt-2">
+                            <div className="text-[var(--accent-600)] text-xs font-medium mt-2">
                               Gross profit rate
                             </div>
                           </div>
@@ -5200,10 +5298,10 @@ export default function OwnerDashboardPage() {
                     <div className="lg:col-span-4 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
-                          <h3 className="text-gray-900 font-black text-base">
+                          <h3 className="text-gray-900 font-medium text-base">
                             Payment Method
                           </h3>
-                          <p className="text-gray-400 text-xs font-bold mt-1">
+                          <p className="text-gray-400 text-xs font-medium mt-1">
                             Pecahan kaedah bayaran
                           </p>
                         </div>
@@ -5217,7 +5315,7 @@ export default function OwnerDashboardPage() {
                               size={30}
                               className="text-gray-300 mx-auto mb-2"
                             />
-                            <div className="text-gray-400 text-xs font-bold">
+                            <div className="text-gray-400 text-xs font-medium">
                               Belum ada rekod bayaran
                             </div>
                           </div>
@@ -5236,18 +5334,18 @@ export default function OwnerDashboardPage() {
                               >
                                 <div className="flex items-center justify-between gap-3 mb-2">
                                   <div>
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {item.method}
                                     </div>
-                                    <div className="text-gray-400 text-xs font-bold">
+                                    <div className="text-gray-400 text-xs font-medium">
                                       {item.count} order
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-gray-900 text-sm font-black">
+                                    <div className="text-gray-900 text-sm font-medium">
                                       {formatRM(item.total)}
                                     </div>
-                                    <div className="text-[var(--accent-600)] text-[10px] font-black">
+                                    <div className="text-[var(--accent-600)] text-[10px] font-medium">
                                       {percent}%
                                     </div>
                                   </div>
@@ -5271,23 +5369,23 @@ export default function OwnerDashboardPage() {
                   <div className="hidden">
                     <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="text-gray-900 font-black text-base">
+                        <h3 className="text-gray-900 font-medium text-base">
                           Recent Receipts
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Transaksi terbaru dalam filter semasa
                         </p>
                       </div>
                       <button
                         onClick={() => setActiveReportTab("receipts")}
-                        className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
+                        className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
                       >
                         View all
                       </button>
                     </div>
 
                     {reportData.recentReceipts.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400 text-sm font-bold">
+                      <div className="p-6 text-center text-gray-400 text-sm font-medium">
                         Tiada receipt untuk tempoh ini.
                       </div>
                     ) : (
@@ -5305,20 +5403,20 @@ export default function OwnerDashboardPage() {
                                   <Receipt size={17} strokeWidth={1.9} />
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="font-mono text-xs font-black text-gray-900 truncate">
+                                  <div className="font-mono text-xs font-medium text-gray-900 truncate">
                                     #{receipt.id.slice(0, 8).toUpperCase()}
                                   </div>
-                                  <div className="text-gray-400 text-xs font-bold mt-1 truncate">
+                                  <div className="text-gray-400 text-xs font-medium mt-1 truncate">
                                     {displayMejaLabel(receipt.meja)} ·{" "}
                                     {formatReceiptDate(receipt.created_at)}
                                   </div>
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <div className="text-gray-900 text-sm font-black">
+                                <div className="text-gray-900 text-sm font-medium">
                                   {formatRM(receipt.total)}
                                 </div>
-                                <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-black mt-1 inline-block">
+                                <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-medium mt-1 inline-block">
                                   {receipt.payment_method || "Paid"}
                                 </div>
                               </div>
@@ -5333,11 +5431,11 @@ export default function OwnerDashboardPage() {
                 <>
                   <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-gray-900 font-black text-sm">
+                      <h3 className="text-gray-900 font-medium text-sm">
                         <Flame size={15} className="text-orange-500" /> Top
                         Product
                       </h3>
-                      <span className="text-gray-400 text-xs font-bold">
+                      <span className="text-gray-400 text-xs font-medium">
                         Top 5
                       </span>
                     </div>
@@ -5359,19 +5457,19 @@ export default function OwnerDashboardPage() {
                             className="flex items-center gap-3"
                           >
                             <div
-                              className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black ${index === 0 ? "bg-[var(--accent-600)] text-white" : "bg-gray-100 text-gray-500"}`}
+                              className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-medium ${index === 0 ? "bg-[var(--accent-600)] text-white" : "bg-gray-100 text-gray-500"}`}
                             >
                               {index + 1}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-gray-900 font-bold text-sm truncate">
+                              <div className="text-gray-900 font-medium text-sm truncate">
                                 {item.nama}
                               </div>
                               <div className="text-gray-400 text-xs">
                                 {item.qty} terjual
                               </div>
                             </div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               {formatRM(item.total)}
                             </div>
                           </div>
@@ -5385,11 +5483,11 @@ export default function OwnerDashboardPage() {
                 <>
                   <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-gray-900 font-black text-sm">
+                      <h3 className="text-gray-900 font-medium text-sm">
                         <CreditCard size={15} className="text-blue-500" />{" "}
                         Payment Method
                       </h3>
-                      <span className="text-gray-400 text-xs font-bold">
+                      <span className="text-gray-400 text-xs font-medium">
                         {reportData.paymentSummary.length} jenis
                       </span>
                     </div>
@@ -5411,14 +5509,14 @@ export default function OwnerDashboardPage() {
                             className="flex items-center justify-between bg-gray-50 rounded-2xl p-3"
                           >
                             <div>
-                              <div className="text-gray-900 text-sm font-black">
+                              <div className="text-gray-900 text-sm font-medium">
                                 {item.method}
                               </div>
                               <div className="text-gray-400 text-xs">
                                 {item.count} order
                               </div>
                             </div>
-                            <div className="text-[var(--accent-600)] text-sm font-black">
+                            <div className="text-[var(--accent-600)] text-sm font-medium">
                               {formatRM(item.total)}
                             </div>
                           </div>
@@ -5429,7 +5527,7 @@ export default function OwnerDashboardPage() {
                       (p) => p.method === "Belum direkod",
                     ) && (
                       <div className="mt-3 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                        <div className="text-amber-700 text-xs font-bold">
+                        <div className="text-amber-700 text-xs font-medium">
                           <AlertTriangle size={14} className="inline mr-1" />
                           Ada order yang payment method belum disimpan. Pastikan
                           staff pilih Tunai atau DuitNow masa checkout.
@@ -5444,18 +5542,18 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-gray-900 font-black text-sm">
+                        <h3 className="text-gray-900 font-medium text-sm">
                           <BarChart2
                             size={15}
                             className="text-[var(--accent-600)]"
                           />{" "}
                           Ringkasan Stok
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Stok awal, masuk, keluar dan akhir ikut filter tarikh
                         </p>
                       </div>
-                      <span className="text-gray-400 text-xs font-bold">
+                      <span className="text-gray-400 text-xs font-medium">
                         {reportData.inventorySummary.length} menu
                       </span>
                     </div>
@@ -5465,7 +5563,7 @@ export default function OwnerDashboardPage() {
                           size={34}
                           className="text-gray-300 mx-auto mb-2"
                         />
-                        <div className="text-gray-400 text-sm font-bold">
+                        <div className="text-gray-400 text-sm font-medium">
                           Belum ada menu aktif
                         </div>
                       </div>
@@ -5474,7 +5572,7 @@ export default function OwnerDashboardPage() {
                         <div className="hidden sm:block overflow-x-auto">
                           <table className="w-full text-left text-xs">
                             <thead className="sticky top-0 bg-white z-10">
-                              <tr className="text-gray-400 font-black border-b border-gray-100">
+                              <tr className="text-gray-400 font-medium border-b border-gray-100">
                                 <th className="py-3 pr-3">Menu</th>
                                 <th className="py-3 px-3 text-right">
                                   Stok Awal
@@ -5492,19 +5590,19 @@ export default function OwnerDashboardPage() {
                                   key={item.id}
                                   className="border-b border-gray-50 last:border-0"
                                 >
-                                  <td className="py-3 pr-3 text-gray-900 font-black max-w-[160px] truncate">
+                                  <td className="py-3 pr-3 text-gray-900 font-medium max-w-[160px] truncate">
                                     {item.nama}
                                   </td>
-                                  <td className="py-3 px-3 text-right text-gray-600 font-bold">
+                                  <td className="py-3 px-3 text-right text-gray-600 font-medium">
                                     {item.stokAwal}
                                   </td>
-                                  <td className="py-3 px-3 text-right text-[var(--accent-600)] font-black">
+                                  <td className="py-3 px-3 text-right text-[var(--accent-600)] font-medium">
                                     +{item.stockIn}
                                   </td>
-                                  <td className="py-3 px-3 text-right text-red-500 font-black">
+                                  <td className="py-3 px-3 text-right text-red-500 font-medium">
                                     -{item.stockOut}
                                   </td>
-                                  <td className="py-3 pl-3 text-right text-gray-900 font-black">
+                                  <td className="py-3 pl-3 text-right text-gray-900 font-medium">
                                     {item.stokAkhir}
                                   </td>
                                 </tr>
@@ -5518,39 +5616,39 @@ export default function OwnerDashboardPage() {
                               key={item.id}
                               className="bg-gray-50 rounded-2xl p-3 border border-gray-100"
                             >
-                              <div className="text-gray-900 text-sm font-black truncate mb-3">
+                              <div className="text-gray-900 text-sm font-medium truncate mb-3">
                                 {item.nama}
                               </div>
                               <div className="grid grid-cols-4 gap-2 text-center">
                                 <div>
-                                  <div className="text-gray-900 text-sm font-black">
+                                  <div className="text-gray-900 text-sm font-medium">
                                     {item.stokAwal}
                                   </div>
-                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                  <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                     Awal
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-[var(--accent-600)] text-sm font-black">
+                                  <div className="text-[var(--accent-600)] text-sm font-medium">
                                     +{item.stockIn}
                                   </div>
-                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                  <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                     Masuk
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-red-500 text-sm font-black">
+                                  <div className="text-red-500 text-sm font-medium">
                                     -{item.stockOut}
                                   </div>
-                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                  <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                     Keluar
                                   </div>
                                 </div>
                                 <div>
-                                  <div className="text-gray-900 text-sm font-black">
+                                  <div className="text-gray-900 text-sm font-medium">
                                     {item.stokAkhir}
                                   </div>
-                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                  <div className="text-gray-400 text-[10px] font-medium mt-0.5">
                                     Akhir
                                   </div>
                                 </div>
@@ -5569,32 +5667,32 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-gray-900 font-black text-sm">
+                        <h3 className="text-gray-900 font-medium text-sm">
                           <Box size={15} className="text-amber-600" /> Rekod
                           Pergerakan Stok
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Tambah/tolak stok manual ikut filter tarikh
                         </p>
                       </div>
-                      <span className="text-gray-400 text-xs font-bold">
+                      <span className="text-gray-400 text-xs font-medium">
                         {reportData.stockMovements.length} rekod
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-2xl p-3">
-                        <div className="text-[var(--accent-700)] text-xs font-black">
+                        <div className="text-[var(--accent-700)] text-xs font-medium">
                           Stok Masuk
                         </div>
-                        <div className="text-[var(--accent-700)] text-xl font-black mt-1">
+                        <div className="text-[var(--accent-700)] text-xl font-medium mt-1">
                           +{reportData.stockInTotal} unit
                         </div>
                       </div>
                       <div className="bg-red-50 border border-red-100 rounded-2xl p-3">
-                        <div className="text-red-600 text-xs font-black">
+                        <div className="text-red-600 text-xs font-medium">
                           Stok Keluar
                         </div>
-                        <div className="text-red-600 text-xl font-black mt-1">
+                        <div className="text-red-600 text-xl font-medium mt-1">
                           -{reportData.stockOutTotal} unit
                         </div>
                       </div>
@@ -5605,7 +5703,7 @@ export default function OwnerDashboardPage() {
                           size={34}
                           className="text-gray-300 mx-auto mb-2"
                         />
-                        <div className="text-gray-400 text-sm font-bold">
+                        <div className="text-gray-400 text-sm font-medium">
                           Belum ada pergerakan stok dalam tempoh ini
                         </div>
                       </div>
@@ -5619,7 +5717,7 @@ export default function OwnerDashboardPage() {
                               className="flex items-center justify-between gap-3 bg-gray-50 rounded-2xl p-3"
                             >
                               <div className="min-w-0 flex-1">
-                                <div className="text-gray-900 text-sm font-black truncate">
+                                <div className="text-gray-900 text-sm font-medium truncate">
                                   {item.produk_nama}
                                 </div>
                                 <div className="text-gray-400 text-xs mt-1">
@@ -5631,13 +5729,13 @@ export default function OwnerDashboardPage() {
                               </div>
                               <div className="text-right flex-shrink-0">
                                 <div
-                                  className={`text-sm font-black ${isIn ? "text-[var(--accent-600)]" : "text-red-500"}`}
+                                  className={`text-sm font-medium ${isIn ? "text-[var(--accent-600)]" : "text-red-500"}`}
                                 >
                                   {isIn ? "+" : "-"}
                                   {item.qty} unit
                                 </div>
                                 <div
-                                  className={`text-[10px] font-black px-2 py-1 rounded-full mt-1 ${isIn ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-red-100 text-red-600"}`}
+                                  className={`text-[10px] font-medium px-2 py-1 rounded-full mt-1 ${isIn ? "bg-[var(--accent-100)] text-[var(--accent-700)]" : "bg-red-100 text-red-600"}`}
                                 >
                                   {formatMovementType(item.type)}
                                 </div>
@@ -5655,18 +5753,18 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
-                        <h3 className="text-gray-900 font-black text-base flex items-center gap-2">
+                        <h3 className="text-gray-900 font-medium text-base flex items-center gap-2">
                           <Receipt
                             size={17}
                             className="text-[var(--accent-600)]"
                           />
                           Rekod Resit
                         </h3>
-                        <p className="text-gray-400 text-xs font-bold mt-1">
+                        <p className="text-gray-400 text-xs font-medium mt-1">
                           Senarai resit jualan ikut filter semasa
                         </p>
                       </div>
-                      <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-3 py-2 rounded-full">
+                      <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-medium px-3 py-2 rounded-full">
                         {reportData.recentReceipts.length} resit
                       </span>
                     </div>
@@ -5677,10 +5775,10 @@ export default function OwnerDashboardPage() {
                           size={34}
                           className="text-gray-300 mx-auto mb-3"
                         />
-                        <div className="text-gray-900 text-sm font-black">
+                        <div className="text-gray-900 text-sm font-medium">
                           Tiada rekod resit
                         </div>
-                        <div className="text-gray-400 text-xs font-bold mt-1">
+                        <div className="text-gray-400 text-xs font-medium mt-1">
                           Belum ada resit untuk tempoh filter ini.
                         </div>
                       </div>
@@ -5690,25 +5788,25 @@ export default function OwnerDashboardPage() {
                           <table className="w-full table-fixed text-left text-xs">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="w-[17%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[17%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Resit No
                                 </th>
-                                <th className="w-[13%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[13%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   No Meja
                                 </th>
-                                <th className="w-[15%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[15%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Tarikh
                                 </th>
-                                <th className="w-[11%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[11%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Masa
                                 </th>
-                                <th className="w-[17%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                <th className="w-[17%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                                   Cara Pembayaran
                                 </th>
-                                <th className="w-[12%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Jumlah
                                 </th>
-                                <th className="w-[15%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                <th className="w-[15%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
                                   Action
                                 </th>
                               </tr>
@@ -5720,39 +5818,39 @@ export default function OwnerDashboardPage() {
                                   className="hover:bg-gray-50/70 transition-all"
                                 >
                                   <td className="px-4 py-4">
-                                    <span className="font-mono text-xs font-black text-gray-900">
+                                    <span className="font-mono text-xs font-medium text-gray-900">
                                       #{receipt.id.slice(0, 8).toUpperCase()}
                                     </span>
                                   </td>
-                                  <td className="px-4 py-4 text-gray-700 font-bold">
+                                  <td className="px-4 py-4 text-gray-700 font-medium">
                                     {displayMejaLabel(receipt.meja)}
                                   </td>
-                                  <td className="px-4 py-4 text-gray-600 font-bold">
+                                  <td className="px-4 py-4 text-gray-600 font-medium">
                                     {formatReceiptDateOnly(receipt.created_at)}
                                   </td>
-                                  <td className="px-4 py-4 text-gray-600 font-bold">
+                                  <td className="px-4 py-4 text-gray-600 font-medium">
                                     {formatReceiptTimeOnly(receipt.created_at)}
                                   </td>
                                   <td className="px-4 py-4">
-                                    <span className="inline-flex items-center gap-1.5 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full">
+                                    <span className="inline-flex items-center gap-1.5 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full">
                                       <CreditCard size={13} strokeWidth={2} />
                                       {receipt.payment_method || "Belum direkod"}
                                     </span>
                                   </td>
-                                  <td className="px-4 py-4 text-right text-gray-900 font-black">
+                                  <td className="px-4 py-4 text-right text-gray-900 font-medium">
                                     {formatRM(receipt.total)}
                                   </td>
                                   <td className="px-4 py-4">
                                     <div className="flex items-center justify-end gap-2">
                                       <button
                                         onClick={() => setSelectedReceipt(receipt)}
-                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800 active:scale-95 transition-all"
+                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-medium hover:bg-gray-800 active:scale-95 transition-all"
                                       >
                                         View
                                       </button>
                                       <button
                                         onClick={() => downloadReceipt(receipt)}
-                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[var(--accent-600)] text-white text-xs font-black hover:bg-[var(--accent-700)] active:scale-95 transition-all"
+                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[var(--accent-600)] text-white text-xs font-medium hover:bg-[var(--accent-700)] active:scale-95 transition-all"
                                       >
                                         Download
                                       </button>
@@ -5772,18 +5870,18 @@ export default function OwnerDashboardPage() {
                             >
                               <div className="flex items-start justify-between gap-3 mb-3">
                                 <div className="min-w-0">
-                                  <div className="font-mono text-xs font-black text-gray-900 truncate">
+                                  <div className="font-mono text-xs font-medium text-gray-900 truncate">
                                     #{receipt.id.slice(0, 8).toUpperCase()}
                                   </div>
-                                  <div className="text-gray-400 text-xs font-bold mt-1">
+                                  <div className="text-gray-400 text-xs font-medium mt-1">
                                     {displayMejaLabel(receipt.meja)} · {formatReceiptDateOnly(receipt.created_at)} · {formatReceiptTimeOnly(receipt.created_at)}
                                   </div>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  <div className="text-gray-900 text-sm font-black">
+                                  <div className="text-gray-900 text-sm font-medium">
                                     {formatRM(receipt.total)}
                                   </div>
-                                  <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-black mt-1 inline-block">
+                                  <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-medium mt-1 inline-block">
                                     {receipt.payment_method || "Belum direkod"}
                                   </div>
                                 </div>
@@ -5792,13 +5890,13 @@ export default function OwnerDashboardPage() {
                               <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
                                 <button
                                   onClick={() => setSelectedReceipt(receipt)}
-                                  className="bg-gray-900 text-white text-xs font-black py-2.5 rounded-2xl active:scale-95 transition-all"
+                                  className="bg-gray-900 text-white text-xs font-medium py-2.5 rounded-2xl active:scale-95 transition-all"
                                 >
                                   View
                                 </button>
                                 <button
                                   onClick={() => downloadReceipt(receipt)}
-                                  className="bg-[var(--accent-600)] text-white text-xs font-black py-2.5 rounded-2xl active:scale-95 transition-all"
+                                  className="bg-[var(--accent-600)] text-white text-xs font-medium py-2.5 rounded-2xl active:scale-95 transition-all"
                                 >
                                   Download
                                 </button>
@@ -5818,18 +5916,18 @@ export default function OwnerDashboardPage() {
           {activeTab === "staff" && (
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-gray-900 font-bold text-lg">
+                <h2 className="text-gray-900 font-medium text-lg">
                   Staff ({staff.length})
                 </h2>
                 <button
                   onClick={() => setShowAddStaff(true)}
-                  className="bg-[var(--accent-600)] text-white text-xs font-bold px-4 py-2 rounded-full"
+                  className="bg-[var(--accent-600)] text-white text-xs font-medium px-4 py-2 rounded-full"
                 >
                   + Tambah Staff
                 </button>
               </div>
               {resetMsg && (
-                <div className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-bold p-3 rounded-2xl mb-3 border border-[var(--accent-200)]">
+                <div className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium p-3 rounded-2xl mb-3 border border-[var(--accent-200)]">
                   {resetMsg}
                 </div>
               )}
@@ -5858,12 +5956,12 @@ export default function OwnerDashboardPage() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="text-gray-900 font-bold text-sm">
+                      <div className="text-gray-900 font-medium text-sm">
                         {s.nama}
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.role === "kitchen" ? "bg-orange-100 text-orange-600" : s.role === "manager" ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"}`}
                         >
                           {s.role === "kitchen"
                             ? "Dapur"
@@ -5879,7 +5977,7 @@ export default function OwnerDashboardPage() {
                     <div className="flex flex-col gap-1 flex-shrink-0">
                       <button
                         onClick={() => toggleStaff(s.id, s.is_active)}
-                        className={`text-xs font-bold px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
+                        className={`text-xs font-medium px-2 py-1.5 rounded-xl border ${s.is_active ? "bg-red-50 text-red-500 border-red-200" : "bg-[var(--accent-50)] text-[var(--accent-600)] border-[var(--accent-200)]"}`}
                       >
                         {s.is_active ? "Nyahaktif" : "Aktifkan"}
                       </button>
@@ -5963,7 +6061,7 @@ export default function OwnerDashboardPage() {
           {activeTab === "settings" && (
             <div>
               <div className="mb-4">
-                <h2 className="text-gray-900 font-black text-xl flex items-center gap-2">
+                <h2 className="text-gray-900 font-medium text-xl flex items-center gap-2">
                   <ActiveSettingsIcon
                     size={20}
                     strokeWidth={2}
@@ -5971,7 +6069,7 @@ export default function OwnerDashboardPage() {
                   />
                   <span>{activeSettings?.label || "Tetapan"}</span>
                 </h2>
-                <p className="text-gray-400 text-xs font-bold mt-1">
+                <p className="text-gray-400 text-xs font-medium mt-1">
                   {activeSettings?.description || "Tetapan kedai"}
                 </p>
               </div>
@@ -5980,7 +6078,7 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm mb-4">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                      <h3 className="text-gray-900 font-bold text-sm">
+                      <h3 className="text-gray-900 font-medium text-sm">
                         <Armchair
                           size={15}
                           className="text-[var(--accent-600)]"
@@ -5991,7 +6089,7 @@ export default function OwnerDashboardPage() {
                         Default 6 meja. Bungkus akan kekal automatik.
                       </p>
                     </div>
-                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                    <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
                       Max 20
                     </span>
                   </div>
@@ -6000,22 +6098,22 @@ export default function OwnerDashboardPage() {
                       <button
                         onClick={() => changeTableCount(tableCountInput - 1)}
                         disabled={tableCountInput <= 1}
-                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-medium text-xl disabled:opacity-40 active:scale-95 transition-all"
                       >
                         −
                       </button>
                       <div className="text-center">
-                        <div className="text-gray-900 text-4xl font-black leading-none">
+                        <div className="text-gray-900 text-4xl font-medium leading-none">
                           {tableCountInput}
                         </div>
-                        <div className="text-gray-400 text-xs font-bold mt-1 uppercase tracking-wide">
+                        <div className="text-gray-400 text-xs font-medium mt-1 uppercase tracking-wide">
                           Meja
                         </div>
                       </div>
                       <button
                         onClick={() => changeTableCount(tableCountInput + 1)}
                         disabled={tableCountInput >= 20}
-                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-black text-xl disabled:opacity-40 active:scale-95 transition-all"
+                        className="w-12 h-12 rounded-2xl bg-white border border-gray-200 text-gray-700 font-medium text-xl disabled:opacity-40 active:scale-95 transition-all"
                       >
                         +
                       </button>
@@ -6033,13 +6131,13 @@ export default function OwnerDashboardPage() {
                         (_, index) => (
                           <div
                             key={index}
-                            className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-black"
+                            className="bg-white border border-gray-200 rounded-xl py-2 text-center text-gray-700 text-xs font-medium"
                           >
                             {index + 1}
                           </div>
                         ),
                       )}
-                      <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-black">
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl py-2 text-center text-amber-700 text-xs font-medium">
                         <ShoppingCart size={14} />
                       </div>
                     </div>
@@ -6050,7 +6148,7 @@ export default function OwnerDashboardPage() {
                   </div>
                   {tableMsg && (
                     <div
-                      className={`text-xs font-bold mb-3 p-3 rounded-xl ${isSuccessMessage(tableMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      className={`text-xs font-medium mb-3 p-3 rounded-xl ${isSuccessMessage(tableMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                     >
                       {tableMsg}
                     </div>
@@ -6065,7 +6163,7 @@ export default function OwnerDashboardPage() {
                           20,
                         )
                     }
-                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
                   >
                     {saving ? "Menyimpan..." : "Simpan Setup Meja"}
                   </button>
@@ -6077,7 +6175,7 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-start justify-between gap-3 mb-5">
                       <div>
-                        <h3 className="text-gray-900 font-bold text-sm">
+                        <h3 className="text-gray-900 font-medium text-sm">
                           <Store
                             size={15}
                             className="text-[var(--accent-600)]"
@@ -6089,14 +6187,14 @@ export default function OwnerDashboardPage() {
                           owner, staff dan kitchen.
                         </p>
                       </div>
-                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
                         Branding
                       </span>
                     </div>
 
                     {storeSetupMsg && (
                       <div
-                        className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(storeSetupMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                        className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(storeSetupMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                       >
                         {storeSetupMsg}
                       </div>
@@ -6106,10 +6204,10 @@ export default function OwnerDashboardPage() {
                       <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               Logo Kedai
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
                               Untuk header app
                             </div>
                           </div>
@@ -6132,7 +6230,7 @@ export default function OwnerDashboardPage() {
                                 size={34}
                                 className="text-gray-300 mx-auto mb-2"
                               />
-                              <div className="text-gray-400 text-xs font-bold">
+                              <div className="text-gray-400 text-xs font-medium">
                                 Belum ada logo
                               </div>
                             </div>
@@ -6151,7 +6249,7 @@ export default function OwnerDashboardPage() {
                               )
                             }
                           />
-                          <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                          <span className="w-full inline-flex items-center justify-center bg-gray-900 text-white font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
                             {uploadingLogo ? "Uploading..." : "Upload Logo"}
                           </span>
                         </label>
@@ -6160,10 +6258,10 @@ export default function OwnerDashboardPage() {
                       <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               QR DuitNow
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
                               Untuk payment staff
                             </div>
                           </div>
@@ -6183,7 +6281,7 @@ export default function OwnerDashboardPage() {
                                 size={34}
                                 className="text-gray-300 mx-auto mb-2"
                               />
-                              <div className="text-gray-400 text-xs font-bold">
+                              <div className="text-gray-400 text-xs font-medium">
                                 Belum ada QR
                               </div>
                             </div>
@@ -6202,7 +6300,7 @@ export default function OwnerDashboardPage() {
                               )
                             }
                           />
-                          <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
+                          <span className="w-full inline-flex items-center justify-center bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all cursor-pointer">
                             {uploadingQr ? "Uploading..." : "Upload QR DuitNow"}
                           </span>
                         </label>
@@ -6210,7 +6308,7 @@ export default function OwnerDashboardPage() {
                     </div>
 
                     <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                      <div className="text-amber-700 text-xs font-bold">
+                      <div className="text-amber-700 text-xs font-medium">
                         Nota: QR DuitNow akan digunakan di staff payment popup.
                         Logo kedai akan digunakan untuk branding owner, staff
                         dan kitchen selepas Phase B/C.
@@ -6225,7 +6323,7 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                     <div className="flex items-start justify-between gap-3 mb-5">
                       <div>
-                        <h3 className="text-gray-900 font-bold text-sm">
+                        <h3 className="text-gray-900 font-medium text-sm">
                           <Receipt
                             size={15}
                             className="text-[var(--accent-600)]"
@@ -6237,14 +6335,14 @@ export default function OwnerDashboardPage() {
                           checkout staff.
                         </p>
                       </div>
-                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
+                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full border border-[var(--accent-100)]">
                         Tax & Charge
                       </span>
                     </div>
 
                     {chargeMsg && (
                       <div
-                        className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(chargeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                        className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(chargeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                       >
                         {chargeMsg}
                       </div>
@@ -6256,10 +6354,10 @@ export default function OwnerDashboardPage() {
                       >
                         <div className="flex items-start justify-between gap-3 mb-4">
                           <div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               SST
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
                               Cukai SST yang dikenakan pada order
                             </div>
                           </div>
@@ -6273,7 +6371,7 @@ export default function OwnerDashboardPage() {
                             />
                           </button>
                         </div>
-                        <label className="text-gray-500 text-xs font-black mb-2 block">
+                        <label className="text-gray-500 text-xs font-medium mb-2 block">
                           RATE SST (%)
                         </label>
                         <div className="relative">
@@ -6285,9 +6383,9 @@ export default function OwnerDashboardPage() {
                             value={sstRate}
                             onChange={(e) => setSstRate(e.target.value)}
                             disabled={!sstEnabled}
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
                             %
                           </span>
                         </div>
@@ -6298,10 +6396,10 @@ export default function OwnerDashboardPage() {
                       >
                         <div className="flex items-start justify-between gap-3 mb-4">
                           <div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               Service Charge
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
                               Caj servis kedai untuk order pelanggan
                             </div>
                           </div>
@@ -6317,7 +6415,7 @@ export default function OwnerDashboardPage() {
                             />
                           </button>
                         </div>
-                        <label className="text-gray-500 text-xs font-black mb-2 block">
+                        <label className="text-gray-500 text-xs font-medium mb-2 block">
                           RATE SERVICE CHARGE (%)
                         </label>
                         <div className="relative">
@@ -6331,9 +6429,9 @@ export default function OwnerDashboardPage() {
                               setServiceChargeRate(e.target.value)
                             }
                             disabled={!serviceChargeEnabled}
-                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-black outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
+                            className="w-full border border-gray-200 rounded-2xl px-4 py-3 pr-10 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)] disabled:bg-gray-100 disabled:text-gray-400"
                           />
-                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-black">
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
                             %
                           </span>
                         </div>
@@ -6341,7 +6439,7 @@ export default function OwnerDashboardPage() {
                     </div>
 
                     <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                      <div className="text-gray-500 text-xs font-black mb-3">
+                      <div className="text-gray-500 text-xs font-medium mb-3">
                         PREVIEW KIRAAN
                       </div>
                       {(() => {
@@ -6359,12 +6457,12 @@ export default function OwnerDashboardPage() {
 
                         return (
                           <div className="bg-white rounded-2xl p-4 border border-gray-100 space-y-2">
-                            <div className="flex justify-between text-sm font-bold text-gray-500">
+                            <div className="flex justify-between text-sm font-medium text-gray-500">
                               <span>Subtotal</span>
                               <span>RM {previewSubtotal.toFixed(2)}</span>
                             </div>
                             {serviceChargeEnabled && (
-                              <div className="flex justify-between text-sm font-bold text-gray-500">
+                              <div className="flex justify-between text-sm font-medium text-gray-500">
                                 <span>
                                   Service Charge (
                                   {Number(serviceChargeRate) || 0}%)
@@ -6373,23 +6471,23 @@ export default function OwnerDashboardPage() {
                               </div>
                             )}
                             {sstEnabled && (
-                              <div className="flex justify-between text-sm font-bold text-gray-500">
+                              <div className="flex justify-between text-sm font-medium text-gray-500">
                                 <span>SST ({Number(sstRate) || 0}%)</span>
                                 <span>RM {previewSst.toFixed(2)}</span>
                               </div>
                             )}
                             <div className="border-t border-dashed border-gray-300 pt-3 flex justify-between items-center">
-                              <span className="text-gray-900 font-black">
+                              <span className="text-gray-900 font-medium">
                                 Total
                               </span>
-                              <span className="text-gray-900 font-black text-xl">
+                              <span className="text-gray-900 font-medium text-xl">
                                 RM {previewTotal.toFixed(2)}
                               </span>
                             </div>
                           </div>
                         );
                       })()}
-                      <div className="text-gray-400 text-xs font-bold mt-3">
+                      <div className="text-gray-400 text-xs font-medium mt-3">
                         Formula: Service charge dikira dari subtotal. SST dikira
                         selepas service charge.
                       </div>
@@ -6398,7 +6496,7 @@ export default function OwnerDashboardPage() {
                     <button
                       onClick={saveChargeSetting}
                       disabled={saving}
-                      className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                      className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
                     >
                       {saving ? "Menyimpan..." : "Simpan Setup Caj"}
                     </button>
@@ -6410,7 +6508,7 @@ export default function OwnerDashboardPage() {
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                   <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
-                      <h3 className="text-gray-900 font-bold text-sm">
+                      <h3 className="text-gray-900 font-medium text-sm">
                         <Palette
                           size={15}
                           className="text-[var(--accent-600)]"
@@ -6422,7 +6520,7 @@ export default function OwnerDashboardPage() {
                       </p>
                     </div>
                     <span
-                      className={`${selectedAccent.sample} text-white text-xs font-black px-3 py-1.5 rounded-full`}
+                      className={`${selectedAccent.sample} text-white text-xs font-medium px-3 py-1.5 rounded-full`}
                     >
                       {selectedAccent.label}
                     </span>
@@ -6430,14 +6528,14 @@ export default function OwnerDashboardPage() {
 
                   {themeMsg && (
                     <div
-                      className={`text-xs font-bold mb-4 p-3 rounded-xl ${isSuccessMessage(themeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(themeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                     >
                       {themeMsg}
                     </div>
                   )}
 
                   <div className="mb-5">
-                    <label className="text-gray-500 text-xs font-black mb-3 block">
+                    <label className="text-gray-500 text-xs font-medium mb-3 block">
                       ACCENT COLOR
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -6452,7 +6550,7 @@ export default function OwnerDashboardPage() {
                             <span
                               className={`w-4 h-4 rounded-full ${color.dot}`}
                             />
-                            <span className="text-gray-800 text-xs font-black flex-1">
+                            <span className="text-gray-800 text-xs font-medium flex-1">
                               {color.label}
                             </span>
                             {isSelected && (
@@ -6468,7 +6566,7 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="mb-5">
-                    <label className="text-gray-500 text-xs font-black mb-3 block">
+                    <label className="text-gray-500 text-xs font-medium mb-3 block">
                       APPEARANCE
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -6506,10 +6604,10 @@ export default function OwnerDashboardPage() {
                                 />
                               )}
                             </div>
-                            <div className="text-gray-900 text-sm font-black">
+                            <div className="text-gray-900 text-sm font-medium">
                               {mode.label}
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
                               {mode.desc}
                             </div>
                           </button>
@@ -6519,13 +6617,13 @@ export default function OwnerDashboardPage() {
                   </div>
 
                   <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
-                    <div className="text-gray-500 text-xs font-black mb-3">
+                    <div className="text-gray-500 text-xs font-medium mb-3">
                       PREVIEW
                     </div>
                     <div className="bg-white rounded-2xl p-4 border border-gray-100">
                       <div className="flex items-center gap-3 mb-3">
                         <div
-                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}
+                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-medium`}
                         >
                           {kedaiInfo?.logo_url ? (
                             <img
@@ -6538,16 +6636,16 @@ export default function OwnerDashboardPage() {
                           )}
                         </div>
                         <div>
-                          <div className="text-gray-900 text-sm font-black">
+                          <div className="text-gray-900 text-sm font-medium">
                             {kedaiInfo?.nama || "Kedai Saya"}
                           </div>
-                          <div className="text-gray-400 text-xs font-bold">
+                          <div className="text-gray-400 text-xs font-medium">
                             {selectedAccent.label} · {selectedThemeMode}
                           </div>
                         </div>
                       </div>
                       <div
-                        className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-black text-center`}
+                        className={`${selectedAccent.sample} text-white rounded-2xl px-4 py-3 text-sm font-medium text-center`}
                       >
                         Contoh Button
                       </div>
@@ -6557,7 +6655,7 @@ export default function OwnerDashboardPage() {
                   <button
                     onClick={saveThemeSetting}
                     disabled={saving}
-                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
                   >
                     {saving ? "Menyimpan..." : "Simpan Theme"}
                   </button>
@@ -6566,7 +6664,7 @@ export default function OwnerDashboardPage() {
 
               {activeSettingsTab === "password" && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                  <h3 className="text-gray-900 font-bold text-sm mb-4">
+                  <h3 className="text-gray-900 font-medium text-sm mb-4">
                     <LockKeyhole
                       size={15}
                       className="text-[var(--accent-600)]"
@@ -6574,7 +6672,7 @@ export default function OwnerDashboardPage() {
                     Tukar Password Saya
                   </h3>
                   <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       PASSWORD SEMASA
                     </label>
                     <input
@@ -6586,7 +6684,7 @@ export default function OwnerDashboardPage() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       PASSWORD BARU
                     </label>
                     <input
@@ -6598,7 +6696,7 @@ export default function OwnerDashboardPage() {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       CONFIRM PASSWORD BARU
                     </label>
                     <input
@@ -6611,7 +6709,7 @@ export default function OwnerDashboardPage() {
                   </div>
                   {passwordMsg && (
                     <div
-                      className={`text-xs font-bold mb-3 p-3 rounded-xl ${isSuccessMessage(passwordMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                      className={`text-xs font-medium mb-3 p-3 rounded-xl ${isSuccessMessage(passwordMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
                     >
                       {passwordMsg}
                     </div>
@@ -6621,7 +6719,7 @@ export default function OwnerDashboardPage() {
                     disabled={
                       !currentPassword || !newPassword || !confirmPassword
                     }
-                    className="w-full bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl text-sm disabled:opacity-50"
+                    className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl text-sm disabled:opacity-50"
                   >
                     Tukar Password
                   </button>
@@ -6636,16 +6734,16 @@ export default function OwnerDashboardPage() {
               <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-gray-900 font-black text-lg">
+                    <h3 className="text-gray-900 font-medium text-lg">
                       Tarikh Custom
                     </h3>
-                    <p className="text-gray-400 text-xs font-bold mt-0.5">
+                    <p className="text-gray-400 text-xs font-medium mt-0.5">
                       Pilih julat tarikh laporan
                     </p>
                   </div>
                   <button
                     onClick={() => setShowFilterModal(false)}
-                    className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
+                    className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-medium flex items-center justify-center active:scale-95 transition-all"
                   >
                     <X size={18} />
                   </button>
@@ -6653,25 +6751,25 @@ export default function OwnerDashboardPage() {
                 <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
                   <div className="grid grid-cols-1 gap-3">
                     <div>
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                      <label className="text-gray-500 text-xs font-medium mb-2 block">
                         START DATE
                       </label>
                       <input
                         type="date"
                         value={pendingCustomFrom}
                         onChange={(e) => setPendingCustomFrom(e.target.value)}
-                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)]"
                       />
                     </div>
                     <div>
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                      <label className="text-gray-500 text-xs font-medium mb-2 block">
                         END DATE
                       </label>
                       <input
                         type="date"
                         value={pendingCustomTo}
                         onChange={(e) => setPendingCustomTo(e.target.value)}
-                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)]"
                       />
                     </div>
                   </div>
@@ -6679,14 +6777,14 @@ export default function OwnerDashboardPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowFilterModal(false)}
-                    className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3.5 rounded-2xl active:scale-95 transition-all"
                   >
                     Batal
                   </button>
                   <button
                     onClick={applyFilterModal}
                     disabled={!pendingCustomFrom || !pendingCustomTo}
-                    className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+                    className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
                   >
                     Apply
                   </button>
@@ -6701,26 +6799,26 @@ export default function OwnerDashboardPage() {
               <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-5">
                   <div>
-                    <h3 className="text-gray-900 font-black text-lg">
+                    <h3 className="text-gray-900 font-medium text-lg">
                       Receipt Preview
                     </h3>
-                    <div className="text-gray-400 text-xs font-bold">
+                    <div className="text-gray-400 text-xs font-medium">
                       #{selectedReceipt.id.slice(0, 8).toUpperCase()}
                     </div>
                   </div>
                   <button
                     onClick={() => setSelectedReceipt(null)}
-                    className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black"
+                    className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-medium"
                   >
                     <X size={18} />
                   </button>
                 </div>
                 <div className="border border-gray-200 rounded-2xl p-5 bg-white">
                   <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                    <div className="text-gray-900 font-black text-xl">
+                    <div className="text-gray-900 font-medium text-xl">
                       {kedaiInfo?.nama || "Kedai Saya"}
                     </div>
-                    <div className="text-gray-400 text-xs font-bold mt-1">
+                    <div className="text-gray-400 text-xs font-medium mt-1">
                       Powered by UrusPOS
                     </div>
                     <div className="text-gray-400 text-xs mt-2">
@@ -6728,17 +6826,17 @@ export default function OwnerDashboardPage() {
                     </div>
                   </div>
                   <div className="mb-4">
-                    <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                    <div className="flex justify-between text-xs text-gray-500 font-medium mb-1">
                       <span>Order</span>
                       <span>
                         #{selectedReceipt.id.slice(0, 8).toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 font-bold mb-1">
+                    <div className="flex justify-between text-xs text-gray-500 font-medium mb-1">
                       <span>Jenis</span>
                       <span>{displayMejaLabel(selectedReceipt.meja)}</span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 font-bold">
+                    <div className="flex justify-between text-xs text-gray-500 font-medium">
                       <span>Bayaran</span>
                       <span>
                         {selectedReceipt.payment_method || "Belum direkod"}
@@ -6752,7 +6850,7 @@ export default function OwnerDashboardPage() {
                         className="flex justify-between gap-3 text-sm"
                       >
                         <div className="flex-1">
-                          <div className="text-gray-900 font-bold">
+                          <div className="text-gray-900 font-medium">
                             {item.nama}
                           </div>
                           <div className="text-gray-400 text-xs">
@@ -6764,7 +6862,7 @@ export default function OwnerDashboardPage() {
                             </div>
                           )}
                         </div>
-                        <div className="text-gray-900 font-black">
+                        <div className="text-gray-900 font-medium">
                           {formatRM(item.qty * item.harga)}
                         </div>
                       </div>
@@ -6773,14 +6871,14 @@ export default function OwnerDashboardPage() {
                   <div className="border-t border-dashed border-gray-300 mt-4 pt-4">
                     {shouldShowReceiptCaj(selectedReceipt) && (
                       <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-xs text-gray-500 font-black">
+                        <div className="flex justify-between text-xs text-gray-500 font-medium">
                           <span>Subtotal</span>
                           <span>
                             {formatRM(getReceiptSubtotal(selectedReceipt))}
                           </span>
                         </div>
                         {getReceiptServiceCharge(selectedReceipt) > 0 && (
-                          <div className="flex justify-between text-xs text-gray-500 font-black">
+                          <div className="flex justify-between text-xs text-gray-500 font-medium">
                             <span>
                               Service Charge (
                               {formatReceiptRate(
@@ -6796,7 +6894,7 @@ export default function OwnerDashboardPage() {
                           </div>
                         )}
                         {getReceiptSst(selectedReceipt) > 0 && (
-                          <div className="flex justify-between text-xs text-gray-500 font-black">
+                          <div className="flex justify-between text-xs text-gray-500 font-medium">
                             <span>
                               SST ({formatReceiptRate(selectedReceipt.sst_rate)}
                               %)
@@ -6810,8 +6908,8 @@ export default function OwnerDashboardPage() {
                       </div>
                     )}
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-900 font-black">TOTAL</span>
-                      <span className="text-gray-900 font-black text-xl">
+                      <span className="text-gray-900 font-medium">TOTAL</span>
+                      <span className="text-gray-900 font-medium text-xl">
                         {formatRM(selectedReceipt.total)}
                       </span>
                     </div>
@@ -6822,7 +6920,7 @@ export default function OwnerDashboardPage() {
                 </div>
                 <button
                   onClick={() => setSelectedReceipt(null)}
-                  className="w-full mt-4 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl"
+                  className="w-full mt-4 bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl"
                 >
                   Tutup
                 </button>
@@ -6858,7 +6956,7 @@ export default function OwnerDashboardPage() {
           {showAddStaff && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
               <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-                <h3 className="text-gray-900 font-bold text-lg mb-6">
+                <h3 className="text-gray-900 font-medium text-lg mb-6">
                   <Plus
                     size={18}
                     className="text-[var(--accent-600)] inline mr-2"
@@ -6866,7 +6964,7 @@ export default function OwnerDashboardPage() {
                   Tambah Staff Baru
                 </h3>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     NAMA PENUH
                   </label>
                   <input
@@ -6878,7 +6976,7 @@ export default function OwnerDashboardPage() {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     USERNAME
                   </label>
                   <input
@@ -6890,7 +6988,7 @@ export default function OwnerDashboardPage() {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     ROLE
                   </label>
                   <div className="grid grid-cols-2 gap-3">
@@ -6901,7 +6999,7 @@ export default function OwnerDashboardPage() {
                       <button
                         key={r.id}
                         onClick={() => setNewStaffRole(r.id)}
-                        className={`py-3 rounded-xl border text-xs font-bold transition-all ${newStaffRole === r.id ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
+                        className={`py-3 rounded-xl border text-xs font-medium transition-all ${newStaffRole === r.id ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
                       >
                         {r.label}
                       </button>
@@ -6910,14 +7008,14 @@ export default function OwnerDashboardPage() {
                 </div>
                 {staffError && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                    <div className="text-red-600 text-xs font-bold">
+                    <div className="text-red-600 text-xs font-medium">
                       <AlertTriangle size={14} className="inline mr-1" />{" "}
                       {staffError}
                     </div>
                   </div>
                 )}
                 <div className="bg-[var(--accent-50)] border border-[var(--accent-200)] rounded-xl p-3 mb-4">
-                  <div className="text-[var(--accent-700)] text-xs font-bold mb-1">
+                  <div className="text-[var(--accent-700)] text-xs font-medium mb-1">
                     <KeyRound size={16} className="inline mr-2" /> Credential
                     Staff
                   </div>
@@ -6931,7 +7029,7 @@ export default function OwnerDashboardPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowAddStaff(false)}
-                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
                   >
                     Batal
                   </button>
@@ -6940,7 +7038,7 @@ export default function OwnerDashboardPage() {
                     disabled={
                       saving || !newStaffNama.trim() || !newStaffUsername.trim()
                     }
-                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                    className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl disabled:opacity-50"
                   >
                     {saving ? "Menyimpan..." : "Simpan"}
                   </button>
@@ -6955,14 +7053,14 @@ export default function OwnerDashboardPage() {
               <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
                 <div className="flex items-start justify-between gap-4 mb-5">
                   <div>
-                    <h3 className="text-gray-900 font-black text-lg flex items-center gap-2">
+                    <h3 className="text-gray-900 font-medium text-lg flex items-center gap-2">
                       <FolderTree
                         size={19}
                         className="text-[var(--accent-600)]"
                       />
                       Manage Kategori
                     </h3>
-                    <p className="text-gray-400 text-xs font-bold mt-1">
+                    <p className="text-gray-400 text-xs font-medium mt-1">
                       Tambah, edit, aktif/nyahaktif dan buang kategori menu.
                     </p>
                   </div>
@@ -6977,7 +7075,7 @@ export default function OwnerDashboardPage() {
 
                 {categoryError && (
                   <div className="bg-red-50 border border-red-200 rounded-2xl p-3 mb-4">
-                    <div className="text-red-600 text-xs font-bold flex items-start gap-2">
+                    <div className="text-red-600 text-xs font-medium flex items-start gap-2">
                       <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                       <span>{categoryError}</span>
                     </div>
@@ -6986,17 +7084,17 @@ export default function OwnerDashboardPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-4">
                   <div className="bg-gray-50 rounded-3xl border border-gray-100 p-4">
-                    <div className="text-gray-900 text-sm font-black mb-1">
+                    <div className="text-gray-900 text-sm font-medium mb-1">
                       {editCategoryId ? "Edit Kategori" : "Tambah Kategori"}
                     </div>
-                    <div className="text-gray-400 text-xs font-bold mb-4">
+                    <div className="text-gray-400 text-xs font-medium mb-4">
                       {editCategoryId
                         ? "Kemaskini nama dan icon kategori."
                         : "Kategori baru akan muncul dalam dropdown menu."}
                     </div>
 
                     <div className="mb-4">
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                      <label className="text-gray-500 text-xs font-medium mb-2 block">
                         NAMA KATEGORI
                       </label>
                       <input
@@ -7009,12 +7107,12 @@ export default function OwnerDashboardPage() {
                           setCategoryError("");
                         }}
                         placeholder="cth: Dessert"
-                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                        className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)]"
                       />
                     </div>
 
                     <div className="mb-5">
-                      <label className="text-gray-500 text-xs font-black mb-2 block">
+                      <label className="text-gray-500 text-xs font-medium mb-2 block">
                         ICON
                       </label>
                       <div className="grid grid-cols-5 sm:grid-cols-6 lg:grid-cols-5 gap-2">
@@ -7050,7 +7148,7 @@ export default function OwnerDashboardPage() {
                       {editCategoryId && (
                         <button
                           onClick={cancelEditCategory}
-                          className="flex-1 bg-white border border-gray-200 text-gray-600 font-black py-3 rounded-2xl text-sm active:scale-95 transition-all"
+                          className="flex-1 bg-white border border-gray-200 text-gray-600 font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all"
                         >
                           Batal Edit
                         </button>
@@ -7064,7 +7162,7 @@ export default function OwnerDashboardPage() {
                             ? !editCategoryNama.trim()
                             : !categoryNama.trim())
                         }
-                        className="flex-1 bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+                        className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
                       >
                         {saving
                           ? "Menyimpan..."
@@ -7078,14 +7176,14 @@ export default function OwnerDashboardPage() {
                   <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
                       <div>
-                        <div className="text-gray-900 text-sm font-black">
+                        <div className="text-gray-900 text-sm font-medium">
                           Senarai Kategori
                         </div>
-                        <div className="text-gray-400 text-xs font-bold">
+                        <div className="text-gray-400 text-xs font-medium">
                           {categories.length} kategori tersedia
                         </div>
                       </div>
-                      <span className="bg-gray-50 text-gray-500 text-[10px] font-black px-3 py-1.5 rounded-full border border-gray-100">
+                      <span className="bg-gray-50 text-gray-500 text-[10px] font-medium px-3 py-1.5 rounded-full border border-gray-100">
                         Active / Inactive
                       </span>
                     </div>
@@ -7097,7 +7195,7 @@ export default function OwnerDashboardPage() {
                             size={32}
                             className="text-gray-300 mx-auto mb-2"
                           />
-                          <div className="text-gray-400 text-sm font-bold">
+                          <div className="text-gray-400 text-sm font-medium">
                             Belum ada kategori.
                           </div>
                         </div>
@@ -7131,12 +7229,12 @@ export default function OwnerDashboardPage() {
                                 </div>
 
                                 <div className="min-w-0">
-                                  <div className="text-gray-900 text-sm font-black truncate">
+                                  <div className="text-gray-900 text-sm font-medium truncate">
                                     {category.nama}
                                   </div>
                                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <span
-                                      className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                                         category.is_active
                                           ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"
                                           : "bg-gray-50 text-gray-400 border-gray-100"
@@ -7146,7 +7244,7 @@ export default function OwnerDashboardPage() {
                                         ? "Aktif"
                                         : "Tidak aktif"}
                                     </span>
-                                    <span className="text-gray-400 text-[10px] font-bold">
+                                    <span className="text-gray-400 text-[10px] font-medium">
                                       {productCount} menu
                                     </span>
                                   </div>
@@ -7225,7 +7323,7 @@ export default function OwnerDashboardPage() {
                 </div>
 
                 <div className="mt-4 bg-amber-50 border border-amber-100 rounded-2xl p-3">
-                  <div className="text-amber-700 text-xs font-bold flex items-start gap-2">
+                  <div className="text-amber-700 text-xs font-medium flex items-start gap-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                     <span>
                       Kategori yang masih digunakan oleh menu tidak boleh
@@ -7242,7 +7340,7 @@ export default function OwnerDashboardPage() {
           {showAddProduk && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
               <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-                <h3 className="text-gray-900 font-bold text-lg mb-6">
+                <h3 className="text-gray-900 font-medium text-lg mb-6">
                   <Plus
                     size={18}
                     className="text-[var(--accent-600)] inline mr-2"
@@ -7250,7 +7348,7 @@ export default function OwnerDashboardPage() {
                   Tambah Menu
                 </h3>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     NAMA MENU
                   </label>
                   <input
@@ -7262,7 +7360,7 @@ export default function OwnerDashboardPage() {
                   />
                 </div>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     KATEGORI
                   </label>
                   <select
@@ -7280,7 +7378,7 @@ export default function OwnerDashboardPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
-                    <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    <label className="text-gray-500 text-xs font-medium mb-2 block">
                       HARGA JUAL (RM)
                     </label>
                     <input
@@ -7292,7 +7390,7 @@ export default function OwnerDashboardPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-500 text-xs font-bold mb-2 block">
+                    <label className="text-gray-500 text-xs font-medium mb-2 block">
                       KOS MENU (RM)
                     </label>
                     <input
@@ -7305,7 +7403,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 </div>
                 <div className="mb-4">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     STOK AWAL
                   </label>
                   <input
@@ -7321,7 +7419,7 @@ export default function OwnerDashboardPage() {
                     className={`rounded-xl p-3 mb-4 ${marginTambah >= 40 ? "bg-[var(--accent-50)] border border-[var(--accent-200)]" : "bg-amber-50 border border-amber-200"}`}
                   >
                     <div
-                      className={`text-xs font-bold ${marginTambah >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
+                      className={`text-xs font-medium ${marginTambah >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                     >
                       <Lightbulb size={14} className="inline mr-1" /> Margin:{" "}
                       <strong>{marginTambah}%</strong>{" "}
@@ -7332,14 +7430,14 @@ export default function OwnerDashboardPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowAddProduk(false)}
-                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
                   >
                     Batal
                   </button>
                   <button
                     onClick={addProduk}
                     disabled={saving || !produkNama.trim()}
-                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                    className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl disabled:opacity-50"
                   >
                     {saving ? "Menyimpan..." : "Simpan"}
                   </button>
@@ -7356,7 +7454,7 @@ export default function OwnerDashboardPage() {
                 style={{ maxHeight: "90vh", overflowY: "auto" }}
               >
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-gray-900 font-bold text-lg">
+                  <h3 className="text-gray-900 font-medium text-lg">
                     <Pencil size={12} /> Edit Menu
                   </h3>
                   <button
@@ -7367,11 +7465,11 @@ export default function OwnerDashboardPage() {
                   </button>
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 mb-5">
-                  <div className="text-gray-500 text-xs font-bold mb-3">
+                  <div className="text-gray-500 text-xs font-medium mb-3">
                     MAKLUMAT MENU
                   </div>
                   <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       NAMA MENU
                     </label>
                     <input
@@ -7382,7 +7480,7 @@ export default function OwnerDashboardPage() {
                     />
                   </div>
                   <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       KATEGORI
                     </label>
                     <select
@@ -7400,7 +7498,7 @@ export default function OwnerDashboardPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      <label className="text-gray-500 text-xs font-medium mb-1 block">
                         HARGA JUAL (RM)
                       </label>
                       <input
@@ -7411,7 +7509,7 @@ export default function OwnerDashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-gray-500 text-xs font-bold mb-1 block">
+                      <label className="text-gray-500 text-xs font-medium mb-1 block">
                         KOS MENU (RM)
                       </label>
                       <input
@@ -7427,7 +7525,7 @@ export default function OwnerDashboardPage() {
                       className={`rounded-xl p-2 mt-3 ${marginEdit >= 40 ? "bg-[var(--accent-100)]" : "bg-amber-100"}`}
                     >
                       <div
-                        className={`text-xs font-bold ${marginEdit >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
+                        className={`text-xs font-medium ${marginEdit >= 40 ? "text-[var(--accent-700)]" : "text-amber-700"}`}
                       >
                         <Lightbulb size={14} className="inline mr-1" /> Margin:{" "}
                         <strong>{marginEdit}%</strong>{" "}
@@ -7437,15 +7535,15 @@ export default function OwnerDashboardPage() {
                   )}
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 mb-5">
-                  <div className="text-gray-500 text-xs font-bold mb-3">
+                  <div className="text-gray-500 text-xs font-medium mb-3">
                     KEMASKINI STOK
                   </div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-gray-500 text-xs font-bold">
+                    <span className="text-gray-500 text-xs font-medium">
                       STOK SEMASA
                     </span>
                     <span
-                      className={`text-lg font-black ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}
+                      className={`text-lg font-medium ${editStokSemasa <= 5 ? "text-red-500" : "text-gray-900"}`}
                     >
                       {editStokSemasa} unit
                     </span>
@@ -7457,7 +7555,7 @@ export default function OwnerDashboardPage() {
                         setEditStokQty("");
                         setEditStokError("");
                       }}
-                      className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tambah" ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
+                      className={`py-2.5 rounded-xl border text-xs font-medium transition-all ${editStokMode === "tambah" ? "bg-[var(--accent-50)] border-[var(--accent-500)] text-[var(--accent-700)]" : "bg-white border-gray-200 text-gray-400"}`}
                     >
                       <Plus size={13} className="inline mr-1" /> Tambah Stok
                     </button>
@@ -7467,13 +7565,13 @@ export default function OwnerDashboardPage() {
                         setEditStokQty("");
                         setEditStokError("");
                       }}
-                      className={`py-2.5 rounded-xl border text-xs font-bold transition-all ${editStokMode === "tolak" ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-gray-200 text-gray-400"}`}
+                      className={`py-2.5 rounded-xl border text-xs font-medium transition-all ${editStokMode === "tolak" ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-gray-200 text-gray-400"}`}
                     >
                       <Minus size={13} className="inline mr-1" /> Tolak Stok
                     </button>
                   </div>
                   <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-bold mb-1 block">
+                    <label className="text-gray-500 text-xs font-medium mb-1 block">
                       JUMLAH UNIT{" "}
                       <span className="text-gray-400 font-normal">
                         (kosongkan kalau tak nak ubah stok)
@@ -7488,13 +7586,13 @@ export default function OwnerDashboardPage() {
                       }}
                       placeholder="0"
                       min="1"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white text-center text-xl font-black"
+                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)] bg-white text-center text-xl font-medium"
                     />
                   </div>
                   {editStokQty && (
                     <>
                       <div className="mb-3">
-                        <label className="text-gray-500 text-xs font-bold mb-2 block">
+                        <label className="text-gray-500 text-xs font-medium mb-2 block">
                           SEBAB / REASON
                         </label>
                         <div className="grid grid-cols-2 gap-2 mb-2">
@@ -7515,7 +7613,7 @@ export default function OwnerDashboardPage() {
                             <button
                               key={r}
                               onClick={() => setEditStokReason(r)}
-                              className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all text-left ${editStokReason === r ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-gray-200 text-gray-400"}`}
+                              className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all text-left ${editStokReason === r ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-white border-gray-200 text-gray-400"}`}
                             >
                               {r}
                             </button>
@@ -7534,7 +7632,7 @@ export default function OwnerDashboardPage() {
                           className={`rounded-xl p-2.5 ${previewStokBaru < 0 ? "bg-red-50 border border-red-200" : previewStokBaru <= 5 ? "bg-amber-50 border border-amber-200" : "bg-[var(--accent-50)] border border-[var(--accent-200)]"}`}
                         >
                           <div
-                            className={`text-xs font-bold ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-[var(--accent-700)]"}`}
+                            className={`text-xs font-medium ${previewStokBaru < 0 ? "text-red-600" : previewStokBaru <= 5 ? "text-amber-700" : "text-[var(--accent-700)]"}`}
                           >
                             {previewStokBaru < 0
                               ? `Stok tidak cukup! Akan jadi ${previewStokBaru} unit.`
@@ -7549,7 +7647,7 @@ export default function OwnerDashboardPage() {
                 </div>
                 {editStokError && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
-                    <div className="text-red-600 text-xs font-bold">
+                    <div className="text-red-600 text-xs font-medium">
                       <AlertTriangle size={14} className="inline mr-1" />{" "}
                       {editStokError}
                     </div>
@@ -7558,14 +7656,14 @@ export default function OwnerDashboardPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={closeEditProduk}
-                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
                   >
                     Batal
                   </button>
                   <button
                     onClick={submitEditProduk}
                     disabled={saving || !editProdukNama.trim()}
-                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                    className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl disabled:opacity-50"
                   >
                     {saving ? "Menyimpan..." : "Simpan"}
                   </button>
@@ -7579,7 +7677,7 @@ export default function OwnerDashboardPage() {
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
               <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-red-100">
                 <Trash2 size={34} className="text-red-400 mx-auto mb-3" />
-                <h3 className="text-gray-900 font-bold text-lg text-center mb-1">
+                <h3 className="text-gray-900 font-medium text-lg text-center mb-1">
                   Buang Menu?
                 </h3>
                 <p className="text-gray-400 text-sm text-center mb-1">
@@ -7597,7 +7695,7 @@ export default function OwnerDashboardPage() {
                       setConfirmDeleteProdukId(null);
                       setConfirmDeleteProdukNama("");
                     }}
-                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
                   >
                     Batal
                   </button>
@@ -7607,7 +7705,7 @@ export default function OwnerDashboardPage() {
                       setConfirmDeleteProdukId(null);
                       setConfirmDeleteProdukNama("");
                     }}
-                    className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl"
+                    className="flex-1 bg-red-500 text-white font-medium py-3 rounded-xl"
                   >
                     Ya, Buang
                   </button>
@@ -7620,7 +7718,7 @@ export default function OwnerDashboardPage() {
           {resetStaffId && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
               <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-                <h3 className="text-gray-900 font-bold text-lg mb-2">
+                <h3 className="text-gray-900 font-medium text-lg mb-2">
                   <KeyRound
                     size={18}
                     className="text-[var(--accent-600)] inline mr-2"
@@ -7629,7 +7727,7 @@ export default function OwnerDashboardPage() {
                 </h3>
                 <p className="text-gray-400 text-sm mb-6">{resetStaffNama}</p>
                 <div className="mb-6">
-                  <label className="text-gray-500 text-xs font-bold mb-2 block">
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
                     PASSWORD BARU
                   </label>
                   <input
@@ -7643,14 +7741,14 @@ export default function OwnerDashboardPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setResetStaffId(null)}
-                    className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl"
+                    className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
                   >
                     Batal
                   </button>
                   <button
                     onClick={resetPasswordStaff}
                     disabled={!newStaffPassword.trim()}
-                    className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                    className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl disabled:opacity-50"
                   >
                     Reset
                   </button>
