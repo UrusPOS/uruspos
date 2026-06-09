@@ -1302,7 +1302,7 @@ export default function OwnerDashboardPage() {
 
         const salesTrend = buildSalesTrendData(paidOrders, filter, from, to);
         const last30DaysSales = buildLast30DaysSalesData(allPaidOrders);
-        const recentReceipts = paidOrders.slice(0, 8).map(mapOrderToReceipt);
+        const recentReceipts = paidOrders.slice(0, 100).map(mapOrderToReceipt);
         const todayReceipts = todayPaidOrders
           .slice(0, 8)
           .map(mapOrderToReceipt);
@@ -2224,6 +2224,23 @@ export default function OwnerDashboardPage() {
     });
   }
 
+  function formatReceiptDateOnly(dateValue: string) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function formatReceiptTimeOnly(dateValue: string) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleTimeString("ms-MY", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   function formatMovementType(type: string) {
     if (isStockInMovement(type)) return "Masuk";
     if (isStockOutMovement(type)) return "Keluar";
@@ -2713,8 +2730,8 @@ export default function OwnerDashboardPage() {
     {
       id: "laporan",
       icon: BarChart2,
-      label: "Laporan",
-      description: "Prestasi kedai",
+      label: "Jualan",
+      description: "Rumusan & resit",
     },
     {
       id: "staff",
@@ -2734,26 +2751,14 @@ export default function OwnerDashboardPage() {
     {
       id: "sales-summary",
       icon: DollarSign,
-      label: "Ringkasan Jualan",
-      description: "Sales, order & margin",
-    },
-    {
-      id: "top-products",
-      icon: Flame,
-      label: "Menu Terlaris",
-      description: "Top menu terjual",
-    },
-    {
-      id: "payment-method",
-      icon: CreditCard,
-      label: "Kaedah Bayaran",
-      description: "Ringkasan payment method",
+      label: "Rumusan Jualan",
+      description: "Sales, order, margin & payment",
     },
     {
       id: "receipts",
       icon: Receipt,
       label: "Rekod Resit",
-      description: "Semakan receipt",
+      description: "Senarai resit jualan",
     },
   ];
 
@@ -3233,7 +3238,7 @@ export default function OwnerDashboardPage() {
             <div className="min-w-0">
               <div className="text-gray-900 font-black text-sm sm:text-base truncate">
                 {activeTab === "laporan"
-                  ? activeReport?.label || "Laporan"
+                  ? activeReport?.label || "Jualan"
                   : activeTab === "settings"
                     ? activeSettings?.label || "Tetapan"
                     : activeNav?.label || "Owner"}
@@ -4608,11 +4613,11 @@ export default function OwnerDashboardPage() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-gray-900 font-black text-xl">
-                    {activeReport?.label || "Laporan Owner"}
+                    {activeReport?.label || "Jualan"}
                   </h2>
                   <p className="text-gray-400 text-xs font-bold mt-1">
                     {activeReport?.description ||
-                      "Prestasi kedai ikut tempoh dipilih"}
+                      "Rumusan jualan dan rekod resit ikut tempoh dipilih"}
                   </p>
                 </div>
                 <button
@@ -5263,7 +5268,7 @@ export default function OwnerDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="hidden">
                     <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-gray-900 font-black text-base">
@@ -5647,117 +5652,161 @@ export default function OwnerDashboardPage() {
               )}
               {activeReportTab === "receipts" && (
                 <>
-                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-gray-900 font-black text-sm">
-                        <Receipt
-                          size={15}
-                          className="text-[var(--accent-600)]"
-                        />{" "}
-                        Receipt Preview
-                      </h3>
-                      <span className="text-gray-400 text-xs font-bold">
-                        Recent
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-base flex items-center gap-2">
+                          <Receipt
+                            size={17}
+                            className="text-[var(--accent-600)]"
+                          />
+                          Rekod Resit
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Senarai resit jualan ikut filter semasa
+                        </p>
+                      </div>
+                      <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-3 py-2 rounded-full">
+                        {reportData.recentReceipts.length} resit
                       </span>
                     </div>
+
                     {reportData.recentReceipts.length === 0 ? (
-                      <div className="text-center py-8">
+                      <div className="text-center py-10">
                         <Receipt
                           size={34}
                           className="text-gray-300 mx-auto mb-3"
                         />
-                        <div className="text-gray-400 text-sm">
-                          Belum ada receipt dalam tempoh ini
+                        <div className="text-gray-900 text-sm font-black">
+                          Tiada rekod resit
+                        </div>
+                        <div className="text-gray-400 text-xs font-bold mt-1">
+                          Belum ada resit untuk tempoh filter ini.
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        {reportData.recentReceipts.map((receipt) => (
-                          <div
-                            key={receipt.id}
-                            className="bg-gray-50 rounded-2xl p-4"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="text-gray-900 text-sm font-black truncate">
-                                  #{receipt.id.slice(0, 8).toUpperCase()}
+                      <>
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className="w-full table-fixed text-left text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                <th className="w-[17%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Resit No
+                                </th>
+                                <th className="w-[13%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  No Meja
+                                </th>
+                                <th className="w-[15%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Tarikh
+                                </th>
+                                <th className="w-[11%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Masa
+                                </th>
+                                <th className="w-[17%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Cara Pembayaran
+                                </th>
+                                <th className="w-[12%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Jumlah
+                                </th>
+                                <th className="w-[15%] px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Action
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {reportData.recentReceipts.map((receipt) => (
+                                <tr
+                                  key={`receipt-table-${receipt.id}`}
+                                  className="hover:bg-gray-50/70 transition-all"
+                                >
+                                  <td className="px-4 py-4">
+                                    <span className="font-mono text-xs font-black text-gray-900">
+                                      #{receipt.id.slice(0, 8).toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 text-gray-700 font-bold">
+                                    {displayMejaLabel(receipt.meja)}
+                                  </td>
+                                  <td className="px-4 py-4 text-gray-600 font-bold">
+                                    {formatReceiptDateOnly(receipt.created_at)}
+                                  </td>
+                                  <td className="px-4 py-4 text-gray-600 font-bold">
+                                    {formatReceiptTimeOnly(receipt.created_at)}
+                                  </td>
+                                  <td className="px-4 py-4">
+                                    <span className="inline-flex items-center gap-1.5 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] text-xs font-black px-3 py-1.5 rounded-full">
+                                      <CreditCard size={13} strokeWidth={2} />
+                                      {receipt.payment_method || "Belum direkod"}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-4 text-right text-gray-900 font-black">
+                                    {formatRM(receipt.total)}
+                                  </td>
+                                  <td className="px-4 py-4">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        onClick={() => setSelectedReceipt(receipt)}
+                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-black hover:bg-gray-800 active:scale-95 transition-all"
+                                      >
+                                        View
+                                      </button>
+                                      <button
+                                        onClick={() => downloadReceipt(receipt)}
+                                        className="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-[var(--accent-600)] text-white text-xs font-black hover:bg-[var(--accent-700)] active:scale-95 transition-all"
+                                      >
+                                        Download
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="lg:hidden p-4 space-y-3">
+                          {reportData.recentReceipts.map((receipt) => (
+                            <div
+                              key={`receipt-card-${receipt.id}`}
+                              className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
+                            >
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="min-w-0">
+                                  <div className="font-mono text-xs font-black text-gray-900 truncate">
+                                    #{receipt.id.slice(0, 8).toUpperCase()}
+                                  </div>
+                                  <div className="text-gray-400 text-xs font-bold mt-1">
+                                    {displayMejaLabel(receipt.meja)} · {formatReceiptDateOnly(receipt.created_at)} · {formatReceiptTimeOnly(receipt.created_at)}
+                                  </div>
                                 </div>
-                                <div className="text-gray-400 text-xs mt-1">
-                                  {displayMejaLabel(receipt.meja)} ·{" "}
-                                  {formatReceiptDate(receipt.created_at)}
-                                </div>
-                                <div className="text-gray-400 text-xs mt-1">
-                                  {receipt.payment_method || "Belum direkod"}
+                                <div className="text-right shrink-0">
+                                  <div className="text-gray-900 text-sm font-black">
+                                    {formatRM(receipt.total)}
+                                  </div>
+                                  <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-black mt-1 inline-block">
+                                    {receipt.payment_method || "Belum direkod"}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">
-                                  {formatRM(receipt.total)}
-                                </div>
+
+                              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
                                 <button
                                   onClick={() => setSelectedReceipt(receipt)}
-                                  className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                                  className="bg-gray-900 text-white text-xs font-black py-2.5 rounded-2xl active:scale-95 transition-all"
                                 >
-                                  <svg
-                                    width="17"
-                                    height="17"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                  >
-                                    <path
-                                      d="M21 21L16.65 16.65"
-                                      stroke="currentColor"
-                                      strokeWidth="2.4"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                    <path
-                                      d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z"
-                                      stroke="currentColor"
-                                      strokeWidth="2.4"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
+                                  View
                                 </button>
                                 <button
                                   onClick={() => downloadReceipt(receipt)}
-                                  className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                                  className="bg-[var(--accent-600)] text-white text-xs font-black py-2.5 rounded-2xl active:scale-95 transition-all"
                                 >
-                                  <svg
-                                    width="17"
-                                    height="17"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                  >
-                                    <path
-                                      d="M12 3V15"
-                                      stroke="currentColor"
-                                      strokeWidth="2.4"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                    <path
-                                      d="M7 10L12 15L17 10"
-                                      stroke="currentColor"
-                                      strokeWidth="2.4"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                    <path
-                                      d="M5 21H19"
-                                      stroke="currentColor"
-                                      strokeWidth="2.4"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
+                                  Download
                                 </button>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      </>
                     )}
                   </div>
                 </>

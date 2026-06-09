@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
 import {
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  MoreVertical,
   X,
   Menu,
   LogOut,
@@ -443,6 +446,11 @@ export default function SuperadminDashboardPage() {
   const [showCredentials, setShowCredentials] = useState<string | null>(null);
   const [credentialsList, setCredentialsList] = useState<any[]>([]);
   const [loadingCreds, setLoadingCreds] = useState(false);
+  const [openKedaiActionMenu, setOpenKedaiActionMenu] = useState<string | null>(null);
+  const [kedaiActionMenuPosition, setKedaiActionMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchKedai();
@@ -892,6 +900,112 @@ export default function SuperadminDashboardPage() {
     setLoadingCreds(false);
   }
 
+  function openPlanSemasa(kedai: Kedai) {
+    setOpenKedaiActionMenu(null);
+    setKedaiActionMenuPosition(null);
+    setShowPlanChange({
+      id: kedai.id,
+      nama: kedai.nama,
+      currentStatus: kedai.status,
+    });
+  }
+
+  function openSuspendKedai(kedai: Kedai) {
+    setOpenKedaiActionMenu(null);
+    setKedaiActionMenuPosition(null);
+    requestStatusChange(kedai, "suspended");
+  }
+
+  function openMaklumatKedai(kedai: Kedai) {
+    setOpenKedaiActionMenu(null);
+    setKedaiActionMenuPosition(null);
+    fetchCredentials(kedai.id);
+  }
+
+  const KedaiActionDropdown = ({ kedai }: { kedai: Kedai }) => {
+    const isOpen = openKedaiActionMenu === kedai.id;
+
+    function toggleActionMenu(event: MouseEvent<HTMLButtonElement>) {
+      event.stopPropagation();
+
+      const rect = event.currentTarget.getBoundingClientRect();
+      const dropdownWidth = 192;
+      const margin = 12;
+      const left = Math.min(
+        Math.max(rect.right - dropdownWidth, margin),
+        window.innerWidth - dropdownWidth - margin,
+      );
+
+      if (isOpen) {
+        setOpenKedaiActionMenu(null);
+        setKedaiActionMenuPosition(null);
+        return;
+      }
+
+      setOpenKedaiActionMenu(kedai.id);
+      setKedaiActionMenuPosition({
+        top: rect.bottom + 8,
+        left,
+      });
+    }
+
+    return (
+      <>
+        <button
+          onClick={toggleActionMenu}
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 transition-all"
+        >
+          <MoreVertical size={13} />
+          Edit
+          <ChevronDown
+            size={12}
+            className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+
+        {isOpen &&
+          kedaiActionMenuPosition &&
+          typeof document !== "undefined" &&
+          createPortal(
+            <div
+              className="fixed w-48 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[99999] overflow-hidden p-2"
+              style={{
+                top: kedaiActionMenuPosition.top,
+                left: kedaiActionMenuPosition.left,
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                onClick={() => openPlanSemasa(kedai)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all"
+              >
+                <Repeat2 size={14} />
+                Plan Semasa
+              </button>
+
+              <button
+                onClick={() => openSuspendKedai(kedai)}
+                disabled={kedai.status === "suspended"}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <X size={14} />
+                Suspend
+              </button>
+
+              <button
+                onClick={() => openMaklumatKedai(kedai)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+              >
+                <Key size={14} />
+                Maklumat Kedai
+              </button>
+            </div>,
+            document.body,
+          )}
+      </>
+    );
+  };
+
   function bulanLabel(month = invoiceViewMonth) {
     const [y, m] = month.split("-");
 
@@ -1034,6 +1148,7 @@ export default function SuperadminDashboardPage() {
   function handleChangeTab(tabId: string) {
     setActiveTab(tabId);
     setShowMobileMenu(false);
+    setOpenKedaiActionMenu(null);
   }
 
   const activeNav = navItems.find((n) => n.id === activeTab);
@@ -1575,7 +1690,7 @@ export default function SuperadminDashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                  <div className="hidden md:block bg-white border border-gray-100 rounded-2xl overflow-visible">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
@@ -1647,40 +1762,9 @@ export default function SuperadminDashboardPage() {
                                 </span>
                               </td>
 
-                              <td className="px-5 py-4">
+                              <td className="px-5 py-4 relative overflow-visible z-20">
                                 <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() =>
-                                      setShowPlanChange({
-                                        id: kedai.id,
-                                        nama: kedai.nama,
-                                        currentStatus: kedai.status,
-                                      })
-                                    }
-                                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all"
-                                  >
-                                    <Repeat2 size={12} />
-                                    Tukar Plan
-                                  </button>
-
-                                  {kedai.status !== "suspended" && (
-                                    <button
-                                      onClick={() =>
-                                        requestStatusChange(kedai, "suspended")
-                                      }
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all"
-                                    >
-                                      Suspend
-                                    </button>
-                                  )}
-
-                                  <button
-                                    onClick={() => fetchCredentials(kedai.id)}
-                                    className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all"
-                                  >
-                                    <Key size={12} />
-                                    Credentials
-                                  </button>
+                                  <KedaiActionDropdown kedai={kedai} />
 
                                   <button
                                     onClick={() => setConfirmDelete(kedai.id)}
@@ -1754,39 +1838,8 @@ export default function SuperadminDashboardPage() {
                             </div>
                           </div>
 
-                          <div className="flex gap-2 flex-wrap pt-4 border-t border-gray-50">
-                            <button
-                              onClick={() =>
-                                setShowPlanChange({
-                                  id: kedai.id,
-                                  nama: kedai.nama,
-                                  currentStatus: kedai.status,
-                                })
-                              }
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border border-green-100 hover:bg-green-100 transition-all flex items-center gap-1"
-                            >
-                              <Repeat2 size={12} />
-                              Tukar Plan
-                            </button>
-
-                            {kedai.status !== "suspended" && (
-                              <button
-                                onClick={() =>
-                                  requestStatusChange(kedai, "suspended")
-                                }
-                                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all"
-                              >
-                                Suspend
-                              </button>
-                            )}
-
-                            <button
-                              onClick={() => fetchCredentials(kedai.id)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all flex items-center gap-1"
-                            >
-                              <Key size={12} />
-                              Credentials
-                            </button>
+                          <div className="flex justify-end gap-2 flex-wrap pt-4 border-t border-gray-50">
+                            <KedaiActionDropdown kedai={kedai} />
                           </div>
                         </div>
                       );
@@ -2627,7 +2680,7 @@ export default function SuperadminDashboardPage() {
             style={{ maxHeight: "85vh", overflowY: "auto" }}
           >
             <div className="flex items-center justify-between mb-5">
-              <div className="text-gray-900 font-semibold">Credentials</div>
+              <div className="text-gray-900 font-semibold">Maklumat Kedai</div>
 
               <button
                 onClick={() => setShowCredentials(null)}
