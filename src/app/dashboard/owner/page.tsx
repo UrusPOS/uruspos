@@ -194,10 +194,14 @@ type OwnerReportData = {
   stockOutTotal: number;
   paymentSummary: PaymentSummaryItem[];
   recentReceipts: RecentReceipt[];
+  todayReceipts: RecentReceipt[];
   salesTrend: SalesTrendItem[];
+  last30DaysSales: SalesTrendItem[];
 };
 
 type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
+
+const RECORDS_PER_PAGE = 20;
 
 function getDateRange(
   filter: FilterType,
@@ -399,7 +403,6 @@ function getOrderTotal(order: any) {
   }, 0);
 }
 
-
 function getOrderCogs(order: any) {
   return (order?.order_items || []).reduce((sum: number, item: any) => {
     const qty = Number(item?.qty || item?.quantity || 0);
@@ -500,7 +503,12 @@ function buildSalesTrendData(
         "0",
       );
       if (!buckets[bucketHour])
-        buckets[bucketHour] = { label: bucketHour, total: 0, profit: 0, orders: 0 };
+        buckets[bucketHour] = {
+          label: bucketHour,
+          total: 0,
+          profit: 0,
+          orders: 0,
+        };
       buckets[bucketHour].total += getOrderTotal(order);
       buckets[bucketHour].profit += getOrderGrossProfit(order);
       buckets[bucketHour].orders += 1;
@@ -543,7 +551,8 @@ function buildSalesTrendData(
       day: "2-digit",
       month: "short",
     });
-    if (!buckets[label]) buckets[label] = { label, total: 0, profit: 0, orders: 0 };
+    if (!buckets[label])
+      buckets[label] = { label, total: 0, profit: 0, orders: 0 };
     buckets[label].total += getOrderTotal(order);
     buckets[label].profit += getOrderGrossProfit(order);
     buckets[label].orders += 1;
@@ -556,6 +565,83 @@ function buildSalesTrendData(
     });
     return buckets[label];
   });
+}
+
+function buildLast30DaysSalesData(orders: any[]): SalesTrendItem[] {
+  const buckets: Record<string, SalesTrendItem> = {};
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  const start = new Date(today);
+  start.setDate(today.getDate() - 29);
+  start.setHours(0, 0, 0, 0);
+
+  const bucketDates: Date[] = [];
+  const cursor = new Date(start);
+  while (cursor <= today) {
+    const current = new Date(cursor);
+    bucketDates.push(current);
+    const key = current.toISOString().slice(0, 10);
+    buckets[key] = {
+      label: current.toLocaleDateString("ms-MY", {
+        day: "2-digit",
+        month: "short",
+      }),
+      total: 0,
+      profit: 0,
+      orders: 0,
+    };
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  (orders || []).forEach((order) => {
+    const rawDate = getOrderSalesDate(order);
+    if (!rawDate) return;
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return;
+    if (date < start || date > today) return;
+
+    const key = date.toISOString().slice(0, 10);
+    if (!buckets[key]) return;
+    buckets[key].total += getOrderTotal(order);
+    buckets[key].profit += getOrderGrossProfit(order);
+    buckets[key].orders += 1;
+  });
+
+  return bucketDates.map((date) => buckets[date.toISOString().slice(0, 10)]);
+}
+
+function mapOrderToReceipt(order: any): RecentReceipt {
+  return {
+    id: order.id,
+    created_at: getOrderSalesDate(order) || order.created_at,
+    meja: order.meja || order.table_no || order.tableNo || null,
+    status: order.status,
+    subtotal: Number(order.subtotal || 0),
+    service_charge_enabled: Boolean(
+      order.service_charge_enabled ||
+      Number(order.service_charge_amount || 0) > 0,
+    ),
+    service_charge_rate: Number(order.service_charge_rate || 0),
+    service_charge_amount: Number(order.service_charge_amount || 0),
+    sst_enabled: Boolean(
+      order.sst_enabled || Number(order.sst_amount || 0) > 0,
+    ),
+    sst_rate: Number(order.sst_rate || 0),
+    sst_amount: Number(order.sst_amount || 0),
+    total: getOrderTotal(order),
+    payment_method: getPaymentMethod(order),
+    order_items: (order.order_items || []).map((item: any) => ({
+      id: item.id,
+      nama: item.nama || item.product_name || item.nama_produk || "Menu",
+      qty: Number(item.qty || item.quantity || 0),
+      harga: Number(
+        item.harga || item.harga_jual || item.price || item.unit_price || 0,
+      ),
+      kos: Number(item.kos || item.kos_produk || item.cost || 0),
+      nota: item.nota || item.note || null,
+    })),
+  };
 }
 
 function normalizeStockMovementType(value: any) {
@@ -621,6 +707,7 @@ export default function OwnerDashboardPage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
   const [showReportSubmenu, setShowReportSubmenu] = useState(false);
+  const [showInventorySubmenu, setShowInventorySubmenu] = useState(false);
   const [showSettingsSubmenu, setShowSettingsSubmenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [produk, setProduk] = useState<Produk[]>([]);
@@ -705,7 +792,9 @@ export default function OwnerDashboardPage() {
     stockOutTotal: 0,
     paymentSummary: [],
     recentReceipts: [],
+    todayReceipts: [],
     salesTrend: [],
+    last30DaysSales: [],
   });
   const [loadingReport, setLoadingReport] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(
@@ -738,8 +827,14 @@ export default function OwnerDashboardPage() {
     jualan: number;
     bulanLabel: string;
   } | null>(null);
+  const [urusposFeeEstimate, setUrusposFeeEstimate] = useState({
+    monthToDateSales: 0,
+    fee: 0,
+    monthLabel: "",
+    dueDateLabel: "",
+  });
 
-  const [filter, setFilter] = useState<FilterType>("daily");
+  const [filter, setFilter] = useState<FilterType>("monthly");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -748,6 +843,8 @@ export default function OwnerDashboardPage() {
   const [pendingCustomFrom, setPendingCustomFrom] = useState("");
   const [pendingCustomTo, setPendingCustomTo] = useState("");
   const [activeReportTab, setActiveReportTab] = useState("sales-summary");
+  const [activeInventoryTab, setActiveInventoryTab] = useState("inventory");
+  const [recordsPage, setRecordsPage] = useState(1);
   const [activeSettingsTab, setActiveSettingsTab] = useState("table-setup");
 
   // useEffect 1 — fetch session & kedai info
@@ -761,6 +858,10 @@ export default function OwnerDashboardPage() {
       fetchAllData(sessionUser.kedai_id);
     }
   }, [sessionUser?.kedai_id, filter, customFrom, customTo]);
+
+  useEffect(() => {
+    setRecordsPage(1);
+  }, [activeInventoryTab, filter, customFrom, customTo, reportData.stockMovements.length]);
 
   async function fetchSessionAndKedai() {
     const session = getCookieSession();
@@ -854,6 +955,45 @@ export default function OwnerDashboardPage() {
         rawOrdersData || [],
       );
 
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const monthToDateEnd = new Date();
+      monthToDateEnd.setHours(23, 59, 59, 999);
+      const monthEnd = new Date(
+        monthToDateEnd.getFullYear(),
+        monthToDateEnd.getMonth() + 1,
+        0,
+      );
+
+      const allPaidOrders = (ordersWithItems || []).filter(isPaidSalesOrder);
+
+      const monthToDateOrders = allPaidOrders.filter((order: any) =>
+        isOrderInDateRange(
+          order,
+          monthStart.toISOString(),
+          monthToDateEnd.toISOString(),
+        ),
+      );
+      const monthToDateSales = monthToDateOrders.reduce(
+        (sum: number, order: any) => sum + getOrderTotal(order),
+        0,
+      );
+
+      setUrusposFeeEstimate({
+        monthToDateSales,
+        fee: monthToDateSales * 0.02,
+        monthLabel: monthStart.toLocaleDateString("ms-MY", {
+          month: "long",
+          year: "numeric",
+        }),
+        dueDateLabel: monthEnd.toLocaleDateString("ms-MY", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+      });
+
       const { data: stokRendah } = (await supabase
         .from("produk")
         .select("id")
@@ -889,10 +1029,7 @@ export default function OwnerDashboardPage() {
           id: item.id,
           produk_id: item.produk_id || item.product_id || null,
           produk_nama:
-            item.produk_nama ||
-            item.product_name ||
-            item.nama_produk ||
-            "Produk",
+            item.produk_nama || item.product_name || item.nama_produk || "Menu",
           type: normalizeStockMovementType(item.type),
           qty: Number(item.qty || item.quantity || 0),
           reason: item.reason || item.sebab || null,
@@ -903,9 +1040,14 @@ export default function OwnerDashboardPage() {
         }));
       }
 
-      const paidOrders = (ordersWithItems || [])
-        .filter(isPaidSalesOrder)
-        .filter((order: any) => isOrderInDateRange(order, from, to));
+      const paidOrders = allPaidOrders.filter((order: any) =>
+        isOrderInDateRange(order, from, to),
+      );
+
+      const todayRange = getDateRange("daily");
+      const todayPaidOrders = allPaidOrders.filter((order: any) =>
+        isOrderInDateRange(order, todayRange.from, todayRange.to),
+      );
 
       const jumlahJualan = paidOrders.reduce(
         (s: number, o: any) => s + getOrderTotal(o),
@@ -935,7 +1077,11 @@ export default function OwnerDashboardPage() {
         stokKritikal: stokRendah?.length || 0,
       });
 
-      if (activeTab === "laporan" || activeTab === "dashboard") {
+      if (
+        activeTab === "laporan" ||
+        activeTab === "dashboard" ||
+        activeTab === "inventory"
+      ) {
         const dineInOrders = paidOrders.filter((o: any) => {
           const meja = String(
             o.meja || o.table_no || o.tableNo || "",
@@ -971,7 +1117,7 @@ export default function OwnerDashboardPage() {
 
           (order.order_items || []).forEach((item: any) => {
             const nama =
-              item.nama || item.product_name || item.nama_produk || "Produk";
+              item.nama || item.product_name || item.nama_produk || "Menu";
             const qty = Number(item.qty || item.quantity || 0);
             const harga = Number(
               item.harga ||
@@ -1006,6 +1152,64 @@ export default function OwnerDashboardPage() {
                   ? "Rendah"
                   : "Cukup",
           })) as InventoryReportItem[];
+
+        const existingAutoOrderIds = new Set(
+          stockMovementsData
+            .filter(
+              (movement) =>
+                movement.order_id &&
+                ["sales", "auto", "pos"].includes(
+                  normalizeText(movement.source),
+                ),
+            )
+            .map((movement) => movement.order_id as string),
+        );
+
+        const autoStockMovements: StockMovementRecord[] = [];
+        paidOrders.forEach((order: any) => {
+          if (order.id && existingAutoOrderIds.has(order.id)) return;
+
+          (order.order_items || []).forEach((item: any, itemIndex: number) => {
+            const qty = Number(item.qty || item.quantity || 0);
+            if (qty <= 0) return;
+
+            autoStockMovements.push({
+              id: `auto-${order.id || itemIndex}-${item.id || itemIndex}`,
+              produk_id:
+                item.produk_id ||
+                item.product_id ||
+                item.produkId ||
+                item.productId ||
+                null,
+              produk_nama:
+                item.nama || item.product_name || item.nama_produk || "Menu",
+              type: "sold",
+              qty,
+              reason: "Order dibayar",
+              source: "auto",
+              order_id: order.id || null,
+              created_at: getOrderSalesDate(order) || order.created_at,
+              created_by:
+                order.staff_name ||
+                order.staff_nama ||
+                order.cashier_name ||
+                order.created_by ||
+                order.createdBy ||
+                "POS",
+            });
+          });
+        });
+
+        if (autoStockMovements.length > 0) {
+          stockMovementsData = [
+            ...stockMovementsData,
+            ...autoStockMovements,
+          ].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime(),
+          );
+        }
 
         const stockInTotal = stockMovementsData
           .filter((item) => isStockInMovement(item.type))
@@ -1054,7 +1258,7 @@ export default function OwnerDashboardPage() {
               item.nama ||
               item.product_name ||
               item.nama_produk ||
-              "Produk";
+              "Menu";
             soldQtyByProduct[productKey] =
               (soldQtyByProduct[productKey] || 0) +
               Number(item.qty || item.quantity || 0);
@@ -1097,42 +1301,11 @@ export default function OwnerDashboardPage() {
           ) as InventorySummaryItem[];
 
         const salesTrend = buildSalesTrendData(paidOrders, filter, from, to);
-
-        const recentReceipts = paidOrders.slice(0, 8).map((order: any) => ({
-          id: order.id,
-          created_at: getOrderSalesDate(order) || order.created_at,
-          meja: order.meja || order.table_no || order.tableNo || null,
-          status: order.status,
-          subtotal: Number(order.subtotal || 0),
-          service_charge_enabled: Boolean(
-            order.service_charge_enabled ||
-            Number(order.service_charge_amount || 0) > 0,
-          ),
-          service_charge_rate: Number(order.service_charge_rate || 0),
-          service_charge_amount: Number(order.service_charge_amount || 0),
-          sst_enabled: Boolean(
-            order.sst_enabled || Number(order.sst_amount || 0) > 0,
-          ),
-          sst_rate: Number(order.sst_rate || 0),
-          sst_amount: Number(order.sst_amount || 0),
-          total: getOrderTotal(order),
-          payment_method: getPaymentMethod(order),
-          order_items: (order.order_items || []).map((item: any) => ({
-            id: item.id,
-            nama:
-              item.nama || item.product_name || item.nama_produk || "Produk",
-            qty: Number(item.qty || item.quantity || 0),
-            harga: Number(
-              item.harga ||
-                item.harga_jual ||
-                item.price ||
-                item.unit_price ||
-                0,
-            ),
-            kos: Number(item.kos || item.kos_produk || item.cost || 0),
-            nota: item.nota || item.note || null,
-          })),
-        }));
+        const last30DaysSales = buildLast30DaysSalesData(allPaidOrders);
+        const recentReceipts = paidOrders.slice(0, 8).map(mapOrderToReceipt);
+        const todayReceipts = todayPaidOrders
+          .slice(0, 8)
+          .map(mapOrderToReceipt);
 
         setReportData({
           totalSales: jumlahJualan,
@@ -1152,7 +1325,9 @@ export default function OwnerDashboardPage() {
           stockOutTotal,
           paymentSummary,
           recentReceipts,
+          todayReceipts,
           salesTrend,
+          last30DaysSales,
         });
       }
     } catch (error) {
@@ -1183,7 +1358,9 @@ export default function OwnerDashboardPage() {
           stockOutTotal: 0,
           paymentSummary: [],
           recentReceipts: [],
+          todayReceipts: [],
           salesTrend: [],
+          last30DaysSales: [],
         });
       }
     } finally {
@@ -1437,7 +1614,7 @@ export default function OwnerDashboardPage() {
 
     if (productCount > 0) {
       setCategoryError(
-        `Kategori "${category.nama}" masih digunakan oleh ${productCount} produk. Tukar kategori produk dahulu atau nyahaktifkan kategori ini.`,
+        `Kategori "${category.nama}" masih digunakan oleh ${productCount} menu. Tukar kategori menu dahulu atau nyahaktifkan kategori ini.`,
       );
       return;
     }
@@ -2053,6 +2230,30 @@ export default function OwnerDashboardPage() {
     return "Adjustment";
   }
 
+  function formatMovementShortType(type: string) {
+    if (isStockInMovement(type)) return "In";
+    if (isStockOutMovement(type)) return "Out";
+    return "Adjust";
+  }
+
+  function formatMovementSource(
+    source?: string | null,
+    orderId?: string | null,
+  ) {
+    const normalized = normalizeText(source);
+    if (["auto", "sales", "pos"].includes(normalized) || orderId) return "Auto";
+    return "Manual";
+  }
+
+  function formatMovementActor(item: StockMovementRecord) {
+    return (
+      item.created_by ||
+      (formatMovementSource(item.source, item.order_id) === "Auto"
+        ? "POS"
+        : "Owner")
+    );
+  }
+
   function displayMejaLabel(meja?: string | null) {
     if (!meja) return "-";
     if (meja === "Bungkus") return "Bungkus";
@@ -2250,7 +2451,7 @@ export default function OwnerDashboardPage() {
             pill: "bg-gray-200 text-gray-800",
           };
 
-  const urusposFee = isActivePlan ? stats.jumlahJualan * 0.02 : 0;
+  const urusposFee = urusposFeeEstimate.fee;
   const PlanIcon = isBeta
     ? Clock3
     : isActivePlan
@@ -2505,9 +2706,9 @@ export default function OwnerDashboardPage() {
     },
     {
       id: "inventory",
-      icon: Package,
-      label: "Inventori",
-      description: "Produk & stok",
+      icon: Utensils,
+      label: "Menu",
+      description: "Menu & stok",
     },
     {
       id: "laporan",
@@ -2539,8 +2740,8 @@ export default function OwnerDashboardPage() {
     {
       id: "top-products",
       icon: Flame,
-      label: "Produk Terlaris",
-      description: "Top product terjual",
+      label: "Menu Terlaris",
+      description: "Top menu terjual",
     },
     {
       id: "payment-method",
@@ -2549,22 +2750,31 @@ export default function OwnerDashboardPage() {
       description: "Ringkasan payment method",
     },
     {
-      id: "inventory-summary",
-      icon: ClipboardList,
-      label: "Ringkasan Stok",
-      description: "Stok awal, masuk, keluar & akhir",
-    },
-    {
-      id: "stock-movement",
-      icon: History,
-      label: "Pergerakan Stok",
-      description: "Rekod stok masuk/keluar",
-    },
-    {
       id: "receipts",
       icon: Receipt,
       label: "Rekod Resit",
       description: "Semakan receipt",
+    },
+  ];
+
+  const inventoryMenuItems = [
+    {
+      id: "inventory",
+      icon: Utensils,
+      label: "Inventori",
+      description: "Senarai menu & stok",
+    },
+    {
+      id: "summary",
+      icon: ClipboardList,
+      label: "Rumusan Menu",
+      description: "Stok awal, masuk, keluar & akhir",
+    },
+    {
+      id: "records",
+      icon: History,
+      label: "Rekod Menu",
+      description: "Rekod auto & manual",
     },
   ];
 
@@ -2602,19 +2812,38 @@ export default function OwnerDashboardPage() {
   ];
 
   function changeTab(tabId: string) {
+    if (tabId === "inventory") {
+      setShowInventorySubmenu((prev) => !prev);
+      setShowReportSubmenu(false);
+      setShowSettingsSubmenu(false);
+      return;
+    }
+
     if (tabId === "laporan") {
       setShowReportSubmenu((prev) => !prev);
+      setShowInventorySubmenu(false);
       setShowSettingsSubmenu(false);
       return;
     }
 
     if (tabId === "settings") {
       setShowSettingsSubmenu((prev) => !prev);
+      setShowInventorySubmenu(false);
       setShowReportSubmenu(false);
       return;
     }
 
     setActiveTab(tabId);
+    setShowInventorySubmenu(false);
+    setShowReportSubmenu(false);
+    setShowSettingsSubmenu(false);
+    setShowMobileMenu(false);
+  }
+
+  function changeInventoryTab(inventoryTabId: string) {
+    setActiveTab("inventory");
+    setActiveInventoryTab(inventoryTabId);
+    setShowInventorySubmenu(true);
     setShowReportSubmenu(false);
     setShowSettingsSubmenu(false);
     setShowMobileMenu(false);
@@ -2624,6 +2853,7 @@ export default function OwnerDashboardPage() {
     setActiveTab("laporan");
     setActiveReportTab(reportTabId);
     setShowReportSubmenu(true);
+    setShowInventorySubmenu(false);
     setShowSettingsSubmenu(false);
     setShowMobileMenu(false);
   }
@@ -2632,11 +2862,15 @@ export default function OwnerDashboardPage() {
     setActiveTab("settings");
     setActiveSettingsTab(settingsTabId);
     setShowSettingsSubmenu(true);
+    setShowInventorySubmenu(false);
     setShowReportSubmenu(false);
     setShowMobileMenu(false);
   }
 
   const activeNav = navItems.find((item) => item.id === activeTab);
+  const activeInventory = inventoryMenuItems.find(
+    (item) => item.id === activeInventoryTab,
+  );
   const activeReport = reportMenuItems.find(
     (item) => item.id === activeReportTab,
   );
@@ -2645,6 +2879,23 @@ export default function OwnerDashboardPage() {
   );
   const ActiveSettingsIcon = activeSettings?.icon || Settings;
   const kedaiLogoUrl = String(kedaiInfo?.logo_url || "").trim();
+  const recordsTotalPages = Math.max(
+    1,
+    Math.ceil(reportData.stockMovements.length / RECORDS_PER_PAGE),
+  );
+  const safeRecordsPage = Math.min(recordsPage, recordsTotalPages);
+  const paginatedStockMovements = reportData.stockMovements.slice(
+    (safeRecordsPage - 1) * RECORDS_PER_PAGE,
+    safeRecordsPage * RECORDS_PER_PAGE,
+  );
+  const recordsStartIndex =
+    reportData.stockMovements.length === 0
+      ? 0
+      : (safeRecordsPage - 1) * RECORDS_PER_PAGE + 1;
+  const recordsEndIndex = Math.min(
+    safeRecordsPage * RECORDS_PER_PAGE,
+    reportData.stockMovements.length,
+  );
 
   const FilterBar = () => (
     <div className="relative inline-block mb-4">
@@ -2758,15 +3009,19 @@ export default function OwnerDashboardPage() {
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             const Icon = item.icon;
+            const isInventoryItem = item.id === "inventory";
             const isReportItem = item.id === "laporan";
             const isSettingsItem = item.id === "settings";
+            const isInventoryOpen = showInventorySubmenu || isActive;
             const isReportOpen = showReportSubmenu || isActive;
             const isSettingsOpen = showSettingsSubmenu || isActive;
-            const parentActive = isReportItem
-              ? isReportOpen
-              : isSettingsItem
-                ? isSettingsOpen
-                : isActive;
+            const parentActive = isInventoryItem
+              ? isInventoryOpen
+              : isReportItem
+                ? isReportOpen
+                : isSettingsItem
+                  ? isSettingsOpen
+                  : isActive;
 
             return (
               <div key={item.id} className="space-y-1">
@@ -2776,7 +3031,7 @@ export default function OwnerDashboardPage() {
                     if (
                       !expanded &&
                       !mobile &&
-                      (isReportItem || isSettingsItem)
+                      (isInventoryItem || isReportItem || isSettingsItem)
                     ) {
                       setDesktopSidebarExpanded(true);
                     }
@@ -2810,7 +3065,7 @@ export default function OwnerDashboardPage() {
                         {item.label}
                       </span>
 
-                      {(isReportItem || isSettingsItem) && (
+                      {(isInventoryItem || isReportItem || isSettingsItem) && (
                         <ChevronDown
                           size={14}
                           strokeWidth={1.9}
@@ -2824,6 +3079,40 @@ export default function OwnerDashboardPage() {
                     </>
                   )}
                 </button>
+
+                {expanded && isInventoryItem && isInventoryOpen && (
+                  <div className="ml-4 border-l border-gray-100 pl-3 space-y-1">
+                    {inventoryMenuItems.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const isSubActive =
+                        activeTab === "inventory" &&
+                        activeInventoryTab === sub.id;
+
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => changeInventoryTab(sub.id)}
+                          className={`w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition-all ${
+                            isSubActive
+                              ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          <SubIcon
+                            size={14}
+                            strokeWidth={1.9}
+                            className={
+                              isSubActive
+                                ? "text-[var(--accent-600)]"
+                                : "text-gray-400"
+                            }
+                          />
+                          <span className="truncate">{sub.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {expanded && isReportItem && isReportOpen && (
                   <div className="ml-4 border-l border-gray-100 pl-3 space-y-1">
@@ -2988,17 +3277,13 @@ export default function OwnerDashboardPage() {
           {/* DASHBOARD */}
           {activeTab === "dashboard" && (
             <div>
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
                 <div>
-                  <div className="inline-flex items-center gap-2 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] px-3 py-1.5 rounded-full text-[11px] font-black mb-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-500)]" />
-                    Owner Overview
-                  </div>
                   <h1 className="text-gray-950 font-black text-2xl tracking-tight">
                     Dashboard
                   </h1>
                   <p className="text-gray-400 text-sm font-bold mt-1">
-                    Pantau jualan, profit dan operasi {kedaiInfo?.nama || "kedai"}.
+                    Ringkasan operasi {kedaiInfo?.nama || "kedai"}.
                   </p>
                 </div>
 
@@ -3007,281 +3292,377 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-                <div className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-100 p-5 shadow-sm">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
+              {stats.stokKritikal > 0 && (
+                <button
+                  onClick={() => setActiveTab("inventory")}
+                  className="w-full mb-5 rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-left shadow-sm hover:bg-amber-100/70 active:scale-[0.99] transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-white text-amber-600 border border-amber-100 flex items-center justify-center shrink-0">
+                        <AlertTriangle size={18} strokeWidth={2} />
+                      </div>
+                      <div>
+                        <div className="text-amber-800 text-sm font-black">
+                          {stats.stokKritikal} menu sedang kritikal
+                        </div>
+                        <div className="text-amber-700 text-xs font-bold mt-1">
+                          Semak dan restock item yang rendah atau habis sebelum
+                          operasi terganggu.
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-amber-800 text-xs font-black bg-white border border-amber-100 px-3 py-2 rounded-2xl shrink-0">
+                      Lihat inventori
+                    </span>
+                  </div>
+                </button>
+              )}
+
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-5">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
                         Jualan
                       </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
                         {formatRM(stats.jumlahJualan)}
                       </div>
-                      <div className="text-emerald-700 text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
                         {filterLabel()}
                       </div>
                     </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-sm">
-                      <DollarSign size={19} strokeWidth={2} />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+                      <DollarSign size={18} strokeWidth={2} />
                     </div>
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-3xl bg-blue-50 border border-blue-100 p-5 shadow-sm">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-blue-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Pesanan Selesai
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                        Untung
                       </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
-                        {stats.jumlahTransaksi}
-                      </div>
-                      <div className="text-blue-700 text-xs font-bold mt-2">
-                        Order berbayar
-                      </div>
-                    </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-blue-600 border border-blue-100 flex items-center justify-center shadow-sm">
-                      <Receipt size={19} strokeWidth={2} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="relative overflow-hidden rounded-3xl bg-violet-50 border border-violet-100 p-5 shadow-sm">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Untung Kasar
-                      </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
                         {formatRM(stats.jumlahUntung)}
                       </div>
-                      <div className="text-violet-700 text-xs font-bold mt-2">
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
                         Margin {stats.jumlahMargin}%
                       </div>
                     </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-violet-600 border border-violet-100 flex items-center justify-center shadow-sm">
-                      <TrendingUp size={19} strokeWidth={2} />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-violet-50 text-violet-600 border border-violet-100 flex items-center justify-center">
+                      <TrendingUp size={18} strokeWidth={2} />
                     </div>
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-3xl bg-amber-50 border border-amber-100 p-5 shadow-sm">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Stok Kritikal
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                        Pesanan
                       </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
-                        {stats.stokKritikal}
+                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                        {stats.jumlahTransaksi}
                       </div>
-                      <div className="text-amber-700 text-xs font-bold mt-2">
-                        Perlu restock
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                        Order berbayar
                       </div>
                     </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 border border-amber-100 flex items-center justify-center shadow-sm">
-                      <AlertTriangle size={19} strokeWidth={2} />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                      <Receipt size={18} strokeWidth={2} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                        Menu
+                      </div>
+                      <div className="text-gray-950 text-xl sm:text-2xl font-black mt-3 tracking-tight">
+                        {produk.length}
+                      </div>
+                      <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                        Menu aktif
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+                      <Utensils size={18} strokeWidth={2} />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-5">
-                <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div>
-                    <h3 className="text-gray-950 font-black text-base">
-                      Sales Overview
-                    </h3>
-                    <p className="text-gray-400 text-xs font-bold mt-1">
-                      Perbandingan sales dan gross profit ikut tempoh filter.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs font-black text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-600)]" />
-                      Sales
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+                <div className="lg:col-span-8 bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div>
+                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
+                        Jualan {filterLabel()}
+                      </div>
+                      <div className="text-gray-400 text-xs font-bold mt-1">
+                        Bar chart jualan mengikut filter semasa. Tempoh tanpa
+                        jualan dibiarkan kosong.
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-orange-400" />
-                      Profit
+                    <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-black px-3 py-2 rounded-2xl">
+                      {filterLabel()}
+                    </span>
+                  </div>
+
+                  {reportData.salesTrend.length === 0 ||
+                  reportData.salesTrend.every(
+                    (item) => Number(item.total || 0) <= 0,
+                  ) ? (
+                    <div className="h-64 rounded-3xl bg-gray-50 border border-gray-100 flex items-center justify-center text-center p-6">
+                      <div>
+                        <BarChart2
+                          size={34}
+                          className="text-gray-300 mx-auto mb-3"
+                        />
+                        <div className="text-gray-400 text-sm font-bold">
+                          Belum ada jualan untuk filter ini.
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      {(() => {
+                        const chartData = reportData.salesTrend;
+                        const maxSales = Math.max(
+                          ...chartData.map((item) => Number(item.total || 0)),
+                          1,
+                        );
+                        const totalSalesSelected = chartData.reduce(
+                          (sum, item) => sum + Number(item.total || 0),
+                          0,
+                        );
+                        const totalOrdersSelected = chartData.reduce(
+                          (sum, item) => sum + Number(item.orders || 0),
+                          0,
+                        );
+
+                        return (
+                          <>
+                            <div className="h-64 rounded-3xl bg-gray-50 border border-gray-100 px-4 pt-5 pb-3 overflow-hidden">
+                              <div className="h-48 flex items-end gap-1.5 sm:gap-2">
+                                {chartData.map((item, index) => {
+                                  const value = Number(item.total || 0);
+                                  const height =
+                                    value > 0
+                                      ? Math.max((value / maxSales) * 100, 6)
+                                      : 0;
+                                  const shouldShowLabel =
+                                    index === 0 ||
+                                    index === chartData.length - 1 ||
+                                    index === Math.floor(chartData.length / 2);
+
+                                  return (
+                                    <div
+                                      key={`dashboard-sales-${item.label}-${index}`}
+                                      className="h-full flex-1 flex flex-col items-center justify-end min-w-0 group"
+                                      title={`${item.label}: ${formatRM(value)}`}
+                                    >
+                                      <div className="relative w-full flex justify-center flex-1 items-end">
+                                        <div
+                                          className="w-2.5 sm:w-3.5 rounded-t-full bg-[var(--accent-500)] transition-all group-hover:bg-[var(--accent-700)]"
+                                          style={{ height: `${height}%` }}
+                                        />
+                                      </div>
+                                      <div className="h-7 pt-2 text-[10px] font-bold text-gray-400 truncate max-w-[44px]">
+                                        {shouldShowLabel ? item.label : ""}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                              <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
+                                <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
+                                  Total
+                                </div>
+                                <div className="text-[var(--accent-800)] text-sm font-black mt-1">
+                                  {formatRM(totalSalesSelected)}
+                                </div>
+                              </div>
+                              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                                <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                                  Pesanan
+                                </div>
+                                <div className="text-gray-900 text-sm font-black mt-1">
+                                  {totalOrdersSelected}
+                                </div>
+                              </div>
+                              <div className="hidden sm:block rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                                <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                                  Peak
+                                </div>
+                                <div className="text-gray-900 text-sm font-black mt-1">
+                                  {formatRM(maxSales)}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="lg:col-span-4 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
+                        Pesanan Hari Ini
+                      </div>
+                      <div className="text-gray-400 text-xs font-bold mt-1">
+                        Order berbayar untuk hari ini
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                      <ShoppingCart size={18} strokeWidth={2} />
+                    </div>
+                  </div>
+
+                  <div className="p-5">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
+                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                          Order
+                        </div>
+                        <div className="text-gray-950 text-2xl font-black mt-1">
+                          {reportData.todayReceipts.length}
+                        </div>
+                      </div>
+                      <div className="rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] p-3">
+                        <div className="text-[var(--accent-700)] text-[10px] font-black uppercase tracking-wide">
+                          Sales
+                        </div>
+                        <div className="text-[var(--accent-800)] text-sm font-black mt-2">
+                          {formatRM(
+                            reportData.todayReceipts.reduce(
+                              (sum, receipt) =>
+                                sum + Number(receipt.total || 0),
+                              0,
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {reportData.todayReceipts.length === 0 ? (
+                        <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-bold">
+                          Belum ada pesanan hari ini.
+                        </div>
+                      ) : (
+                        reportData.todayReceipts.slice(0, 4).map((receipt) => (
+                          <button
+                            key={`dashboard-today-${receipt.id}`}
+                            onClick={() => setSelectedReceipt(receipt)}
+                            className="w-full flex items-center justify-between gap-3 rounded-2xl bg-gray-50 border border-gray-100 p-3 text-left hover:bg-gray-100 transition-all"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-mono text-[11px] font-black text-gray-900 truncate">
+                                ORD-{receipt.id.slice(0, 8).toUpperCase()}
+                              </div>
+                              <div className="text-gray-400 text-xs font-bold mt-1 truncate">
+                                {displayMejaLabel(receipt.meja)}
+                              </div>
+                            </div>
+                            <div className="text-gray-900 text-xs font-black shrink-0">
+                              {formatRM(receipt.total)}
+                            </div>
+                          </button>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
-
-                {reportData.salesTrend.length === 0 ||
-                reportData.salesTrend.every(
-                  (item) =>
-                    Number(item.total || 0) <= 0 && Number(item.profit || 0) <= 0,
-                ) ? (
-                  <div className="h-72 flex items-center justify-center text-center p-6">
-                    <div>
-                      <BarChart2 size={36} className="text-gray-300 mx-auto mb-3" />
-                      <div className="text-gray-400 text-sm font-bold">
-                        Belum ada data jualan untuk tempoh ini.
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-5 pt-4">
-                    {(() => {
-                      const chartData = reportData.salesTrend;
-                      const maxValue = Math.max(
-                        ...chartData.flatMap((item) => [
-                          Number(item.total || 0),
-                          Number(item.profit || 0),
-                        ]),
-                        1,
-                      );
-                      const roundedMax = Math.ceil(maxValue / 100) * 100 || maxValue;
-                      const width = 720;
-                      const height = 300;
-                      const padLeft = 48;
-                      const padRight = 24;
-                      const padTop = 20;
-                      const padBottom = 46;
-                      const chartWidth = width - padLeft - padRight;
-                      const chartHeight = height - padTop - padBottom;
-                      const groupGap = chartWidth / Math.max(chartData.length, 1);
-                      const barWidth = Math.min(10, Math.max(5, groupGap * 0.12));
-                      const centerOffset = groupGap / 2;
-                      const yForValue = (value: number) =>
-                        padTop + (1 - value / roundedMax) * chartHeight;
-
-                      return (
-                        <div className="overflow-x-auto pb-1">
-                          <svg
-                            viewBox={`0 0 ${width} ${height}`}
-                            className="min-w-[680px] w-full h-[300px]"
-                            preserveAspectRatio="none"
-                          >
-                            {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
-                              const value = roundedMax * (1 - tick);
-                              const y = padTop + tick * chartHeight;
-                              return (
-                                <g key={`grid-${tick}`}>
-                                  <line
-                                    x1={padLeft}
-                                    y1={y}
-                                    x2={width - padRight}
-                                    y2={y}
-                                    stroke="#e5e7eb"
-                                    strokeWidth="1"
-                                    strokeDasharray="4 8"
-                                  />
-                                  <text
-                                    x={padLeft - 12}
-                                    y={y + 4}
-                                    textAnchor="end"
-                                    fontSize="11"
-                                    fontWeight="800"
-                                    fill="#9ca3af"
-                                  >
-                                    {value >= 1000
-                                      ? `${Math.round(value / 1000)}k`
-                                      : Math.round(value)}
-                                  </text>
-                                </g>
-                              );
-                            })}
-
-                            {chartData.map((item, index) => {
-                              const x = padLeft + index * groupGap + centerOffset;
-                              const sales = Number(item.total || 0);
-                              const profit = Number(item.profit || 0);
-                              const salesY = yForValue(sales);
-                              const profitY = yForValue(profit);
-                              const salesHeight = Math.max(chartHeight + padTop - salesY, 0);
-                              const profitHeight = Math.max(chartHeight + padTop - profitY, 0);
-
-                              return (
-                                <g key={`${item.label}-${index}`}>
-                                  {sales > 0 && (
-                                    <rect
-                                      x={x - barWidth - 2}
-                                      y={salesY}
-                                      width={barWidth}
-                                      height={salesHeight}
-                                      rx="5"
-                                      fill="var(--accent-600)"
-                                    />
-                                  )}
-                                  {profit > 0 && (
-                                    <rect
-                                      x={x + 2}
-                                      y={profitY}
-                                      width={barWidth}
-                                      height={profitHeight}
-                                      rx="5"
-                                      fill="#fb923c"
-                                    />
-                                  )}
-                                  <text
-                                    x={x}
-                                    y={height - 18}
-                                    textAnchor="middle"
-                                    fontSize="11"
-                                    fontWeight="800"
-                                    fill="#9ca3af"
-                                  >
-                                    {item.label}
-                                  </text>
-                                </g>
-                              );
-                            })}
-                          </svg>
-                        </div>
-                      );
-                    })()}
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                          Total Sales
-                        </div>
-                        <div className="text-gray-950 text-sm font-black mt-1">
-                          {formatRM(reportData.totalSales)}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                          Gross Profit
-                        </div>
-                        <div className="text-gray-950 text-sm font-black mt-1">
-                          {formatRM(reportData.grossProfit)}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                          Total Order
-                        </div>
-                        <div className="text-gray-950 text-sm font-black mt-1">
-                          {reportData.totalOrders}
-                        </div>
-                      </div>
-                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-3">
-                        <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
-                          Margin
-                        </div>
-                        <div className="text-gray-950 text-sm font-black mt-1">
-                          {reportData.margin}%
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-start justify-between gap-3 mb-5">
+                    <div>
+                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
+                        Top 5 Menu
+                      </div>
+                      <div className="text-gray-400 text-xs font-bold mt-1">
+                        Menu paling laris {filterLabel().toLowerCase()}
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl bg-[var(--accent-50)] text-[var(--accent-600)] border border-[var(--accent-100)] flex items-center justify-center">
+                      <BarChart2 size={18} strokeWidth={2} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {reportData.topProducts.length === 0 ? (
+                      <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 text-center text-gray-400 text-sm font-bold">
+                        Tiada menu terjual untuk tempoh ini.
+                      </div>
+                    ) : (
+                      reportData.topProducts
+                        .slice(0, 5)
+                        .map((product, index) => {
+                          const maxQty = Math.max(
+                            ...reportData.topProducts.map((p) =>
+                              Number(p.qty || 0),
+                            ),
+                            1,
+                          );
+                          const width = Math.max(
+                            (Number(product.qty || 0) / maxQty) * 100,
+                            6,
+                          );
+
+                          return (
+                            <div key={`dashboard-top-${product.nama}-${index}`}>
+                              <div className="flex items-center justify-between gap-3 text-sm mb-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="w-6 h-6 rounded-lg bg-gray-50 text-gray-400 text-xs font-black flex items-center justify-center shrink-0">
+                                    {index + 1}
+                                  </span>
+                                  <span className="text-gray-900 font-black truncate">
+                                    {product.nama}
+                                  </span>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className="text-gray-900 text-xs font-black">
+                                    {formatRM(Number(product.total || 0))}
+                                  </div>
+                                  <div className="text-gray-400 text-[10px] font-bold mt-0.5">
+                                    {product.qty} unit
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden ml-8">
+                                <div
+                                  className="h-full rounded-full bg-[var(--accent-500)]"
+                                  style={{ width: `${width}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-gray-900 font-semibold">
-                        Recent Receipts
+                      <div className="text-gray-900 font-black text-sm uppercase tracking-wide">
+                        Recent 5 Orders
                       </div>
-                      <div className="text-gray-400 text-sm mt-0.5">
+                      <div className="text-gray-400 text-xs font-bold mt-1">
                         Transaksi terbaru {filterLabel().toLowerCase()}
                       </div>
                     </div>
@@ -3290,7 +3671,7 @@ export default function OwnerDashboardPage() {
                         setActiveTab("laporan");
                         setActiveReportTab("receipts");
                       }}
-                      className="bg-[var(--accent-50)] text-[var(--accent-700)] text-xs font-semibold px-3 py-2 rounded-xl hover:bg-[var(--accent-100)] transition-all"
+                      className="bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-3 py-2 rounded-xl hover:bg-[var(--accent-50)] hover:text-[var(--accent-700)] hover:border-[var(--accent-100)] transition-all"
                     >
                       View all
                     </button>
@@ -3298,93 +3679,35 @@ export default function OwnerDashboardPage() {
 
                   <div className="divide-y divide-gray-50">
                     {reportData.recentReceipts.length === 0 ? (
-                      <div className="p-5 text-sm text-gray-400">
-                        Tiada transaksi untuk tempoh ini.
+                      <div className="p-5 text-sm text-gray-400 font-bold">
+                        Tiada order untuk tempoh ini.
                       </div>
                     ) : (
-                      reportData.recentReceipts.slice(0, 4).map((receipt) => (
+                      reportData.recentReceipts.slice(0, 5).map((receipt) => (
                         <button
-                          key={receipt.id}
+                          key={`dashboard-order-${receipt.id}`}
                           onClick={() => setSelectedReceipt(receipt)}
-                          className="w-full p-5 flex items-center justify-between gap-4 text-left hover:bg-gray-50/70 transition-all"
+                          className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-gray-50/70 transition-all"
                         >
                           <div className="min-w-0">
-                            <div className="font-mono text-xs font-semibold text-gray-900">
-                              #{receipt.id.slice(0, 8).toUpperCase()}
+                            <div className="font-mono text-xs font-black text-gray-900 truncate">
+                              ORD-{receipt.id.slice(0, 8).toUpperCase()}
                             </div>
-                            <div className="text-gray-400 text-xs mt-1">
-                              {displayMejaLabel(receipt.meja)} · {formatReceiptDate(receipt.created_at)}
+                            <div className="text-gray-400 text-xs font-bold mt-1 truncate">
+                              {displayMejaLabel(receipt.meja)} ·{" "}
+                              {formatReceiptDate(receipt.created_at)}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-gray-900 font-bold">
+                            <div className="text-gray-900 text-xs font-black">
                               {formatRM(receipt.total)}
                             </div>
-                            <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-xs font-semibold mt-1 inline-block">
-                              {receipt.payment_method || "Paid"}
-                            </div>
+                            <span className="inline-block mt-1 text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2.5 py-1 text-[10px] font-black">
+                              {receipt.payment_method || "Bayar"}
+                            </span>
                           </div>
                         </button>
                       ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
-                  <div className="flex items-start justify-between gap-3 mb-5">
-                    <div>
-                      <div className="text-gray-900 font-semibold">
-                        Top Produk
-                      </div>
-                      <div className="text-gray-400 text-sm mt-0.5">
-                        Berdasarkan kuantiti terjual
-                      </div>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-[var(--accent-50)] text-[var(--accent-600)] flex items-center justify-center">
-                      <BarChart2 size={20} strokeWidth={1.8} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {reportData.topProducts.length === 0 ? (
-                      <div className="text-sm text-gray-400">
-                        Tiada produk terjual untuk tempoh ini.
-                      </div>
-                    ) : (
-                      reportData.topProducts.slice(0, 5).map((product, index) => {
-                        const maxQty = Math.max(
-                          ...reportData.topProducts.map((p) => Number(p.qty || 0)),
-                          1,
-                        );
-                        const width = Math.max(
-                          (Number(product.qty || 0) / maxQty) * 100,
-                          6,
-                        );
-
-                        return (
-                          <div key={`${product.nama}-${index}`}>
-                            <div className="flex items-center justify-between gap-3 text-sm mb-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-6 h-6 rounded-lg bg-gray-50 text-gray-400 text-xs font-semibold flex items-center justify-center shrink-0">
-                                  {index + 1}
-                                </span>
-                                <span className="text-gray-900 font-semibold truncate">
-                                  {product.nama}
-                                </span>
-                              </div>
-                              <span className="text-gray-900 font-semibold shrink-0">
-                                {product.qty} unit
-                              </span>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden ml-8">
-                              <div
-                                className="h-full rounded-full bg-[var(--accent-500)]"
-                                style={{ width: `${width}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
                     )}
                   </div>
                 </div>
@@ -3392,509 +3715,890 @@ export default function OwnerDashboardPage() {
             </div>
           )}
 
-          {/* INVENTORY */}
+          {/* MENU / INVENTORY */}
           {activeTab === "inventory" && (
             <div>
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
                 <div>
                   <h2 className="text-gray-900 font-black text-xl">
-                    Inventori
+                    {activeInventory?.label || "Menu"}
                   </h2>
                   <p className="text-gray-400 text-xs font-bold mt-1">
-                    Urus produk, kategori, harga dan stok kedai
+                    {activeInventory?.description ||
+                      "Urus menu, kategori, stok dan rekod pergerakan menu kedai."}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={openManageCategories}
-                    className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
-                  >
-                    <FolderTree size={14} strokeWidth={2} />
-                    <span className="hidden sm:inline">Kategori</span>
-                  </button>
+                {activeInventoryTab === "inventory" && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={openManageCategories}
+                      className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                    >
+                      <FolderTree size={14} strokeWidth={2} />
+                      <span className="hidden sm:inline">Kategori</span>
+                    </button>
 
-                  <button
-                    onClick={() => setShowAddProduk(true)}
-                    className="inline-flex items-center justify-center gap-2 bg-[var(--accent-600)] text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-700)] active:scale-95 transition-all"
-                  >
-                    <Plus size={14} strokeWidth={2.2} />
-                    Tambah Produk
-                  </button>
-                </div>
+                    <button
+                      onClick={() => setShowAddProduk(true)}
+                      className="inline-flex items-center justify-center gap-2 bg-[var(--accent-600)] text-white text-xs font-black px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-700)] active:scale-95 transition-all"
+                    >
+                      <Plus size={14} strokeWidth={2.2} />
+                      Tambah Menu
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-                <div className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-100 p-5 shadow-sm min-h-[124px]">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-emerald-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Produk Aktif
-                      </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
-                        {produk.length}
-                      </div>
-                      <div className="text-emerald-700 text-xs font-bold mt-2">
-                        Produk tersedia
+              {activeInventoryTab === "inventory" && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+                    <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                            Menu Aktif
+                          </div>
+                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                            {produk.length}
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Menu tersedia
+                          </div>
+                        </div>
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-sm">
+                          <Utensils size={19} strokeWidth={2} />
+                        </div>
                       </div>
                     </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-emerald-600 border border-emerald-100 flex items-center justify-center shadow-sm">
-                      <Package size={19} strokeWidth={2} />
+
+                    <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                            Stok Rendah
+                          </div>
+                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                            {
+                              produk.filter(
+                                (product) =>
+                                  Number(product.stok || 0) > 0 &&
+                                  Number(product.stok || 0) <= 5,
+                              ).length
+                            }
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Perlu restock
+                          </div>
+                        </div>
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shadow-sm">
+                          <AlertTriangle size={19} strokeWidth={2} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="relative overflow-hidden rounded-3xl bg-white border border-gray-100 p-5 shadow-sm min-h-[124px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-gray-500 text-[10px] sm:text-xs font-black uppercase tracking-wide">
+                            Habis
+                          </div>
+                          <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
+                            {
+                              produk.filter(
+                                (product) => Number(product.stok || 0) <= 0,
+                              ).length
+                            }
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-2">
+                            Tidak boleh dijual
+                          </div>
+                        </div>
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-red-50 text-red-500 border border-red-100 flex items-center justify-center shadow-sm">
+                          <X size={19} strokeWidth={2} />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="relative overflow-hidden rounded-3xl bg-amber-50 border border-amber-100 p-5 shadow-sm min-h-[124px]">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Stok Rendah
-                      </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
-                        {
-                          produk.filter(
-                            (product) =>
-                              Number(product.stok || 0) > 0 &&
-                              Number(product.stok || 0) <= 5,
-                          ).length
-                        }
-                      </div>
-                      <div className="text-amber-700 text-xs font-bold mt-2">
-                        Perlu restock
-                      </div>
-                    </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-amber-600 border border-amber-100 flex items-center justify-center shadow-sm">
-                      <AlertTriangle size={19} strokeWidth={2} />
-                    </div>
-                  </div>
-                </div>
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-4 sm:p-5 border-b border-gray-50">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div>
+                          <div className="text-gray-900 text-sm font-black flex items-center gap-2">
+                            <Utensils
+                              size={16}
+                              className="text-[var(--accent-600)]"
+                            />
+                            Inventori Menu
+                          </div>
+                          <div className="text-gray-400 text-xs font-bold mt-1">
+                            {filteredProduk.length} daripada {produk.length}{" "}
+                            menu dipaparkan
+                          </div>
+                        </div>
 
-                <div className="relative overflow-hidden rounded-3xl bg-red-50 border border-red-100 p-5 shadow-sm min-h-[124px]">
-                  <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-red-100/70" />
-                  <div className="relative z-10 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-gray-500 text-xs font-black uppercase tracking-wide">
-                        Habis
-                      </div>
-                      <div className="text-gray-950 text-2xl font-black mt-2 tracking-tight">
-                        {
-                          produk.filter((product) => Number(product.stok || 0) <= 0)
-                            .length
-                        }
-                      </div>
-                      <div className="text-red-600 text-xs font-bold mt-2">
-                        Tidak boleh dijual
-                      </div>
-                    </div>
-                    <div className="w-11 h-11 rounded-2xl bg-white text-red-500 border border-red-100 flex items-center justify-center shadow-sm">
-                      <X size={19} strokeWidth={2} />
-                    </div>
-                  </div>
-                </div>
-              </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <div className="relative">
+                            <Search
+                              size={15}
+                              strokeWidth={2}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+                            <input
+                              type="text"
+                              value={inventorySearch}
+                              onChange={(event) =>
+                                setInventorySearch(event.target.value)
+                              }
+                              placeholder="Cari menu atau kategori..."
+                              className="w-full sm:w-72 border border-gray-200 bg-white rounded-2xl pl-10 pr-4 py-3 text-gray-900 text-xs font-bold outline-none focus:border-[var(--accent-500)]"
+                            />
+                          </div>
 
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-4 sm:p-5 border-b border-gray-50">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                    <div>
-                      <div className="text-gray-900 text-sm font-black flex items-center gap-2">
-                        <Package
-                          size={16}
-                          className="text-[var(--accent-600)]"
-                        />
-                        Inventory
-                      </div>
-                      <div className="text-gray-400 text-xs font-bold mt-1">
-                        {filteredProduk.length} daripada {produk.length} produk
-                        dipaparkan
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="relative">
-                        <Search
-                          size={15}
-                          strokeWidth={2}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-                        <input
-                          type="text"
-                          value={inventorySearch}
-                          onChange={(event) =>
-                            setInventorySearch(event.target.value)
-                          }
-                          placeholder="Cari produk atau kategori..."
-                          className="w-full sm:w-72 border border-gray-200 bg-white rounded-2xl pl-10 pr-4 py-3 text-gray-900 text-xs font-bold outline-none focus:border-[var(--accent-500)]"
-                        />
-                      </div>
-
-                      <div className="relative">
-                        <button
-                          onClick={() =>
-                            setShowCategoryFilterDropdown((value) => !value)
-                          }
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-2xl text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
-                        >
-                          <Tag size={14} className="text-[var(--accent-600)]" />
-                          <span>{categoryFilterLabel()}</span>
-                          <ChevronDown size={12} className="text-gray-400" />
-                        </button>
-
-                        {showCategoryFilterDropdown && (
-                          <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
+                          <div className="relative">
                             <button
-                              onClick={() => applyCategoryFilter("all")}
-                              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
-                                selectedCategoryFilter === "all"
-                                  ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
-                                  : "text-gray-600 hover:bg-gray-50"
-                              }`}
+                              onClick={() =>
+                                setShowCategoryFilterDropdown((value) => !value)
+                              }
+                              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-2xl text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
                             >
-                              <span className="flex items-center gap-2">
-                                <Package size={15} className="text-gray-400" />
-                                Semua Kategori
-                              </span>
-                              {selectedCategoryFilter === "all" && (
-                                <CircleCheck
-                                  size={14}
-                                  className="text-[var(--accent-600)]"
-                                />
-                              )}
+                              <Tag
+                                size={14}
+                                className="text-[var(--accent-600)]"
+                              />
+                              <span>{categoryFilterLabel()}</span>
+                              <ChevronDown
+                                size={12}
+                                className="text-gray-400"
+                              />
                             </button>
 
-                            {categories.map((category) => (
-                              <button
-                                key={`filter-${category.id}`}
-                                onClick={() => applyCategoryFilter(category.id)}
-                                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
-                                  selectedCategoryFilter === category.id
-                                    ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
-                                    : category.is_active
-                                      ? "text-gray-600 hover:bg-gray-50"
-                                      : "text-gray-300 hover:bg-gray-50"
-                                }`}
-                              >
-                                <span className="flex items-center gap-2 min-w-0">
-                                  <CategoryIcon
-                                    value={category.icon}
-                                    size={15}
-                                    className="shrink-0"
-                                  />
-                                  <span className="truncate">
-                                    {category.nama}
+                            {showCategoryFilterDropdown && (
+                              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 overflow-hidden p-2 max-h-72 overflow-y-auto">
+                                <button
+                                  onClick={() => applyCategoryFilter("all")}
+                                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                    selectedCategoryFilter === "all"
+                                      ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                                      : "text-gray-600 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <Utensils
+                                      size={15}
+                                      className="text-gray-400"
+                                    />
+                                    Semua Kategori
                                   </span>
-                                </span>
-                                {selectedCategoryFilter === category.id && (
-                                  <CircleCheck
-                                    size={14}
-                                    className="text-[var(--accent-600)]"
-                                  />
-                                )}
-                              </button>
-                            ))}
+                                  {selectedCategoryFilter === "all" && (
+                                    <CircleCheck
+                                      size={14}
+                                      className="text-[var(--accent-600)]"
+                                    />
+                                  )}
+                                </button>
+
+                                {categories.map((category) => (
+                                  <button
+                                    key={`filter-${category.id}`}
+                                    onClick={() =>
+                                      applyCategoryFilter(category.id)
+                                    }
+                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left text-sm font-bold transition-all ${
+                                      selectedCategoryFilter === category.id
+                                        ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                                        : category.is_active
+                                          ? "text-gray-600 hover:bg-gray-50"
+                                          : "text-gray-300 hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    <span className="flex items-center gap-2 min-w-0">
+                                      <CategoryIcon
+                                        value={category.icon}
+                                        size={15}
+                                        className="shrink-0"
+                                      />
+                                      <span className="truncate">
+                                        {category.nama}
+                                      </span>
+                                    </span>
+                                    {selectedCategoryFilter === category.id && (
+                                      <CircleCheck
+                                        size={14}
+                                        className="text-[var(--accent-600)]"
+                                      />
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {produk.length === 0 ? (
-                  <div className="p-10 text-center">
-                    <BoxOpen size={36} className="text-gray-300 mx-auto mb-3" />
-                    <div className="text-gray-900 text-sm font-black">
-                      Belum ada produk lagi
-                    </div>
-                    <div className="text-gray-400 text-xs mt-1">
-                      Tambah produk pertama untuk mula urus inventory.
-                    </div>
-                  </div>
-                ) : filteredProduk.length === 0 ? (
-                  <div className="p-10 text-center">
-                    <Search size={36} className="text-gray-300 mx-auto mb-3" />
-                    <div className="text-gray-900 text-sm font-black">
-                      Tiada produk dijumpai
-                    </div>
-                    <div className="text-gray-400 text-xs mt-1">
-                      Cuba tukar keyword search atau kategori filter.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="hidden lg:block">
-                      <table className="w-full table-fixed text-left text-xs">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-100">
-                            <th className="w-[5%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                              No
-                            </th>
-                            <th className="w-[20%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                              Produk
-                            </th>
-                            <th className="w-[11%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                              ID
-                            </th>
-                            <th className="w-[13%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                              Kategori
-                            </th>
-                            <th className="w-[8%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
-                              Harga
-                            </th>
-                            <th className="w-[7%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
-                              Kos
-                            </th>
-                            <th className="w-[7%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
-                              Margin
-                            </th>
-                            <th className="w-[8%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
-                              Stok
-                            </th>
-                            <th className="w-[12%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
-                              Status
-                            </th>
-                            <th className="w-[9%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
+                    {produk.length === 0 ? (
+                      <div className="p-10 text-center">
+                        <BoxOpen
+                          size={36}
+                          className="text-gray-300 mx-auto mb-3"
+                        />
+                        <div className="text-gray-900 text-sm font-black">
+                          Belum ada menu lagi
+                        </div>
+                        <div className="text-gray-400 text-xs mt-1">
+                          Tambah menu pertama untuk mula urus inventori.
+                        </div>
+                      </div>
+                    ) : filteredProduk.length === 0 ? (
+                      <div className="p-10 text-center">
+                        <Search
+                          size={36}
+                          className="text-gray-300 mx-auto mb-3"
+                        />
+                        <div className="text-gray-900 text-sm font-black">
+                          Tiada menu dijumpai
+                        </div>
+                        <div className="text-gray-400 text-xs mt-1">
+                          Cuba tukar keyword search atau kategori filter.
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="hidden lg:block">
+                          <table className="w-full table-fixed text-left text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                <th className="w-[5%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  No
+                                </th>
+                                <th className="w-[26%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Menu
+                                </th>
+                                <th className="w-[13%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  ID
+                                </th>
+                                <th className="w-[18%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Kategori
+                                </th>
+                                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Harga
+                                </th>
+                                <th className="w-[10%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Kos
+                                </th>
+                                <th className="w-[10%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Margin
+                                </th>
+                                <th className="w-[11%] px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Action
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {filteredProduk.map((p, index) => {
+                                const margin = getProductMargin(p);
+                                const category = resolveProductCategory(p);
+                                return (
+                                  <tr
+                                    key={p.id}
+                                    className="hover:bg-gray-50/70 transition-all"
+                                  >
+                                    <td className="px-3 py-4 text-gray-500 font-bold">
+                                      {String(index + 1).padStart(2, "0")}
+                                    </td>
+                                    <td className="px-3 py-4">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
+                                          <CategoryIcon
+                                            value={category.icon}
+                                            size={16}
+                                          />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <div className="text-gray-900 font-black truncate">
+                                            {p.nama}
+                                          </div>
+                                          <div className="text-gray-400 text-xs font-bold mt-0.5">
+                                            {p.is_active
+                                              ? "Aktif"
+                                              : "Tidak aktif"}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="px-3 py-4">
+                                      <span className="font-mono text-xs font-black text-gray-500">
+                                        {getProductDisplayId(p)}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-4">
+                                      <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-2 py-1 rounded-lg">
+                                        <CategoryIcon
+                                          value={category.icon}
+                                          size={13}
+                                        />
+                                        {category.nama}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-4 text-right text-gray-900 font-black">
+                                      {formatRM(p.harga_jual)}
+                                    </td>
+                                    <td className="px-3 py-4 text-right text-gray-600 font-bold">
+                                      {formatRM(p.kos_produk)}
+                                    </td>
+                                    <td
+                                      className={`px-3 py-4 text-right font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                    >
+                                      {margin}%
+                                    </td>
 
-                        <tbody className="divide-y divide-gray-50">
+                                    <td className="px-3 py-4">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => openEditProduk(p)}
+                                          className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
+                                          title="Edit menu"
+                                          aria-label="Edit menu"
+                                        >
+                                          <Pencil size={14} />
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setConfirmDeleteProdukId(p.id);
+                                            setConfirmDeleteProdukNama(p.nama);
+                                          }}
+                                          className="w-8 h-8 rounded-lg bg-red-50 text-red-500 border border-red-100 flex items-center justify-center hover:bg-red-100 active:scale-95 transition-all"
+                                          title="Buang menu"
+                                          aria-label="Buang menu"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="lg:hidden p-4 space-y-3">
                           {filteredProduk.map((p, index) => {
                             const margin = getProductMargin(p);
                             const category = resolveProductCategory(p);
-                            const stockStatus = getStockStatus(p);
-
                             return (
-                              <tr
+                              <div
                                 key={p.id}
-                                className="hover:bg-gray-50/70 transition-all"
+                                className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
                               >
-                                <td className="px-3 py-4 text-gray-500 font-bold">
-                                  {String(index + 1).padStart(2, "0")}
-                                </td>
-
-                                <td className="px-3 py-4">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
+                                <div className="flex items-start justify-between gap-3 mb-4">
+                                  <div className="flex items-start gap-3 min-w-0">
+                                    <div className="w-11 h-11 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
                                       <CategoryIcon
                                         value={category.icon}
-                                        size={16}
+                                        size={19}
                                       />
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="text-gray-900 font-black truncate">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-gray-400 text-xs font-black">
+                                          {String(index + 1).padStart(2, "0")}
+                                        </span>
+                                        <span className="font-mono text-[11px] font-black text-gray-400">
+                                          {getProductDisplayId(p)}
+                                        </span>
+                                      </div>
+                                      <div className="text-gray-900 font-black truncate mt-0.5">
                                         {p.nama}
                                       </div>
-                                      <div className="text-gray-400 text-xs font-bold mt-0.5">
-                                        {p.is_active ? "Aktif" : "Tidak aktif"}
+                                      <div className="inline-flex items-center gap-1.5 bg-white border border-gray-100 text-gray-500 text-xs font-black px-2.5 py-1 rounded-full mt-2">
+                                        <CategoryIcon
+                                          value={category.icon}
+                                          size={12}
+                                        />
+                                        {category.nama}
                                       </div>
                                     </div>
                                   </div>
-                                </td>
+                                </div>
 
-                                <td className="px-3 py-4">
-                                  <span className="font-mono text-xs font-black text-gray-500">
-                                    {getProductDisplayId(p)}
-                                  </span>
-                                </td>
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                  <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {formatRM(p.harga_jual)}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Harga
+                                    </div>
+                                  </div>
+                                  <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {formatRM(p.kos_produk)}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Kos
+                                    </div>
+                                  </div>
+                                  <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div
+                                      className={`text-sm font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
+                                    >
+                                      {margin}%
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Margin
+                                    </div>
+                                  </div>
+                                </div>
 
-                                <td className="px-3 py-4">
-                                  <span className="inline-flex items-center gap-1 bg-gray-50 border border-gray-100 text-gray-600 text-xs font-black px-2 py-1 rounded-lg">
-                                    <CategoryIcon
-                                      value={category.icon}
-                                      size={13}
-                                    />
-                                    {category.nama}
-                                  </span>
-                                </td>
-
-                                <td className="px-3 py-4 text-right text-gray-900 font-black">
-                                  {formatRM(p.harga_jual)}
-                                </td>
-
-                                <td className="px-3 py-4 text-right text-gray-600 font-bold">
-                                  {formatRM(p.kos_produk)}
-                                </td>
-
-                                <td
-                                  className={`px-3 py-4 text-right font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
-                                >
-                                  {margin}%
-                                </td>
-
-                                <td
-                                  className={`px-3 py-4 text-right font-black ${stockStatus.row}`}
-                                >
-                                  {p.stok} unit
-                                </td>
-
-                                <td className="px-3 py-4">
-                                  <span
-                                    className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1.5 rounded-full border ${stockStatus.badge}`}
-                                  >
-                                    <span
-                                      className={`w-2 h-2 rounded-full ${stockStatus.dot}`}
-                                    />
-                                    {stockStatus.label}
-                                  </span>
-                                </td>
-
-                                <td className="px-3 py-4">
-                                  <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100">
+                                  <div />
+                                  <div className="flex items-center gap-2">
                                     <button
                                       onClick={() => openEditProduk(p)}
-                                      className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center hover:bg-blue-100 active:scale-95 transition-all"
-                                      title="Edit produk"
-                                      aria-label="Edit produk"
+                                      className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition-all"
                                     >
-                                      <Pencil size={14} />
+                                      <Pencil size={13} />
+                                      Edit
                                     </button>
-
                                     <button
                                       onClick={() => {
                                         setConfirmDeleteProdukId(p.id);
                                         setConfirmDeleteProdukNama(p.nama);
                                       }}
-                                      className="w-8 h-8 rounded-lg bg-red-50 text-red-500 border border-red-100 flex items-center justify-center hover:bg-red-100 active:scale-95 transition-all"
-                                      title="Buang produk"
-                                      aria-label="Buang produk"
+                                      className="w-9 h-9 bg-red-50 text-red-500 border border-red-100 rounded-xl flex items-center justify-center active:scale-95 transition-all"
+                                      aria-label="Buang menu"
                                     >
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
-                                </td>
-                              </tr>
+                                </div>
+                              </div>
                             );
                           })}
-                        </tbody>
-                      </table>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {activeInventoryTab === "summary" && (
+                <div className="space-y-4">
+                  <FilterBar />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                        Menu Aktif
+                      </div>
+                      <div className="text-gray-950 text-2xl font-black mt-2">
+                        {produk.length}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                        Stok Masuk
+                      </div>
+                      <div className="text-[var(--accent-700)] text-2xl font-black mt-2">
+                        +{reportData.stockInTotal}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                        Stok Keluar
+                      </div>
+                      <div className="text-red-500 text-2xl font-black mt-2">
+                        -{reportData.stockOutTotal}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+                      <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide">
+                        Stok Kritikal
+                      </div>
+                      <div className="text-amber-600 text-2xl font-black mt-2">
+                        {
+                          produk.filter(
+                            (product) => Number(product.stok || 0) <= 5,
+                          ).length
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50">
+                      <h3 className="text-gray-900 font-black text-sm flex items-center gap-2">
+                        <ClipboardList
+                          size={16}
+                          className="text-[var(--accent-600)]"
+                        />
+                        Rumusan Menu
+                      </h3>
+                      <p className="text-gray-400 text-xs font-bold mt-1">
+                        Stok awal, masuk, keluar dan akhir ikut filter tarikh.
+                      </p>
                     </div>
 
-                    <div className="lg:hidden p-4 space-y-3">
-                      {filteredProduk.map((p, index) => {
-                        const margin = getProductMargin(p);
-                        const category = resolveProductCategory(p);
-                        const stockStatus = getStockStatus(p);
+                    {reportData.inventorySummary.length === 0 ? (
+                      <div className="p-8 text-center text-gray-400 text-sm font-bold">
+                        Belum ada menu aktif.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Menu
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Stok Awal
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Masuk
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Keluar
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Stok Akhir
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Status
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {reportData.inventorySummary.map((item) => {
+                                const status =
+                                  item.stokAkhir <= 0
+                                    ? "Habis"
+                                    : item.stokAkhir <= 5
+                                      ? "Stok Rendah"
+                                      : "Stok OK";
+                                const badgeClass =
+                                  item.stokAkhir <= 0
+                                    ? "bg-red-50 text-red-600 border-red-100"
+                                    : item.stokAkhir <= 5
+                                      ? "bg-amber-50 text-amber-700 border-amber-100"
+                                      : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]";
+                                return (
+                                  <tr
+                                    key={item.id}
+                                    className="hover:bg-gray-50/70"
+                                  >
+                                    <td className="px-4 py-4 text-gray-900 font-black max-w-[260px] truncate">
+                                      {item.nama}
+                                    </td>
+                                    <td className="px-4 py-4 text-right text-gray-600 font-bold">
+                                      {item.stokAwal}
+                                    </td>
+                                    <td className="px-4 py-4 text-right text-[var(--accent-700)] font-black">
+                                      +{item.stockIn}
+                                    </td>
+                                    <td className="px-4 py-4 text-right text-red-500 font-black">
+                                      -{item.stockOut}
+                                    </td>
+                                    <td className="px-4 py-4 text-right text-gray-950 font-black">
+                                      {item.stokAkhir}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <span
+                                        className={`inline-flex px-3 py-1.5 rounded-full border text-xs font-black ${badgeClass}`}
+                                      >
+                                        {status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
 
-                        return (
-                          <div
-                            key={p.id}
-                            className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
-                          >
-                            <div className="flex items-start justify-between gap-3 mb-4">
-                              <div className="flex items-start gap-3 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-[var(--accent-600)] shrink-0">
-                                  <CategoryIcon
-                                    value={category.icon}
-                                    size={19}
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-gray-400 text-xs font-black">
-                                      {String(index + 1).padStart(2, "0")}
-                                    </span>
-                                    <span className="font-mono text-[11px] font-black text-gray-400">
-                                      {getProductDisplayId(p)}
-                                    </span>
-                                  </div>
-                                  <div className="text-gray-900 font-black truncate mt-0.5">
-                                    {p.nama}
-                                  </div>
-                                  <div className="inline-flex items-center gap-1.5 bg-white border border-gray-100 text-gray-500 text-xs font-black px-2.5 py-1 rounded-full mt-2">
-                                    <CategoryIcon
-                                      value={category.icon}
-                                      size={12}
-                                    />
-                                    {category.nama}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <span
-                                className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1 rounded-full border ${stockStatus.badge}`}
+                        <div className="lg:hidden p-4 space-y-3">
+                          {reportData.inventorySummary.map((item) => {
+                            const status =
+                              item.stokAkhir <= 0
+                                ? "Habis"
+                                : item.stokAkhir <= 5
+                                  ? "Stok Rendah"
+                                  : "Stok OK";
+                            const badgeClass =
+                              item.stokAkhir <= 0
+                                ? "bg-red-50 text-red-600 border-red-100"
+                                : item.stokAkhir <= 5
+                                  ? "bg-amber-50 text-amber-700 border-amber-100"
+                                  : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]";
+                            return (
+                              <div
+                                key={item.id}
+                                className="bg-gray-50 border border-gray-100 rounded-3xl p-4"
                               >
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${stockStatus.dot}`}
-                                />
-                                {stockStatus.label}
-                              </span>
+                                <div className="flex items-start justify-between gap-3 mb-4">
+                                  <div className="text-gray-900 text-sm font-black truncate">
+                                    {item.nama}
+                                  </div>
+                                  <span
+                                    className={`shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black ${badgeClass}`}
+                                  >
+                                    {status}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-2 text-center">
+                                  <div className="bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {item.stokAwal}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Awal
+                                    </div>
+                                  </div>
+                                  <div className="bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-[var(--accent-700)] text-sm font-black">
+                                      +{item.stockIn}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Masuk
+                                    </div>
+                                  </div>
+                                  <div className="bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-red-500 text-sm font-black">
+                                      -{item.stockOut}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Keluar
+                                    </div>
+                                  </div>
+                                  <div className="bg-white rounded-2xl p-3 border border-gray-100">
+                                    <div className="text-gray-900 text-sm font-black">
+                                      {item.stokAkhir}
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-1">
+                                      Akhir
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeInventoryTab === "records" && (
+                <div className="space-y-4">
+                  <FilterBar />
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div>
+                        <h3 className="text-gray-900 font-black text-sm flex items-center gap-2">
+                          <History
+                            size={16}
+                            className="text-[var(--accent-600)]"
+                          />
+                          Rekod Menu
+                        </h3>
+                        <p className="text-gray-400 text-xs font-bold mt-1">
+                          Auto = stok keluar bila order dibayar. Manual =
+                          restock, buang atau adjustment.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-[var(--accent-50)] text-[var(--accent-700)] border border-[var(--accent-100)] rounded-full px-3 py-1.5 text-[10px] font-black">
+                          Auto
+                        </span>
+                        <span className="bg-gray-50 text-gray-600 border border-gray-100 rounded-full px-3 py-1.5 text-[10px] font-black">
+                          Manual
+                        </span>
+                      </div>
+                    </div>
+
+                    {reportData.stockMovements.length === 0 ? (
+                      <div className="p-8 text-center text-gray-400 text-sm font-bold">
+                        Belum ada rekod menu dalam tempoh ini.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Tarikh
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Item
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Jenis
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide text-right">
+                                  Kuantiti
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Sebab
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Auto/Manual
+                                </th>
+                                <th className="px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-wide">
+                                  Oleh
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {paginatedStockMovements.map((item) => {
+                                const isIn = isStockInMovement(item.type);
+                                const sourceLabel = formatMovementSource(
+                                  item.source,
+                                  item.order_id,
+                                );
+                                return (
+                                  <tr
+                                    key={item.id}
+                                    className="hover:bg-gray-50/70"
+                                  >
+                                    <td className="px-4 py-4 text-gray-500 font-bold whitespace-nowrap">
+                                      {formatReceiptDate(item.created_at)}
+                                    </td>
+                                    <td className="px-4 py-4 text-gray-900 font-black max-w-[220px] truncate">
+                                      {item.produk_nama}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <span
+                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
+                                      >
+                                        {formatMovementShortType(item.type)}
+                                      </span>
+                                    </td>
+                                    <td
+                                      className={`px-4 py-4 text-right font-black ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
+                                    >
+                                      {isIn ? "+" : "-"}
+                                      {item.qty}
+                                    </td>
+                                    <td className="px-4 py-4 text-gray-600 font-bold max-w-[240px] truncate">
+                                      {item.reason || "-"}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                      <span
+                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
+                                      >
+                                        {sourceLabel}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-4 text-gray-700 font-bold max-w-[160px] truncate">
+                                      {formatMovementActor(item)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="lg:hidden p-4 space-y-3">
+                          {paginatedStockMovements.map((item) => {
+                            const isIn = isStockInMovement(item.type);
+                            const sourceLabel = formatMovementSource(
+                              item.source,
+                              item.order_id,
+                            );
+                            return (
+                              <div
+                                key={item.id}
+                                className="bg-gray-50 border border-gray-100 rounded-3xl p-4"
+                              >
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div className="min-w-0">
+                                    <div className="text-gray-900 text-sm font-black truncate">
+                                      {item.produk_nama}
+                                    </div>
+                                    <div className="text-gray-400 text-xs font-bold mt-1">
+                                      {formatReceiptDate(item.created_at)}
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`shrink-0 text-sm font-black ${isIn ? "text-[var(--accent-700)]" : "text-red-500"}`}
+                                  >
+                                    {isIn ? "+" : "-"}
+                                    {item.qty}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                  <span
+                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${isIn ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]" : "bg-red-50 text-red-600 border-red-100"}`}
+                                  >
+                                    {formatMovementShortType(item.type)}
+                                  </span>
+                                  <span
+                                    className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black border ${sourceLabel === "Auto" ? "bg-blue-50 text-blue-600 border-blue-100" : "bg-gray-50 text-gray-600 border-gray-100"}`}
+                                  >
+                                    {sourceLabel}
+                                  </span>
+                                  <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black bg-white border border-gray-100 text-gray-500">
+                                    Oleh: {formatMovementActor(item)}
+                                  </span>
+                                </div>
+
+                                <div className="bg-white border border-gray-100 rounded-2xl p-3">
+                                  <div className="text-gray-400 text-[10px] font-black uppercase tracking-wide mb-1">
+                                    Sebab
+                                  </div>
+                                  <div className="text-gray-700 text-xs font-bold">
+                                    {item.reason || "-"}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {reportData.stockMovements.length > RECORDS_PER_PAGE && (
+                          <div className="border-t border-gray-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="text-gray-400 text-xs font-bold text-center sm:text-left">
+                              Papar {recordsStartIndex}–{recordsEndIndex} daripada {reportData.stockMovements.length} rekod
                             </div>
-
-                            <div className="grid grid-cols-3 gap-2 mb-3">
-                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
-                                <div className="text-gray-900 text-sm font-black">
-                                  {formatRM(p.harga_jual)}
-                                </div>
-                                <div className="text-gray-400 text-[10px] font-bold mt-1">
-                                  Harga
-                                </div>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() =>
+                                  setRecordsPage((page) => Math.max(1, page - 1))
+                                }
+                                disabled={safeRecordsPage <= 1}
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                              >
+                                Sebelum
+                              </button>
+                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-black">
+                                {safeRecordsPage} / {recordsTotalPages}
                               </div>
-
-                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
-                                <div className="text-gray-900 text-sm font-black">
-                                  {formatRM(p.kos_produk)}
-                                </div>
-                                <div className="text-gray-400 text-[10px] font-bold mt-1">
-                                  Kos
-                                </div>
-                              </div>
-
-                              <div className="text-center bg-white rounded-2xl p-3 border border-gray-100">
-                                <div
-                                  className={`text-sm font-black ${margin >= 40 ? "text-[var(--accent-600)]" : "text-amber-500"}`}
-                                >
-                                  {margin}%
-                                </div>
-                                <div className="text-gray-400 text-[10px] font-bold mt-1">
-                                  Margin
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-100">
-                              <div>
-                                <div className="text-gray-400 text-[10px] font-black uppercase">
-                                  Stok Semasa
-                                </div>
-                                <div
-                                  className={`text-sm font-black mt-0.5 ${stockStatus.row}`}
-                                >
-                                  {p.stok} unit
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => openEditProduk(p)}
-                                  className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 border border-blue-100 px-3 py-2 rounded-xl text-xs font-black active:scale-95 transition-all"
-                                >
-                                  <Pencil size={13} />
-                                  Edit
-                                </button>
-
-                                <button
-                                  onClick={() => {
-                                    setConfirmDeleteProdukId(p.id);
-                                    setConfirmDeleteProdukNama(p.nama);
-                                  }}
-                                  className="w-9 h-9 bg-red-50 text-red-500 border border-red-100 rounded-xl flex items-center justify-center active:scale-95 transition-all"
-                                  aria-label="Buang produk"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
+                              <button
+                                onClick={() =>
+                                  setRecordsPage((page) =>
+                                    Math.min(recordsTotalPages, page + 1),
+                                  )
+                                }
+                                disabled={safeRecordsPage >= recordsTotalPages}
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                              >
+                                Seterusnya
+                              </button>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3964,7 +4668,7 @@ export default function OwnerDashboardPage() {
                           <div className="text-gray-950 text-3xl font-black mt-1">
                             {reportData.totalOrders}
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
                             Purata nilai setiap order
                           </div>
                         </div>
@@ -3986,8 +4690,8 @@ export default function OwnerDashboardPage() {
                           <div className="text-gray-950 text-3xl font-black mt-1">
                             {formatRM(reportData.grossProfit)}
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
-                            Jualan selepas tolak kos produk
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                            Jualan selepas tolak kos menu
                           </div>
                         </div>
                       </div>
@@ -4008,8 +4712,8 @@ export default function OwnerDashboardPage() {
                           <div className="text-gray-950 text-3xl font-black mt-1">
                             {formatRM(reportData.cogs)}
                           </div>
-                          <div className="text-gray-400 text-xs font-bold mt-2">
-                            Anggaran kos produk terjual
+                          <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
+                            Anggaran kos menu terjual
                           </div>
                         </div>
                       </div>
@@ -4019,10 +4723,10 @@ export default function OwnerDashboardPage() {
                       <div className="flex items-start justify-between gap-3 mb-5">
                         <div>
                           <h3 className="text-gray-900 font-black text-base">
-                            Product Statistic
+                            Menu Statistic
                           </h3>
                           <p className="text-gray-400 text-xs font-bold mt-1">
-                            Top produk ikut kuantiti terjual
+                            Top menu ikut kuantiti terjual
                           </p>
                         </div>
                         <span className="text-gray-400 text-xs font-black bg-gray-50 border border-gray-100 px-3 py-1.5 rounded-full">
@@ -4053,13 +4757,14 @@ export default function OwnerDashboardPage() {
                           <div className="text-gray-950 text-xl font-black leading-tight">
                             {formatRM(
                               reportData.topProducts.reduce(
-                                (sum, product) => sum + Number(product.total || 0),
+                                (sum, product) =>
+                                  sum + Number(product.total || 0),
                                 0,
                               ),
                             )}
                           </div>
                           <div className="text-gray-500 text-[11px] font-bold mt-2">
-                            Sales top produk
+                            Sales top menu
                           </div>
                         </div>
                       </div>
@@ -4072,7 +4777,7 @@ export default function OwnerDashboardPage() {
                               className="text-gray-300 mx-auto mb-2"
                             />
                             <div className="text-gray-400 text-xs font-bold">
-                              Belum ada produk terjual
+                              Belum ada menu terjual
                             </div>
                           </div>
                         ) : (
@@ -4167,7 +4872,9 @@ export default function OwnerDashboardPage() {
                           {(() => {
                             const chartData = reportData.salesTrend;
                             const maxSales = Math.max(
-                              ...chartData.map((trend) => Number(trend.total || 0)),
+                              ...chartData.map((trend) =>
+                                Number(trend.total || 0),
+                              ),
                               1,
                             );
                             const width = 560;
@@ -4239,7 +4946,8 @@ export default function OwnerDashboardPage() {
                                     </defs>
 
                                     {[0, 1, 2, 3].map((grid) => {
-                                      const gridY = padTop + (grid / 3) * chartHeight;
+                                      const gridY =
+                                        padTop + (grid / 3) * chartHeight;
                                       return (
                                         <line
                                           key={`grid-${grid}`}
@@ -4316,7 +5024,8 @@ export default function OwnerDashboardPage() {
                                   </div>
                                   <div className="text-gray-500">
                                     {chartData.reduce(
-                                      (sum, item) => sum + Number(item.orders || 0),
+                                      (sum, item) =>
+                                        sum + Number(item.orders || 0),
                                       0,
                                     )}{" "}
                                     order
@@ -4464,7 +5173,7 @@ export default function OwnerDashboardPage() {
                             <div className="text-white text-2xl font-black mt-2">
                               {formatRM(reportData.averageOrderValue)}
                             </div>
-                            <div className="text-gray-400 text-xs font-bold mt-2">
+                            <div className="text-gray-400 text-[11px] sm:text-xs font-bold mt-2">
                               Per transaksi
                             </div>
                           </div>
@@ -4587,7 +5296,7 @@ export default function OwnerDashboardPage() {
                               className="w-full p-4 flex items-center justify-between gap-4 text-left hover:bg-gray-50 transition-all"
                             >
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-[var(--accent-600)]">
+                                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 text-[var(--accent-600)]">
                                   <Receipt size={17} strokeWidth={1.9} />
                                 </div>
                                 <div className="min-w-0">
@@ -4634,7 +5343,7 @@ export default function OwnerDashboardPage() {
                           className="text-gray-300 mx-auto mb-2"
                         />
                         <div className="text-gray-400 text-sm">
-                          Belum ada produk terjual
+                          Belum ada menu terjual
                         </div>
                       </div>
                     ) : (
@@ -4742,7 +5451,7 @@ export default function OwnerDashboardPage() {
                         </p>
                       </div>
                       <span className="text-gray-400 text-xs font-bold">
-                        {reportData.inventorySummary.length} produk
+                        {reportData.inventorySummary.length} menu
                       </span>
                     </div>
                     {reportData.inventorySummary.length === 0 ? (
@@ -4752,7 +5461,7 @@ export default function OwnerDashboardPage() {
                           className="text-gray-300 mx-auto mb-2"
                         />
                         <div className="text-gray-400 text-sm font-bold">
-                          Belum ada produk aktif
+                          Belum ada menu aktif
                         </div>
                       </div>
                     ) : (
@@ -4761,7 +5470,7 @@ export default function OwnerDashboardPage() {
                           <table className="w-full text-left text-xs">
                             <thead className="sticky top-0 bg-white z-10">
                               <tr className="text-gray-400 font-black border-b border-gray-100">
-                                <th className="py-3 pr-3">Produk</th>
+                                <th className="py-3 pr-3">Menu</th>
                                 <th className="py-3 px-3 text-right">
                                   Stok Awal
                                 </th>
@@ -5767,7 +6476,7 @@ export default function OwnerDashboardPage() {
                     <div className="bg-white rounded-2xl p-4 border border-gray-100">
                       <div className="flex items-center gap-3 mb-3">
                         <div
-                          className={`w-11 h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}
+                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${selectedAccent.sample} flex items-center justify-center text-white font-black`}
                         >
                           {kedaiInfo?.logo_url ? (
                             <img
@@ -6205,7 +6914,7 @@ export default function OwnerDashboardPage() {
                       Manage Kategori
                     </h3>
                     <p className="text-gray-400 text-xs font-bold mt-1">
-                      Tambah, edit, aktif/nyahaktif dan buang kategori produk.
+                      Tambah, edit, aktif/nyahaktif dan buang kategori menu.
                     </p>
                   </div>
                   <button
@@ -6234,7 +6943,7 @@ export default function OwnerDashboardPage() {
                     <div className="text-gray-400 text-xs font-bold mb-4">
                       {editCategoryId
                         ? "Kemaskini nama dan icon kategori."
-                        : "Kategori baru akan muncul dalam dropdown produk."}
+                        : "Kategori baru akan muncul dalam dropdown menu."}
                     </div>
 
                     <div className="mb-4">
@@ -6363,7 +7072,7 @@ export default function OwnerDashboardPage() {
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div
-                                  className={`w-11 h-11 rounded-2xl flex items-center justify-center border shrink-0 ${
+                                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center border shrink-0 ${
                                     category.is_active
                                       ? "bg-white border-gray-100 text-[var(--accent-600)]"
                                       : "bg-gray-100 border-gray-200 text-gray-300"
@@ -6389,7 +7098,7 @@ export default function OwnerDashboardPage() {
                                         : "Tidak aktif"}
                                     </span>
                                     <span className="text-gray-400 text-[10px] font-bold">
-                                      {productCount} produk
+                                      {productCount} menu
                                     </span>
                                   </div>
                                 </div>
@@ -6446,12 +7155,12 @@ export default function OwnerDashboardPage() {
                                   }`}
                                   title={
                                     productCount > 0
-                                      ? "Kategori masih digunakan produk"
+                                      ? "Kategori masih digunakan menu"
                                       : "Buang kategori"
                                   }
                                   aria-label={
                                     productCount > 0
-                                      ? "Kategori masih digunakan produk"
+                                      ? "Kategori masih digunakan menu"
                                       : "Buang kategori"
                                   }
                                 >
@@ -6470,8 +7179,8 @@ export default function OwnerDashboardPage() {
                   <div className="text-amber-700 text-xs font-bold flex items-start gap-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                     <span>
-                      Kategori yang masih digunakan oleh produk tidak boleh
-                      dibuang terus. Tukar kategori produk dahulu atau
+                      Kategori yang masih digunakan oleh menu tidak boleh
+                      dibuang terus. Tukar kategori menu dahulu atau
                       nyahaktifkan kategori.
                     </span>
                   </div>
@@ -6489,11 +7198,11 @@ export default function OwnerDashboardPage() {
                     size={18}
                     className="text-[var(--accent-600)] inline mr-2"
                   />{" "}
-                  Tambah Produk
+                  Tambah Menu
                 </h3>
                 <div className="mb-4">
                   <label className="text-gray-500 text-xs font-bold mb-2 block">
-                    NAMA PRODUK
+                    NAMA MENU
                   </label>
                   <input
                     type="text"
@@ -6535,7 +7244,7 @@ export default function OwnerDashboardPage() {
                   </div>
                   <div>
                     <label className="text-gray-500 text-xs font-bold mb-2 block">
-                      KOS PRODUK (RM)
+                      KOS MENU (RM)
                     </label>
                     <input
                       type="number"
@@ -6590,7 +7299,7 @@ export default function OwnerDashboardPage() {
             </div>
           )}
 
-          {/* Edit Produk Modal */}
+          {/* Edit Menu Modal */}
           {editProdukId && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
               <div
@@ -6599,7 +7308,7 @@ export default function OwnerDashboardPage() {
               >
                 <div className="flex items-center justify-between mb-5">
                   <h3 className="text-gray-900 font-bold text-lg">
-                    <Pencil size={12} /> Edit Produk
+                    <Pencil size={12} /> Edit Menu
                   </h3>
                   <button
                     onClick={closeEditProduk}
@@ -6610,11 +7319,11 @@ export default function OwnerDashboardPage() {
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 mb-5">
                   <div className="text-gray-500 text-xs font-bold mb-3">
-                    MAKLUMAT PRODUK
+                    MAKLUMAT MENU
                   </div>
                   <div className="mb-3">
                     <label className="text-gray-500 text-xs font-bold mb-1 block">
-                      NAMA PRODUK
+                      NAMA MENU
                     </label>
                     <input
                       type="text"
@@ -6654,7 +7363,7 @@ export default function OwnerDashboardPage() {
                     </div>
                     <div>
                       <label className="text-gray-500 text-xs font-bold mb-1 block">
-                        KOS PRODUK (RM)
+                        KOS MENU (RM)
                       </label>
                       <input
                         type="number"
@@ -6822,7 +7531,7 @@ export default function OwnerDashboardPage() {
               <div className="bg-white rounded-2xl p-6 w-full max-w-sm border border-red-100">
                 <Trash2 size={34} className="text-red-400 mx-auto mb-3" />
                 <h3 className="text-gray-900 font-bold text-lg text-center mb-1">
-                  Buang Produk?
+                  Buang Menu?
                 </h3>
                 <p className="text-gray-400 text-sm text-center mb-1">
                   <strong className="text-gray-700">
@@ -6830,7 +7539,7 @@ export default function OwnerDashboardPage() {
                   </strong>
                 </p>
                 <p className="text-gray-400 text-xs text-center mb-6">
-                  Produk akan disembunyikan dari POS. Rekod jualan lama tidak
+                  Menu akan disembunyikan dari POS. Rekod jualan lama tidak
                   terjejas.
                 </p>
                 <div className="flex gap-3">
