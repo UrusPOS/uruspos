@@ -3,6 +3,30 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/lib/supabase";
 import { parseSessionCookie } from "@/lib/auth/session";
+import {
+  LayoutDashboard,
+  Package,
+  BarChart2,
+  Users,
+  Settings,
+  DollarSign,
+  Flame,
+  FolderTree,
+  ClipboardList,
+  TrendingUp,
+  Box,
+  History,
+  Receipt,
+  Armchair,
+  Store,
+  BadgePercent,
+  Palette,
+  LockKeyhole,
+  X,
+  Menu,
+  LogOut,
+  ChevronDown
+} from "lucide-react";
 
 type StaffMember = {
   id: string;
@@ -391,6 +415,7 @@ async function attachOrderItemsToOrders(rawOrders: any[]) {
 export default function OwnerDashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [showReportSubmenu, setShowReportSubmenu] = useState(false);
   const [showSettingsSubmenu, setShowSettingsSubmenu] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -1990,26 +2015,31 @@ export default function OwnerDashboardPage() {
   const navItems = [
     {
       id: "dashboard",
-      icon: "🏠",
+      icon: LayoutDashboard,
       label: "Utama",
       description: "Ringkasan jualan",
     },
     {
       id: "inventory",
-      icon: "📦",
+      icon: Package,
       label: "Inventori",
       description: "Produk & stok",
     },
     {
       id: "laporan",
-      icon: "📊",
+      icon: BarChart2,
       label: "Laporan",
       description: "Prestasi kedai",
     },
-    { id: "staff", icon: "👥", label: "Staff", description: "Akaun pekerja" },
+    {
+      id: "staff",
+      icon: Users,
+      label: "Staff",
+      description: "Akaun pekerja",
+    },
     {
       id: "settings",
-      icon: "⚙️",
+      icon: Settings,
       label: "Tetapan",
       description: "Password & akses",
     },
@@ -2018,71 +2048,82 @@ export default function OwnerDashboardPage() {
   const reportMenuItems = [
     {
       id: "sales-summary",
-      icon: "💰",
+      icon: DollarSign,
       label: "Ringkasan Jualan",
       description: "Sales, order & margin",
     },
     {
       id: "top-products",
-      icon: "🔥",
+      icon: Flame,
       label: "Produk Terlaris",
       description: "Top product terjual",
     },
     {
-      id: "payment-method",
-      icon: "💳",
-      label: "Kaedah Bayaran",
-      description: "Tunai / DuitNow",
+      id: "category-sales",
+      icon: FolderTree,
+      label: "Sales Kategori",
+      description: "Prestasi ikut kategori",
     },
     {
-      id: "inventory-summary",
-      icon: "📊",
-      label: "Ringkasan Stok",
-      description: "Stock in & out",
+      id: "daily-sales",
+      icon: ClipboardList,
+      label: "Jualan Harian",
+      description: "Senarai jualan ikut hari",
+    },
+    {
+      id: "profit-margin",
+      icon: TrendingUp,
+      label: "Profit Margin",
+      description: "Untung kasar produk",
+    },
+    {
+      id: "inventory-report",
+      icon: Box,
+      label: "Laporan Stok",
+      description: "Status inventori",
     },
     {
       id: "stock-movement",
-      icon: "📦",
-      label: "Rekod Stok",
-      description: "Audit pergerakan stok",
+      icon: History,
+      label: "Pergerakan Stok",
+      description: "Rekod stok masuk/keluar",
     },
     {
-      id: "receipts",
-      icon: "🧾",
-      label: "Receipt",
-      description: "View & download receipt",
+      id: "receipt",
+      icon: Receipt,
+      label: "Rekod Resit",
+      description: "Semakan receipt",
     },
   ];
-
 
   const settingsMenuItems = [
     {
       id: "table-setup",
-      icon: "🪑",
+      icon: Armchair,
       label: "Setup Meja",
       description: "Bilangan meja POS",
     },
     {
       id: "store-setup",
-      icon: "🏪",
+      icon: Store,
       label: "Setup Kedai",
       description: "Logo & QR DuitNow",
     },
     {
       id: "charge-setup",
-      icon: "🧾",
+      icon: BadgePercent,
       label: "Setup Caj",
       description: "SST & service charge",
     },
     {
       id: "theme",
-      icon: "🎨",
+      icon: Palette,
       label: "Theme",
       description: "Warna & mode paparan",
     },
     {
       id: "password",
-      icon: "🔐",
+      icon: LockKeyhole,
       label: "Password",
       description: "Tukar password owner",
     },
@@ -2127,6 +2168,7 @@ export default function OwnerDashboardPage() {
   const activeNav = navItems.find((item) => item.id === activeTab);
   const activeReport = reportMenuItems.find((item) => item.id === activeReportTab);
   const activeSettings = settingsMenuItems.find((item) => item.id === activeSettingsTab);
+  const ActiveSettingsIcon = activeSettings?.icon || Settings;
   const kedaiLogoUrl = String(kedaiInfo?.logo_url || "").trim();
 
   const FilterBar = () => (
@@ -2190,180 +2232,205 @@ export default function OwnerDashboardPage() {
     </div>
   );
 
-  const FloatingOwnerMenu = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex h-full flex-col">
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-gray-900 font-black text-2xl leading-none">
-            Urus<span className="text-[var(--accent-600)]">POS</span>
+  const FloatingOwnerMenu = ({
+    expanded,
+    mobile = false,
+  }: {
+    expanded: boolean;
+    mobile?: boolean;
+  }) => (
+    <>
+      <div
+        className={`${expanded ? "px-6" : "px-3"} py-5 flex items-center justify-between border-b border-gray-100`}
+      >
+        {expanded ? (
+          <div className="min-w-0">
+            <div className="text-gray-900 font-bold text-lg tracking-tight">
+              Urus<span className="text-[var(--accent-600)]">POS</span>
+            </div>
+            <div className="text-gray-400 text-xs font-medium tracking-widest uppercase mt-0.5">
+              Owner Dashboard
+            </div>
           </div>
-          <div className="mt-1 text-[var(--accent-600)] text-xs font-black uppercase tracking-wide">
-            Owner Menu
-          </div>
-        </div>
+        ) : (
+          <div className="w-full h-10" />
+        )}
 
         {mobile && (
           <button
             onClick={() => setShowMobileMenu(false)}
-            className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"
             aria-label="Tutup menu"
           >
-            ✕
+            <X size={18} strokeWidth={1.8} />
           </button>
         )}
       </div>
 
-      <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-[28px] p-5 mb-5 text-white shadow-lg shadow-black/5">
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center flex-shrink-0 text-xl font-black">
-            {kedaiLogoUrl ? (
-              <img
-                src={kedaiLogoUrl}
-                alt={kedaiInfo?.nama || "Logo kedai"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              "U"
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-[var(--accent-100)] text-xs font-bold mb-1">
-              KEDAI
-            </div>
-            <div className="font-black text-base leading-tight truncate">
-              {kedaiInfo?.nama || "Kedai Saya"}
-            </div>
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              <span className="bg-white/20 text-white text-[11px] font-black px-3 py-1 rounded-full">
-                👑 Owner
-              </span>
-              <span className="bg-white/20 text-white text-[11px] font-black px-3 py-1 rounded-full">
-                {planInfo.label}
-              </span>
+      {expanded && (
+        <div className="px-4 pt-4">
+          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] p-4 text-white shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white/20 border border-white/20 overflow-hidden flex items-center justify-center shrink-0 text-base font-black">
+                {kedaiLogoUrl ? (
+                  <img
+                    src={kedaiLogoUrl}
+                    alt={kedaiInfo?.nama || "Logo kedai"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  "U"
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="text-[var(--accent-100)] text-[10px] font-semibold tracking-widest uppercase mb-1">
+                  Kedai
+                </div>
+                <div className="font-semibold text-sm leading-tight truncate">
+                  {kedaiInfo?.nama || "Kedai Saya"}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                  <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
+                    Owner
+                  </span>
+                  <span className="bg-white/20 text-white text-[10px] font-semibold px-2 py-1 rounded-full">
+                    {planInfo.label}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-1.5 flex-1 overflow-y-auto pr-1">
-        {navItems.map((item) => {
-          const isActive = activeTab === item.id;
+      <nav className={`${expanded ? "px-4" : "px-3"} flex-1 py-4 overflow-y-auto`}>
+        {expanded && (
+          <div className="text-gray-300 text-[10px] font-semibold tracking-widest uppercase px-2 mb-2">
+            Menu
+          </div>
+        )}
 
-          if (item.id === "laporan") {
+        <div className="space-y-1">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+            const isReportItem = item.id === "laporan";
+            const isSettingsItem = item.id === "settings";
             const isReportOpen = showReportSubmenu || isActive;
-
-            return (
-              <div key={item.id} className="space-y-1.5">
-                <button
-                  onClick={() => changeTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isReportOpen ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
-                >
-                  <span
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isReportOpen ? "bg-white/20" : "bg-gray-50"}`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block font-black text-sm">{item.label}</span>
-                    <span
-                      className={`block text-[11px] font-semibold mt-0.5 truncate ${isReportOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                    >
-                      {isActive
-                        ? activeReport?.label || item.description
-                        : isReportOpen
-                          ? "Pilih jenis laporan"
-                          : item.description}
-                    </span>
-                  </span>
-                  <span className="text-lg leading-none font-light">{isReportOpen ? "−" : "+"}</span>
-                </button>
-
-                {isReportOpen && (
-                  <div className="ml-5 pl-3 border-l border-[var(--accent-100)] space-y-1">
-                    {reportMenuItems.map((reportItem) => {
-                      const isReportActive = activeReportTab === reportItem.id;
-                      return (
-                        <button
-                          key={reportItem.id}
-                          onClick={() => changeReportTab(reportItem.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-left transition-all ${isReportActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
-                        >
-                          <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base flex-shrink-0">
-                            {reportItem.icon}
-                          </span>
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-xs font-black truncate">
-                              {reportItem.label}
-                            </span>
-                            <span className="block text-[10px] font-semibold text-gray-400 truncate">
-                              {reportItem.description}
-                            </span>
-                          </span>
-                          {isReportActive && (
-                            <span className="text-[var(--accent-600)] text-xs font-black">✓</span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          if (item.id === "settings") {
             const isSettingsOpen = showSettingsSubmenu || isActive;
+            const parentActive = isReportItem ? isReportOpen : isSettingsItem ? isSettingsOpen : isActive;
 
             return (
-              <div key={item.id} className="space-y-1.5">
+              <div key={item.id} className="space-y-1">
                 <button
-                  onClick={() => changeTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isSettingsOpen ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
+                  title={!expanded ? item.label : undefined}
+                  onClick={() => {
+                    if (!expanded && !mobile && (isReportItem || isSettingsItem)) {
+                      setDesktopSidebarExpanded(true);
+                    }
+                    changeTab(item.id);
+                  }}
+                  className={`w-full flex items-center rounded-xl text-sm font-medium transition-all ${
+                    expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
+                  } ${
+                    parentActive
+                      ? "text-[var(--accent-700)] bg-[var(--accent-50)]"
+                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  }`}
                 >
-                  <span
-                    className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isSettingsOpen ? "bg-white/20" : "bg-gray-50"}`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block font-black text-sm">{item.label}</span>
-                    <span
-                      className={`block text-[11px] font-semibold mt-0.5 truncate ${isSettingsOpen ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                    >
-                      {isActive
-                        ? activeSettings?.label || item.description
-                        : isSettingsOpen
-                          ? "Pilih tetapan"
-                          : item.description}
-                    </span>
-                  </span>
-                  <span className="text-lg leading-none font-light">{isSettingsOpen ? "−" : "+"}</span>
+                  <Icon
+                    size={18}
+                    strokeWidth={1.8}
+                    className={parentActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                  />
+
+                  {expanded && (
+                    <>
+                      <span className="flex-1 text-left min-w-0">
+                        <span className="block truncate">{item.label}</span>
+                        <span
+                          className={`block text-[11px] font-normal mt-0.5 truncate ${
+                            parentActive ? "text-[var(--accent-600)]" : "text-gray-400"
+                          }`}
+                        >
+                          {item.description}
+                        </span>
+                      </span>
+
+                      {(isReportItem || isSettingsItem) && (
+                        <ChevronDown
+                          size={15}
+                          strokeWidth={1.8}
+                          className={`transition-transform ${
+                            parentActive ? "rotate-180 text-[var(--accent-600)]" : "text-gray-300"
+                          }`}
+                        />
+                      )}
+                    </>
+                  )}
                 </button>
 
-                {isSettingsOpen && (
-                  <div className="ml-5 pl-3 border-l border-[var(--accent-100)] space-y-1">
-                    {settingsMenuItems.map((settingsItem) => {
-                      const isSettingsActive = activeSettingsTab === settingsItem.id;
+                {expanded && isReportItem && isReportOpen && (
+                  <div className="ml-3 border-l border-gray-100 pl-3 space-y-1">
+                    {reportMenuItems.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const isSubActive = activeTab === "laporan" && activeReportTab === sub.id;
+
                       return (
                         <button
-                          key={settingsItem.id}
-                          onClick={() => changeSettingsTab(settingsItem.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-2xl text-left transition-all ${isSettingsActive ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "text-gray-500 hover:bg-gray-50"}`}
+                          key={sub.id}
+                          onClick={() => changeReportTab(sub.id)}
+                          className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition-all ${
+                            isSubActive
+                              ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
                         >
-                          <span className="w-8 h-8 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-base flex-shrink-0">
-                            {settingsItem.icon}
-                          </span>
-                          <span className="flex-1 min-w-0">
-                            <span className="block text-xs font-black truncate">
-                              {settingsItem.label}
+                          <SubIcon
+                            size={15}
+                            strokeWidth={1.8}
+                            className={isSubActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">{sub.label}</span>
+                            <span className="block text-[10px] text-gray-400 font-normal truncate mt-0.5">
+                              {sub.description}
                             </span>
-                            <span className="block text-[10px] font-semibold text-gray-400 truncate">
-                              {settingsItem.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {expanded && isSettingsItem && isSettingsOpen && (
+                  <div className="ml-3 border-l border-gray-100 pl-3 space-y-1">
+                    {settingsMenuItems.map((sub) => {
+                      const SubIcon = sub.icon;
+                      const isSubActive = activeTab === "settings" && activeSettingsTab === sub.id;
+
+                      return (
+                        <button
+                          key={sub.id}
+                          onClick={() => changeSettingsTab(sub.id)}
+                          className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-medium transition-all ${
+                            isSubActive
+                              ? "bg-[var(--accent-50)] text-[var(--accent-700)]"
+                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          <SubIcon
+                            size={15}
+                            strokeWidth={1.8}
+                            className={isSubActive ? "text-[var(--accent-600)]" : "text-gray-400"}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">{sub.label}</span>
+                            <span className="block text-[10px] text-gray-400 font-normal truncate mt-0.5">
+                              {sub.description}
                             </span>
                           </span>
-                          {isSettingsActive && (
-                            <span className="text-[var(--accent-600)] text-xs font-black">✓</span>
-                          )}
                         </button>
                       );
                     })}
@@ -2371,93 +2438,82 @@ export default function OwnerDashboardPage() {
                 )}
               </div>
             );
-          }
+          })}
+        </div>
+      </nav>
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => changeTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left transition-all ${isActive ? "bg-[var(--accent-600)] text-white shadow-lg shadow-[var(--accent-200)]" : "text-gray-600 hover:bg-gray-100 active:bg-gray-100"}`}
-            >
-              <span
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg flex-shrink-0 ${isActive ? "bg-white/20" : "bg-gray-50"}`}
-              >
-                {item.icon}
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block font-black text-sm">{item.label}</span>
-                <span
-                  className={`block text-[11px] font-semibold mt-0.5 truncate ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}
-                >
-                  {item.description}
-                </span>
-              </span>
-              {isActive && <span className="font-black">✓</span>}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-5 pt-4 border-t border-gray-100">
+      <div className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100`}>
         <a
           href="/auth/logout"
-          className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left text-sm font-black text-gray-500 transition-all hover:bg-red-50 hover:text-red-600"
+          title={!expanded ? "Log Keluar" : undefined}
+          className={`flex items-center rounded-xl text-sm text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
+            expanded ? "gap-2 px-3 py-2.5" : "justify-center px-0 py-3"
+          }`}
         >
-          <span className="w-10 h-10 rounded-2xl bg-gray-50 flex items-center justify-center text-lg">🚪</span>
-          <span>Log Keluar</span>
+          <LogOut size={16} strokeWidth={1.8} />
+          {expanded && <span>Log Keluar</span>}
         </a>
       </div>
-    </div>
+    </>
   );
 
 
   return (
     <div className="min-h-screen bg-[#f6f7f2] pb-10" style={accentStyle}>
-      {/* Desktop Floating Menu */}
-      <aside className="fixed left-5 top-5 z-40 hidden h-[calc(100vh-40px)] w-[280px] rounded-[34px] bg-white/95 p-5 shadow-xl shadow-black/5 ring-1 ring-black/5 backdrop-blur lg:block">
-        <FloatingOwnerMenu />
+      {/* Desktop Menu */}
+      <aside
+        className={`fixed left-0 top-0 z-40 hidden h-screen bg-white border-r border-gray-100 flex-col transition-all duration-200 lg:flex ${
+          desktopSidebarExpanded ? "w-72" : "w-20"
+        }`}
+      >
+        <FloatingOwnerMenu expanded={desktopSidebarExpanded} />
       </aside>
 
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-[#f6f7f2]/90 backdrop-blur border-b border-black/5 lg:ml-[320px]">
-        <div className="px-4 sm:px-6 py-4 max-w-5xl mx-auto flex items-center justify-between gap-3">
+      <div
+        className={`sticky top-0 z-30 bg-[#f6f7f2]/90 backdrop-blur border-b border-black/5 transition-all duration-200 ${
+          desktopSidebarExpanded ? "lg:ml-72" : "lg:ml-20"
+        }`}
+      >
+        <div className="px-4 sm:px-6 py-4 w-full flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setShowMobileMenu(true)}
-              className="w-11 h-11 rounded-2xl bg-white border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all lg:hidden"
+              className="lg:hidden w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-white/70"
               aria-label="Buka menu"
             >
-              ☰
+              <Menu size={20} strokeWidth={1.8} />
             </button>
-            <div className="min-w-0">
-              <span className="text-gray-900 font-black text-xl block leading-none">
-                Urus<span className="text-[var(--accent-600)]">POS</span>
-              </span>
-              <div className="text-gray-400 text-xs font-bold mt-1 truncate">
-                {activeNav?.label || "Owner"}
-              </div>
+
+            <button
+              onClick={() => setDesktopSidebarExpanded(v => !v)}
+              className="hidden lg:flex w-9 h-9 items-center justify-center text-gray-500 hover:text-gray-900 rounded-lg hover:bg-white/70"
+              aria-label="Toggle menu"
+            >
+              <Menu size={20} strokeWidth={1.8} />
+            </button>
+
+            <div className="text-gray-900 font-semibold text-sm truncate">
+              {activeTab === "laporan"
+                ? activeReport?.label || "Laporan"
+                : activeTab === "settings"
+                  ? activeSettings?.label || "Tetapan"
+                  : activeNav?.label || "Owner"}
             </div>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="text-right hidden xs:block">
-              <div className="text-gray-900 font-bold text-sm leading-tight">
-                {sessionUser?.nama || "Owner"}
-              </div>
-              <div className="text-[var(--accent-600)] text-xs font-semibold">
-                👑 Owner
-              </div>
-            </div>
-            <a
-              href="/auth/logout"
-              className="bg-white border border-gray-200 text-gray-500 text-xs sm:text-sm font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all lg:hidden"
-            >
-              Log Keluar
-            </a>
+
+          <div className="text-gray-900 font-bold text-base tracking-tight">
+            Urus<span className="text-[var(--accent-600)]">POS</span>
           </div>
         </div>
       </div>
 
-      <div className="p-4 max-w-2xl mx-auto lg:ml-[320px] lg:max-w-5xl lg:px-6">
+      <div
+        className={`transition-all duration-200 ${
+          desktopSidebarExpanded ? "lg:ml-72" : "lg:ml-20"
+        }`}
+      >
+        <div className="p-4 max-w-2xl mx-auto lg:max-w-5xl lg:px-6">
         {/* DASHBOARD */}
         {activeTab === "dashboard" && (
           <div>
@@ -3475,8 +3531,9 @@ export default function OwnerDashboardPage() {
         {activeTab === "settings" && (
           <div>
             <div className="mb-4">
-              <h2 className="text-gray-900 font-black text-xl">
-                {activeSettings?.icon || "⚙️"} {activeSettings?.label || "Tetapan"}
+              <h2 className="text-gray-900 font-black text-xl flex items-center gap-2">
+                <ActiveSettingsIcon size={20} strokeWidth={2} className="text-[var(--accent-600)]" />
+                <span>{activeSettings?.label || "Tetapan"}</span>
               </h2>
               <p className="text-gray-400 text-xs font-bold mt-1">
                 {activeSettings?.description || "Tetapan kedai"}
@@ -4057,7 +4114,6 @@ export default function OwnerDashboardPage() {
           </div>
         )}
 
-      </div>
 
       {/* Custom Date Modal */}
       {showFilterModal && (
@@ -4238,26 +4294,24 @@ export default function OwnerDashboardPage() {
         </div>
       )}
 
-      {/* Mobile Floating Menu */}
+      {/* Mobile Menu */}
       {showMobileMenu && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             onClick={() => setShowMobileMenu(false)}
-            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-black/40"
             aria-label="Tutup menu"
           />
-          <div className="absolute bottom-4 left-4 top-4 w-[84vw] max-w-[340px] rounded-[34px] bg-white/95 p-5 shadow-2xl shadow-black/20 ring-1 ring-black/5 backdrop-blur animate-[floatInLeft_0.22s_ease-out]">
-            <FloatingOwnerMenu mobile />
+          <div className="relative h-full w-72 bg-white shadow-xl flex flex-col animate-[slideInLeft_0.2s_ease-out]">
+            <FloatingOwnerMenu expanded mobile />
           </div>
           <style jsx>{`
-            @keyframes floatInLeft {
+            @keyframes slideInLeft {
               from {
-                opacity: 0;
-                transform: translateX(-18px) scale(0.98);
+                transform: translateX(-100%);
               }
               to {
-                opacity: 1;
-                transform: translateX(0) scale(1);
+                transform: translateX(0);
               }
             }
           `}</style>
@@ -4838,6 +4892,8 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
