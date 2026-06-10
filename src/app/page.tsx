@@ -114,12 +114,12 @@ if (user.role !== "superadmin" && user.kedai_id) {
             <span className="text-white">Urus</span>
             <span className="text-[#22c55e]">POS</span>
           </h1>
-          <p className="mt-3 text-sm text-emerald-200/80">
+          <p className="mt-3 text-sm text-emerald-400/50 tracking-wide">
             Urus Bisnes, Senang Cerita
           </p>
         </div>
 
-        <div className="rounded-2xl border border-emerald-900/40 bg-black/40 p-8 shadow-2xl backdrop-blur-sm">
+        <div className="rounded-2xl border border-emerald-900/40 bg-black/40 p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
               <label
@@ -134,7 +134,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2.5 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30"
+                className="w-full rounded-xl border border-emerald-800/50 bg-emerald-950/30 px-4 py-3 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/20 transition-all"
                 placeholder=""
               />
             </div>
@@ -152,7 +152,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-emerald-800/50 bg-emerald-950/30 px-4 py-2.5 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/30"
+                className="w-full rounded-xl border border-emerald-800/50 bg-emerald-950/30 px-4 py-3 text-white placeholder:text-emerald-700 focus:border-[#22c55e] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/20 transition-all"
                 placeholder=""
               />
             </div>
@@ -169,7 +169,7 @@ if (user.role !== "superadmin" && user.kedai_id) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-[#22c55e] px-4 py-3 font-semibold text-white transition hover:bg-[#16a34a] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl bg-[#22c55e] px-4 py-3.5 font-semibold text-white transition-all hover:bg-[#16a34a] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#22c55e]/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Memuatkan..." : "Log Masuk"}
             </button>
