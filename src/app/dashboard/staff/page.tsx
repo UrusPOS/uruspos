@@ -15,6 +15,7 @@ import {
   CircleCheck,
   ClipboardList,
   Coffee,
+  CreditCard,
   CupSoda,
   Drumstick,
   KeyRound,
@@ -26,6 +27,7 @@ import {
   Search,
   Settings,
   ShoppingCart,
+  Smartphone,
   Soup,
   Tag,
   Utensils,
@@ -204,6 +206,7 @@ export default function StaffDashboardPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
   const [rekod, setRekod] = useState<any[]>([]);
+  const [rekodPage, setRekodPage] = useState(1);
   const [loadingRekod, setLoadingRekod] = useState(false);
   const [rekodFilter, setRekodFilter] = useState<RekodFilterType>("daily");
   const [rekodCustomFrom, setRekodCustomFrom] = useState("");
@@ -816,6 +819,10 @@ export default function StaffDashboardPage() {
   useEffect(() => {
     if (activeTab === "rekod") fetchRekod();
   }, [activeTab, rekodFilter, rekodCustomFrom, rekodCustomTo]);
+
+  useEffect(() => {
+    setRekodPage(1);
+  }, [rekod]);
 
   async function fetchProduk() {
     const cookies = document.cookie.split(";");
@@ -1548,6 +1555,102 @@ export default function StaffDashboardPage() {
     setShowMenu(false);
   }
 
+  const rekodPerPage = 20;
+  const rekodTotalPages = Math.max(1, Math.ceil(rekod.length / rekodPerPage));
+  const safeRekodPage = Math.min(rekodPage, rekodTotalPages);
+  const paginatedRekod = rekod.slice(
+    (safeRekodPage - 1) * rekodPerPage,
+    safeRekodPage * rekodPerPage,
+  );
+  const rekodPageNumbers = (() => {
+    const maxButtons = 5;
+    const total = rekodTotalPages;
+    const current = safeRekodPage;
+    let start = Math.max(1, current - Math.floor(maxButtons / 2));
+    const end = Math.min(total, start + maxButtons - 1);
+    start = Math.max(1, end - maxButtons + 1);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  })();
+
+  function formatReceiptTimeOnly(dateValue?: string | null) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleTimeString("ms-MY", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatReceiptDateOnly(dateValue?: string | null) {
+    if (!dateValue) return "-";
+    return new Date(dateValue).toLocaleDateString("ms-MY", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
+  function formatPaymentLabel(method?: string | null) {
+    const normalized = String(method || "")
+      .trim()
+      .toLowerCase();
+    if (["duitnow", "duit now", "qr", "qrcode", "qr code"].includes(normalized))
+      return "DuitNow";
+    if (["tunai", "cash"].includes(normalized)) return "Tunai";
+    return String(method || "Belum direkod").trim();
+  }
+
+  const RekodPagination = ({ mobile = false }: { mobile?: boolean }) => (
+    <div
+      className={
+        mobile
+          ? "mt-4 pb-2"
+          : "flex items-center justify-between px-5 py-4 border-t border-gray-100"
+      }
+    >
+      <div
+        className={
+          mobile
+            ? "text-xs text-gray-400 text-center mb-2"
+            : "text-xs text-gray-400"
+        }
+      >
+        Halaman {safeRekodPage} / {rekodTotalPages} • {rekod.length} rekod
+        dijumpai
+      </div>
+      <div className="flex justify-center items-center gap-2">
+        <button
+          onClick={() => setRekodPage((page) => Math.max(1, page - 1))}
+          disabled={safeRekodPage <= 1}
+          className="w-8 h-8 rounded-xl text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          ←
+        </button>
+        {rekodPageNumbers.map((page) => (
+          <button
+            key={`rekod-page-${page}`}
+            onClick={() => setRekodPage(page)}
+            className={`w-8 h-8 rounded-xl text-xs font-medium ${
+              page === safeRekodPage
+                ? "bg-[var(--accent-600)] text-white"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+        <button
+          onClick={() =>
+            setRekodPage((page) => Math.min(rekodTotalPages, page + 1))
+          }
+          disabled={safeRekodPage >= rekodTotalPages}
+          className="w-8 h-8 rounded-xl text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          →
+        </button>
+      </div>
+    </div>
+  );
+
   const StaffSidebarMenu = ({
     expanded,
     mobile = false,
@@ -1742,10 +1845,10 @@ export default function StaffDashboardPage() {
       >
         {/* POS TAB */}
         {activeTab === "pos" && (
-          <>
+          <div className="flex flex-1 flex-col lg:flex-row min-h-0">
             {/* Menu Grid */}
             <div className="flex-1 overflow-y-auto p-4">
-              <div className="sticky top-0 z-10 bg-gray-50 pb-3">
+              <div className="sticky top-0 z-10 bg-[#f6f7f2] pb-3">
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <label className="text-gray-500 text-[11px] font-medium uppercase tracking-wide">
                     Cari Produk
@@ -1828,11 +1931,7 @@ export default function StaffDashboardPage() {
                         }`}
                       >
                         <span className="flex items-center gap-2">
-                          <Tag
-                            size={15}
-                            className="shrink-0"
-                            strokeWidth={2}
-                          />
+                          <Tag size={15} className="shrink-0" strokeWidth={2} />
                           <span>Semua Kategori</span>
                         </span>
                         {selectedCategoryId === "all" && (
@@ -1914,7 +2013,7 @@ export default function StaffDashboardPage() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-3">
                   {filteredProduk.map((item) => {
                     const category = getProductCategory(item);
 
@@ -1938,13 +2037,13 @@ export default function StaffDashboardPage() {
                             strokeWidth={2}
                           />
                         </div>
-                        <div className="text-gray-900 text-xs font-medium leading-tight">
+                        <div className="text-gray-900 text-sm font-medium leading-tight">
                           {item.nama}
                         </div>
                         <div className="text-gray-400 text-[10px] font-medium mt-0.5 truncate">
                           {category.nama}
                         </div>
-                        <div className="text-[var(--accent-600)] text-xs font-medium mt-1">
+                        <div className="text-[var(--accent-600)] text-sm font-medium mt-1">
                           RM {item.harga_jual.toFixed(2)}
                         </div>
                         {item.stok <= 5 && item.stok > 0 && (
@@ -1964,9 +2063,219 @@ export default function StaffDashboardPage() {
               )}
             </div>
 
+            {/* Desktop Order Panel */}
+            <div className="hidden lg:flex w-80 xl:w-96 shrink-0 border-l border-gray-100 bg-white flex-col overflow-y-auto">
+              <div className="p-4 border-b border-gray-100 flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-gray-900 text-base font-medium">
+                      Pesanan
+                    </h3>
+                    {cartCount > 0 && (
+                      <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-[11px] font-medium px-2 py-0.5 rounded-full">
+                        {cartCount} item
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-400 text-xs font-medium mt-1">
+                    {loadingTableOrder
+                      ? "Menyemak order aktif..."
+                      : displayMejaLabel(currentMeja)}
+                  </p>
+                </div>
+                {cartCount > 0 && !orderSent && (
+                  <button
+                    onClick={clearCart}
+                    className="text-red-500 text-xs font-medium bg-red-50 px-3 py-2 rounded-xl border border-red-100 active:scale-95 transition-all"
+                  >
+                    Kosongkan
+                  </button>
+                )}
+              </div>
+
+              <div className="p-4 border-b border-gray-100">
+                <label className="text-gray-500 text-[11px] font-medium mb-2 block uppercase tracking-wide">
+                  Jenis Pesanan
+                </label>
+                <div className="relative">
+                  <select
+                    value={currentMeja}
+                    onChange={(e) => handleChangeMeja(e.target.value)}
+                    disabled={loadingTableOrder}
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
+                  >
+                    {mejaList.map((meja) => (
+                      <option key={meja} value={meja}>
+                        {displayMejaLabel(meja)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                    ▾
+                  </span>
+                </div>
+                {orderSent && currentOrderId && (
+                  <div className="mt-2 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-medium rounded-2xl px-3 py-2">
+                    Order meja ini sudah dihantar ke dapur dan belum dibayar.
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {cartItems.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-gray-50 border border-gray-100 rounded-2xl p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-gray-900 text-sm font-medium truncate">
+                              {item.nama}
+                            </div>
+                            <div className="text-gray-400 text-xs font-medium mt-0.5">
+                              RM {item.harga_jual.toFixed(2)} × {item.qty}
+                            </div>
+                          </div>
+                          <div className="text-gray-900 text-sm font-medium whitespace-nowrap">
+                            RM {(item.harga_jual * item.qty).toFixed(2)}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 mt-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateQty(item.id, -1)}
+                              className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-medium flex items-center justify-center active:scale-95 transition-all"
+                            >
+                              −
+                            </button>
+                            <span className="min-w-8 text-center text-gray-900 text-sm font-medium">
+                              {item.qty}
+                            </span>
+                            <button
+                              onClick={() => updateQty(item.id, 1)}
+                              className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-medium flex items-center justify-center active:scale-95 transition-all"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <span className="bg-white border border-gray-200 text-gray-500 text-xs font-medium px-3 py-2 rounded-xl">
+                            {item.qty} item
+                          </span>
+                        </div>
+
+                        <div className="mt-3">
+                          <label className="text-gray-400 text-[11px] font-medium mb-1.5 block uppercase tracking-wide">
+                            Nota item
+                          </label>
+                          <input
+                            type="text"
+                            value={item.nota}
+                            onChange={(e) =>
+                              updateNota(item.id, e.target.value)
+                            }
+                            placeholder="cth: tak pedas, kurang ais, asing kuah"
+                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-[var(--accent-500)]"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-3xl p-5 text-center">
+                    <ShoppingCart
+                      size={30}
+                      className="text-gray-300 mx-auto mb-2"
+                      strokeWidth={1.8}
+                    />
+                    <div className="text-gray-900 text-sm font-medium">
+                      Belum ada item
+                    </div>
+                    <div className="text-gray-400 text-xs mt-1">
+                      Pilih menu di kiri untuk mula order
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 p-4 space-y-3">
+                <div className="bg-gray-50 rounded-2xl px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 font-medium">Subtotal</span>
+                    <span className="text-gray-900 font-medium">
+                      {formatRM(subtotal)}
+                    </span>
+                  </div>
+                  {serviceChargeAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500 font-medium">
+                        Service Charge ({serviceChargeRate}%)
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {formatRM(serviceChargeAmount)}
+                      </span>
+                    </div>
+                  )}
+                  {sstAmount > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-500 font-medium">
+                        SST ({sstRate}%)
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {formatRM(sstAmount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                    <span className="text-gray-900 text-sm font-medium">
+                      Jumlah
+                    </span>
+                    <span className="text-gray-900 text-2xl font-medium">
+                      RM {total.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {!orderSent ? (
+                  <button
+                    onClick={sendOrder}
+                    disabled={cartItems.length === 0 || saving}
+                    className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+                  >
+                    {saving
+                      ? "Menghantar..."
+                      : cartItems.length === 0
+                        ? "Hantar ke Dapur"
+                        : currentOrderId
+                          ? `Update Pesanan • RM ${total.toFixed(2)}`
+                          : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
+                  </button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={cancelCurrentOrder}
+                      disabled={saving}
+                      className="w-full bg-red-50 border border-red-100 text-red-500 font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                      {saving ? "Loading..." : "Batalkan"}
+                    </button>
+                    <button
+                      onClick={openCheckout}
+                      disabled={saving}
+                      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                    >
+                      Bayar • RM {total.toFixed(2)}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Order Panel */}
             <div
-              className="bg-white border-t border-gray-200 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] transition-all duration-300"
+              className="lg:hidden bg-white border-t border-gray-200 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] transition-all duration-300"
               onTouchStart={handleOrderPanelTouchStart}
               onTouchEnd={handleOrderPanelTouchEnd}
             >
@@ -2205,20 +2514,22 @@ export default function StaffDashboardPage() {
                 </div>
               )}
             </div>
-          </>
+          </div>
         )}
 
         {/* REKOD TAB */}
         {activeTab === "rekod" && (
           <div className="flex-1 overflow-y-auto p-4">
-            <div className="mb-4">
-              <h2 className="text-gray-900 font-medium text-lg">Rekod Jualan</h2>
+            <div className="mb-4 lg:hidden">
+              <h2 className="text-gray-900 font-medium text-lg">
+                Rekod Jualan
+              </h2>
               <p className="text-gray-400 text-xs mt-1">
                 Semak jualan mengikut tarikh dan download receipt
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center justify-between gap-3 mb-4 lg:hidden">
               <div className="relative">
                 <button
                   onClick={openRekodFilterModal}
@@ -2295,14 +2606,245 @@ export default function StaffDashboardPage() {
                 disabled={loadingRekod}
                 className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 active:scale-95 transition-all"
               >
-                {loadingRekod ? "Loading" : "Refresh"}
+                {loadingRekod ? "Memuat..." : "Muat Semula"}
               </button>
             </div>
 
+            <div className="hidden lg:flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-gray-900 font-medium text-lg">
+                  Rekod Resit
+                </h2>
+                <p className="text-gray-400 text-xs mt-1">
+                  Senarai resit jualan
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={openRekodFilterModal}
+                    className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="text-[var(--accent-600)]"
+                    >
+                      <path
+                        d="M7 3V6"
+                        stroke="currentColor"
+                        strokeWidth="2.3"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M17 3V6"
+                        stroke="currentColor"
+                        strokeWidth="2.3"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M4 9H20"
+                        stroke="currentColor"
+                        strokeWidth="2.3"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z"
+                        stroke="currentColor"
+                        strokeWidth="2.3"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span>{rekodFilterLabel()}</span>
+                    <span className="text-gray-400 text-[10px]">▾</span>
+                  </button>
+
+                  {showRekodDropdown && (
+                    <>
+                      <button
+                        onClick={() => setShowRekodDropdown(false)}
+                        className="fixed inset-0 z-30 cursor-default"
+                        aria-label="Tutup filter rekod"
+                      />
+                      <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl z-40 overflow-hidden">
+                        {[
+                          { id: "daily", label: "Hari Ini" },
+                          { id: "yesterday", label: "Semalam" },
+                          { id: "monthly", label: "Bulan Ini" },
+                          { id: "weekly", label: "7 Hari Lepas" },
+                          { id: "custom", label: "Tarikh Custom" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() =>
+                              applyRekodDropdownFilter(
+                                item.id as RekodFilterType,
+                              )
+                            }
+                            className={`w-full text-left px-4 py-3 text-sm font-medium border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-[var(--accent-600)] bg-[var(--accent-50)]" : "text-gray-700"}`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  onClick={fetchRekod}
+                  disabled={loadingRekod}
+                  className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 active:scale-95 transition-all"
+                >
+                  {loadingRekod ? "Memuat..." : "Muat Semula"}
+                </button>
+              </div>
+            </div>
+
+            <div className="hidden lg:block bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-gray-900 font-medium text-base flex items-center gap-2">
+                    <Receipt
+                      size={16}
+                      className="text-[var(--accent-600)]"
+                      strokeWidth={2}
+                    />
+                    Rekod Resit
+                  </h3>
+                  <p className="text-gray-400 text-xs mt-1">
+                    Senarai resit jualan ikut filter semasa
+                  </p>
+                </div>
+                <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1">
+                  {rekod.length} resit
+                </span>
+              </div>
+
+              <table className="w-full text-left">
+                <thead>
+                  <tr>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-left">
+                      Resit No
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-left">
+                      No Meja
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-left">
+                      Tarikh
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-left">
+                      Masa
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-left">
+                      Cara Pembayaran
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-right">
+                      Jumlah
+                    </th>
+                    <th className="text-[11px] font-medium text-gray-400 uppercase tracking-wider px-5 py-3.5 border-b border-gray-100 bg-gray-50 text-right">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadingRekod ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-5 py-10 text-center text-gray-400 text-sm"
+                      >
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : rekod.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-10 text-center">
+                        <ClipboardList
+                          size={34}
+                          className="text-gray-300 mx-auto mb-3"
+                          strokeWidth={1.8}
+                        />
+                        <div className="text-gray-400 text-sm">
+                          Tiada rekod dalam tempoh ini
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRekod.map((order) => {
+                      const receipt = toRecentReceipt(order);
+                      const paymentLabel = formatPaymentLabel(
+                        receipt.payment_method,
+                      );
+                      const isDuitNow = paymentLabel === "DuitNow";
+
+                      return (
+                        <tr
+                          key={`rekod-table-${order.id}`}
+                          className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-5 py-4 font-mono text-gray-800 text-sm">
+                            #{receipt.id.slice(0, 8).toUpperCase()}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-gray-700">
+                            {displayMejaLabel(receipt.meja)}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-gray-700">
+                            {formatReceiptDateOnly(receipt.created_at)}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-gray-700">
+                            {formatReceiptTimeOnly(receipt.created_at)}
+                          </td>
+                          <td className="px-5 py-4">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5 border ${
+                                isDuitNow
+                                  ? "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-200)]"
+                                  : "bg-gray-100 text-gray-700 border-gray-200"
+                              }`}
+                            >
+                              <CreditCard size={13} strokeWidth={2} />
+                              {paymentLabel}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 font-medium text-gray-900 text-right">
+                            {formatRM(receipt.total)}
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setSelectedReceipt(receipt)}
+                                className="bg-gray-900 text-white text-xs font-medium px-4 py-2 rounded-xl hover:bg-gray-700 transition-all"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => downloadReceipt(order)}
+                                className="bg-[var(--accent-600)] text-white text-xs font-medium px-4 py-2 rounded-xl hover:bg-[var(--accent-700)] transition-all"
+                              >
+                                Download
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+
+              {rekod.length > 0 && <RekodPagination />}
+            </div>
+
             {loadingRekod ? (
-              <div className="text-center text-gray-400 py-10">Loading...</div>
+              <div className="lg:hidden text-center text-gray-400 py-10">
+                Loading...
+              </div>
             ) : rekod.length === 0 ? (
-              <div className="text-center py-10">
+              <div className="lg:hidden text-center py-10">
                 <ClipboardList
                   size={34}
                   className="text-gray-300 mx-auto mb-3"
@@ -2313,7 +2855,7 @@ export default function StaffDashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+              <div className="lg:hidden bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2">
                     <Receipt
@@ -2328,7 +2870,7 @@ export default function StaffDashboardPage() {
                   </span>
                 </div>
                 <div className="space-y-3">
-                  {rekod.map((order) => {
+                  {paginatedRekod.map((order) => {
                     const receipt = toRecentReceipt(order);
                     return (
                       <div
@@ -2419,6 +2961,7 @@ export default function StaffDashboardPage() {
                     );
                   })}
                 </div>
+                <RekodPagination mobile />
               </div>
             )}
           </div>
@@ -2427,74 +2970,90 @@ export default function StaffDashboardPage() {
         {/* SETTINGS TAB */}
         {activeTab === "settings" && (
           <div className="flex-1 overflow-y-auto p-4">
-            <div className="mb-4">
-              <h2 className="text-gray-900 font-medium text-lg">Tetapan</h2>
-              <p className="text-gray-400 text-xs mt-1">
-                Ubah password akaun staff
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-              <h3 className="text-gray-900 font-medium text-sm mb-4 flex items-center gap-2">
-                <KeyRound
-                  size={15}
-                  className="text-[var(--accent-600)]"
-                  strokeWidth={2}
-                />{" "}
-                Tukar Password
-              </h3>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-medium mb-1 block">
-                  PASSWORD SEMASA
-                </label>
-                <input
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                />
-              </div>
-              <div className="mb-3">
-                <label className="text-gray-500 text-xs font-medium mb-1 block">
-                  PASSWORD BARU
-                </label>
-                <input
-                  type="password"
-                  value={newPasswordStaff}
-                  onChange={(e) => setNewPasswordStaff(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                />
-              </div>
+            <div className="max-w-md mx-auto w-full">
               <div className="mb-4">
-                <label className="text-gray-500 text-xs font-medium mb-1 block">
-                  CONFIRM PASSWORD BARU
-                </label>
-                <input
-                  type="password"
-                  value={confirmPasswordStaff}
-                  onChange={(e) => setConfirmPasswordStaff(e.target.value)}
-                  placeholder="••••••"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                />
+                <h2 className="text-gray-900 font-medium text-lg">Tetapan</h2>
+                <p className="text-gray-400 text-xs mt-1">
+                  Ubah password akaun staff
+                </p>
               </div>
-              {passwordMsgStaff && (
-                <div
-                  className={`text-xs font-medium mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("berjaya") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                >
-                  {passwordMsgStaff}
+
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 mb-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] flex items-center justify-center text-[var(--accent-700)] text-lg font-medium shrink-0">
+                  {String(staffNama || "Staff").slice(0, 1).toUpperCase()}
                 </div>
-              )}
-              <button
-                onClick={tukarPasswordStaff}
-                disabled={
-                  !oldPassword || !newPasswordStaff || !confirmPasswordStaff
-                }
-                className="w-full bg-[var(--accent-600)] text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
-              >
-                Tukar Password
-              </button>
+                <div className="min-w-0 flex-1">
+                  <div className="text-gray-900 font-medium text-sm truncate">
+                    {staffNama || "Staff"}
+                  </div>
+                  <div className="text-gray-400 text-xs mt-0.5 truncate">
+                    {kedaiInfo?.nama || "Kedai Saya"} • Staff
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                <h3 className="text-gray-900 font-medium text-sm mb-4 flex items-center gap-2">
+                  <KeyRound
+                    size={15}
+                    className="text-[var(--accent-600)]"
+                    strokeWidth={2}
+                  />{" "}
+                  Tukar Password
+                </h3>
+                <div className="mb-3">
+                  <label className="text-gray-500 text-xs font-medium mb-1 block">
+                    PASSWORD SEMASA
+                  </label>
+                  <input
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="text-gray-500 text-xs font-medium mb-1 block">
+                    PASSWORD BARU
+                  </label>
+                  <input
+                    type="password"
+                    value={newPasswordStaff}
+                    onChange={(e) => setNewPasswordStaff(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="text-gray-500 text-xs font-medium mb-1 block">
+                    CONFIRM PASSWORD BARU
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPasswordStaff}
+                    onChange={(e) => setConfirmPasswordStaff(e.target.value)}
+                    placeholder="••••••"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                  />
+                </div>
+                {passwordMsgStaff && (
+                  <div
+                    className={`text-xs font-medium mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("berjaya") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                  >
+                    {passwordMsgStaff}
+                  </div>
+                )}
+                <button
+                  onClick={tukarPasswordStaff}
+                  disabled={
+                    !oldPassword || !newPasswordStaff || !confirmPasswordStaff
+                  }
+                  className="w-full bg-[var(--accent-600)] text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+                >
+                  Tukar Password
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2622,7 +3181,9 @@ export default function StaffDashboardPage() {
                     className="flex justify-between gap-3 text-sm"
                   >
                     <div className="flex-1">
-                      <div className="text-gray-900 font-medium">{item.nama}</div>
+                      <div className="text-gray-900 font-medium">
+                        {item.nama}
+                      </div>
                       <div className="text-gray-400 text-xs">
                         {item.qty} x {formatRM(item.harga)}
                       </div>
@@ -2642,7 +3203,9 @@ export default function StaffDashboardPage() {
                 {hasReceiptCaj(selectedReceipt) && (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-medium">Subtotal</span>
+                      <span className="text-gray-500 font-medium">
+                        Subtotal
+                      </span>
                       <span className="text-gray-900 font-medium">
                         {formatRM(selectedReceipt.subtotal)}
                       </span>
