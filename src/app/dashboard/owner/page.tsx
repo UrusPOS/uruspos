@@ -27,6 +27,11 @@ import {
   AlertTriangle,
   Utensils,
   Coffee,
+  CupSoda,
+  CakeSlice,
+  Soup,
+  Drumstick,
+  Sandwich,
   Tag,
   Pause,
   Play,
@@ -66,11 +71,6 @@ const CalendarDays = Calendar;
 const CircleCheck = Check;
 const Clock3 = Clock;
 const Ban = X;
-const CupSoda = Coffee;
-const CakeSlice = Star;
-const Soup = Coffee;
-const Drumstick = Utensils;
-const Sandwich = Utensils;
 const BoxOpen = Package;
 const UserRound = User;
 const UserCog = User;
@@ -211,6 +211,7 @@ type OwnerReportData = {
 type FilterType = "daily" | "yesterday" | "weekly" | "monthly" | "custom";
 
 const RECORDS_PER_PAGE = 20;
+const RECEIPTS_PER_PAGE = 20;
 
 function getDateRange(
   filter: FilterType,
@@ -287,7 +288,7 @@ const DEFAULT_PRODUCT_CATEGORIES = [
 const CATEGORY_ICON_OPTIONS = [
   { id: "food", label: "Makanan", icon: Utensils },
   { id: "drink", label: "Minuman", icon: CupSoda },
-  { id: "dessert", label: "Kuih", icon: CakeSlice },
+  { id: "dessert", label: "Kuih / Pastri", icon: CakeSlice },
   { id: "combo", label: "Set", icon: Package },
   { id: "addon", label: "Add-on", icon: Plus },
   { id: "other", label: "Lain-lain", icon: Box },
@@ -299,16 +300,68 @@ const CATEGORY_ICON_OPTIONS = [
 
 const CATEGORY_ICON_MAP: Record<string, any> = {
   food: Utensils,
+  makanan: Utensils,
+  meal: Utensils,
+
   drink: CupSoda,
+  drinks: CupSoda,
+  minuman: CupSoda,
+  beverage: CupSoda,
+
   dessert: CakeSlice,
+  desserts: CakeSlice,
+  kuih: CakeSlice,
+  "kuih-muih": CakeSlice,
+  "kuih muih": CakeSlice,
+  pastry: CakeSlice,
+  pastries: CakeSlice,
+  pastri: CakeSlice,
+
   combo: Package,
+  set: Package,
+  "set-combo": Package,
+  "set / combo": Package,
+
   addon: Plus,
+  "add-on": Plus,
+  add_on: Plus,
+  tambahan: Plus,
+
   other: Box,
+  others: Box,
+  lain: Box,
+  "lain-lain": Box,
+  "lain lain": Box,
+
   coffee: Coffee,
+  kopi: Coffee,
+
   noodle: Soup,
+  noodles: Soup,
+  mi: Soup,
+  mee: Soup,
+
   chicken: Drumstick,
+  ayam: Drumstick,
+
   burger: Sandwich,
+  sandwich: Sandwich,
 };
+
+function getCategoryIcon(value?: string | null) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  const hyphenValue = normalized.replace(/[\s_]+/g, "-");
+  const compactValue = normalized.replace(/[\s_\-/]+/g, "");
+
+  return (
+    CATEGORY_ICON_MAP[normalized] ||
+    CATEGORY_ICON_MAP[hyphenValue] ||
+    CATEGORY_ICON_MAP[compactValue] ||
+    Box
+  );
+}
 
 function CategoryIcon({
   value,
@@ -321,7 +374,7 @@ function CategoryIcon({
   className?: string;
   strokeWidth?: number;
 }) {
-  const Icon = CATEGORY_ICON_MAP[value || ""] || Box;
+  const Icon = getCategoryIcon(value);
   return <Icon size={size} className={className} strokeWidth={strokeWidth} />;
 }
 
@@ -878,6 +931,7 @@ export default function OwnerDashboardPage() {
   const [activeReportTab, setActiveReportTab] = useState("sales-summary");
   const [activeInventoryTab, setActiveInventoryTab] = useState("inventory");
   const [recordsPage, setRecordsPage] = useState(1);
+  const [receiptsPage, setReceiptsPage] = useState(1);
   const [activeSettingsTab, setActiveSettingsTab] = useState("kedai");
 
   // useEffect 1 — fetch session & kedai info
@@ -895,6 +949,10 @@ export default function OwnerDashboardPage() {
   useEffect(() => {
     setRecordsPage(1);
   }, [activeInventoryTab, filter, customFrom, customTo, reportData.stockMovements.length]);
+
+  useEffect(() => {
+    setReceiptsPage(1);
+  }, [activeReportTab, filter, customFrom, customTo, reportData.recentReceipts.length]);
 
   async function fetchSessionAndKedai() {
     const session = getCookieSession();
@@ -2927,6 +2985,23 @@ export default function OwnerDashboardPage() {
     safeRecordsPage * RECORDS_PER_PAGE,
     reportData.stockMovements.length,
   );
+  const receiptsTotalPages = Math.max(
+    1,
+    Math.ceil(reportData.recentReceipts.length / RECEIPTS_PER_PAGE),
+  );
+  const safeReceiptsPage = Math.min(receiptsPage, receiptsTotalPages);
+  const paginatedReceipts = reportData.recentReceipts.slice(
+    (safeReceiptsPage - 1) * RECEIPTS_PER_PAGE,
+    safeReceiptsPage * RECEIPTS_PER_PAGE,
+  );
+  const receiptsStartIndex =
+    reportData.recentReceipts.length === 0
+      ? 0
+      : (safeReceiptsPage - 1) * RECEIPTS_PER_PAGE + 1;
+  const receiptsEndIndex = Math.min(
+    safeReceiptsPage * RECEIPTS_PER_PAGE,
+    reportData.recentReceipts.length,
+  );
 
   const FilterBar = () => (
     <div className="relative inline-block">
@@ -3806,8 +3881,8 @@ export default function OwnerDashboardPage() {
           {/* MENU / INVENTORY */}
           {activeTab === "inventory" && (
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
-                <div>
+              <div className="flex items-start justify-between gap-3 mb-5">
+                <div className="min-w-0">
                   <h2 className="text-gray-900 font-medium text-xl">
                     {activeInventory?.label || "Menu"}
                   </h2>
@@ -3818,13 +3893,13 @@ export default function OwnerDashboardPage() {
                 </div>
 
                 {(activeInventoryTab === "summary" || activeInventoryTab === "records") && (
-                  <div className="flex items-center sm:justify-end">
+                  <div className="flex items-center justify-end shrink-0">
                     <FilterBar />
                   </div>
                 )}
 
                 {activeInventoryTab === "inventory" && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2 shrink-0">
                     <button
                       onClick={openManageCategories}
                       className="inline-flex items-center justify-center gap-2 bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-medium px-4 py-2.5 rounded-2xl shadow-sm hover:bg-[var(--accent-50)] active:scale-95 transition-all"
@@ -4707,12 +4782,12 @@ export default function OwnerDashboardPage() {
                       "Rumusan jualan dan rekod resit ikut tempoh dipilih"}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <div className="flex items-center justify-between gap-2 w-full sm:w-auto sm:justify-end">
                   <FilterBar />
                   <button
                     onClick={() => fetchAllData(sessionUser?.kedai_id)}
                     disabled={loadingReport}
-                    className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50"
+                    className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 shrink-0"
                   >
                     {loadingReport ? "Memuat..." : "Muat Semula"}
                   </button>
@@ -5732,7 +5807,7 @@ export default function OwnerDashboardPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                              {reportData.recentReceipts.map((receipt) => (
+                              {paginatedReceipts.map((receipt) => (
                                 <tr
                                   key={`receipt-table-${receipt.id}`}
                                   className="hover:bg-gray-50/70 transition-all"
@@ -5783,7 +5858,7 @@ export default function OwnerDashboardPage() {
                         </div>
 
                         <div className="lg:hidden p-4 space-y-3">
-                          {reportData.recentReceipts.map((receipt) => (
+                          {paginatedReceipts.map((receipt) => (
                             <div
                               key={`receipt-card-${receipt.id}`}
                               className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
@@ -5824,6 +5899,39 @@ export default function OwnerDashboardPage() {
                             </div>
                           ))}
                         </div>
+
+                        {reportData.recentReceipts.length > RECEIPTS_PER_PAGE && (
+                          <div className="border-t border-gray-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div className="text-gray-400 text-xs font-medium text-center sm:text-left">
+                              Papar {receiptsStartIndex}–{receiptsEndIndex} daripada {reportData.recentReceipts.length} resit
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() =>
+                                  setReceiptsPage((page) => Math.max(1, page - 1))
+                                }
+                                disabled={safeReceiptsPage <= 1}
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                              >
+                                Sebelum
+                              </button>
+                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-medium">
+                                {safeReceiptsPage} / {receiptsTotalPages}
+                              </div>
+                              <button
+                                onClick={() =>
+                                  setReceiptsPage((page) =>
+                                    Math.min(receiptsTotalPages, page + 1),
+                                  )
+                                }
+                                disabled={safeReceiptsPage >= receiptsTotalPages}
+                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
+                              >
+                                Seterusnya
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -6450,19 +6558,7 @@ export default function OwnerDashboardPage() {
 
               {activeSettingsTab === "theme" && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                  <div className="flex items-start justify-between gap-3 mb-5">
-                    <div>
-                      <h3 className="text-gray-900 font-medium text-sm">
-                        <Palette
-                          size={15}
-                          className="text-[var(--accent-600)]"
-                        />{" "}
-                        Tema
-                      </h3>
-                      <p className="text-gray-400 text-xs mt-1">
-                        Simpan pilihan warna dan mode untuk branding kedai.
-                      </p>
-                    </div>
+                  <div className="flex justify-end mb-5">
                     <span
                       className={`${selectedAccent.sample} text-white text-xs font-medium px-3 py-1.5 rounded-full`}
                     >
@@ -6609,13 +6705,6 @@ export default function OwnerDashboardPage() {
 
               {activeSettingsTab === "password" && (
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                  <h3 className="text-gray-900 font-medium text-sm mb-4">
-                    <LockKeyhole
-                      size={15}
-                      className="text-[var(--accent-600)]"
-                    />{" "}
-                    Tukar Password Saya
-                  </h3>
                   <div className="mb-3">
                     <label className="text-gray-500 text-xs font-medium mb-1 block">
                       PASSWORD SEMASA
@@ -7148,8 +7237,7 @@ export default function OwnerDashboardPage() {
                         </div>
                       ) : (
                         categories.map((category) => {
-                          const CategoryListIcon =
-                            CATEGORY_ICON_MAP[category.icon || ""] || Box;
+                          const CategoryListIcon = getCategoryIcon(category.icon);
                           const productCount = produk.filter(
                             (product) => product.kategori_id === category.id,
                           ).length;

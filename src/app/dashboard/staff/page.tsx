@@ -1,7 +1,38 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties, type TouchEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type TouchEvent,
+} from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  Banknote,
+  Box,
+  CakeSlice,
+  Check,
+  CircleCheck,
+  ClipboardList,
+  Coffee,
+  CupSoda,
+  Drumstick,
+  KeyRound,
+  LogOut,
+  Menu,
+  Package,
+  Plus,
+  Receipt,
+  Search,
+  Settings,
+  ShoppingCart,
+  Soup,
+  Tag,
+  Utensils,
+  X,
+  Sandwich,
+  type LucideIcon,
+} from "lucide-react";
 
 type Produk = {
   id: string;
@@ -36,6 +67,96 @@ type ReceiptItem = {
   harga: number;
   nota?: string | null;
 };
+
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
+  food: Utensils,
+  makanan: Utensils,
+  makan: Utensils,
+
+  drink: CupSoda,
+  minuman: CupSoda,
+  air: CupSoda,
+  drinks: CupSoda,
+
+  dessert: CakeSlice,
+  kuih: CakeSlice,
+  "kuih-muih": CakeSlice,
+  "kuih muih": CakeSlice,
+  pastri: CakeSlice,
+  pastry: CakeSlice,
+  pastries: CakeSlice,
+  kek: CakeSlice,
+  cake: CakeSlice,
+
+  combo: Package,
+  set: Package,
+  "set-combo": Package,
+  "set / combo": Package,
+
+  addon: Plus,
+  add_on: Plus,
+  "add-on": Plus,
+  tambahan: Plus,
+
+  other: Box,
+  others: Box,
+  lain: Box,
+  "lain-lain": Box,
+
+  coffee: Coffee,
+  kopi: Coffee,
+
+  noodle: Soup,
+  noodles: Soup,
+  mi: Soup,
+  mee: Soup,
+
+  chicken: Drumstick,
+  ayam: Drumstick,
+
+  burger: Sandwich,
+  sandwich: Sandwich,
+};
+
+function normalizeCategoryIconKey(value?: string | null) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/\s+/g, " ");
+}
+
+function getCategoryIconComponent(value?: string | null, name?: string | null) {
+  const rawValue = normalizeCategoryIconKey(value);
+  const rawName = normalizeCategoryIconKey(name);
+  const compactValue = rawValue.replace(/\s+/g, "-");
+  const compactName = rawName.replace(/\s+/g, "-");
+
+  return (
+    CATEGORY_ICON_MAP[rawValue] ||
+    CATEGORY_ICON_MAP[compactValue] ||
+    CATEGORY_ICON_MAP[rawName] ||
+    CATEGORY_ICON_MAP[compactName] ||
+    Box
+  );
+}
+
+function CategoryLucideIcon({
+  value,
+  name,
+  size = 16,
+  className = "",
+  strokeWidth = 2,
+}: {
+  value?: string | null;
+  name?: string | null;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+}) {
+  const Icon = getCategoryIconComponent(value, name);
+  return <Icon size={size} className={className} strokeWidth={strokeWidth} />;
+}
 
 type RecentReceipt = {
   id: string;
@@ -81,6 +202,7 @@ export default function StaffDashboardPage() {
   const [lastTotal, setLastTotal] = useState(0);
   const [activeTab, setActiveTab] = useState("pos");
   const [showMenu, setShowMenu] = useState(false);
+  const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
   const [rekod, setRekod] = useState<any[]>([]);
   const [loadingRekod, setLoadingRekod] = useState(false);
   const [rekodFilter, setRekodFilter] = useState<RekodFilterType>("daily");
@@ -88,10 +210,13 @@ export default function StaffDashboardPage() {
   const [rekodCustomTo, setRekodCustomTo] = useState("");
   const [showRekodDropdown, setShowRekodDropdown] = useState(false);
   const [showRekodFilterModal, setShowRekodFilterModal] = useState(false);
-  const [pendingRekodFilter, setPendingRekodFilter] = useState<RekodFilterType>("daily");
+  const [pendingRekodFilter, setPendingRekodFilter] =
+    useState<RekodFilterType>("daily");
   const [pendingRekodCustomFrom, setPendingRekodCustomFrom] = useState("");
   const [pendingRekodCustomTo, setPendingRekodCustomTo] = useState("");
-  const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<RecentReceipt | null>(
+    null,
+  );
   const [showTukarPassword, setShowTukarPassword] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPasswordStaff, setNewPasswordStaff] = useState("");
@@ -101,10 +226,14 @@ export default function StaffDashboardPage() {
   const [tableCount, setTableCount] = useState(6);
   const [productSearch, setProductSearch] = useState("");
   const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
-  const [orderPanelTouchStartY, setOrderPanelTouchStartY] = useState<number | null>(null);
+  const [orderPanelTouchStartY, setOrderPanelTouchStartY] = useState<
+    number | null
+  >(null);
   const [loadingTableOrder, setLoadingTableOrder] = useState(false);
 
-  const [paymentMode, setPaymentMode] = useState<null | "tunai" | "duitnow">(null);
+  const [paymentMode, setPaymentMode] = useState<null | "tunai" | "duitnow">(
+    null,
+  );
   const [cashReceived, setCashReceived] = useState("");
   const [paymentError, setPaymentError] = useState("");
   const [lastPaymentMethod, setLastPaymentMethod] = useState("");
@@ -112,16 +241,32 @@ export default function StaffDashboardPage() {
   const [lastCashChange, setLastCashChange] = useState(0);
   const [duitNowQrUrl, setDuitNowQrUrl] = useState("");
 
-  const normalizedTableCount = Math.min(20, Math.max(1, Number(tableCount) || 6));
+  const normalizedTableCount = Math.min(
+    20,
+    Math.max(1, Number(tableCount) || 6),
+  );
   const mejaList = [
-    ...Array.from({ length: normalizedTableCount }, (_, index) => `Meja ${index + 1}`),
+    ...Array.from(
+      { length: normalizedTableCount },
+      (_, index) => `Meja ${index + 1}`,
+    ),
     "Bungkus",
   ];
 
-  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
+  const selectedCategory = categories.find(
+    (category) => category.id === selectedCategoryId,
+  );
   const selectedCategoryLabel =
-    selectedCategoryId === "all" ? "Semua Kategori" : selectedCategory?.nama || "Kategori";
-  const selectedCategoryIcon = selectedCategoryId === "all" ? "📦" : selectedCategory?.icon || "📦";
+    selectedCategoryId === "all"
+      ? "Semua Kategori"
+      : selectedCategory?.nama || "Kategori";
+  const SelectedCategoryIcon =
+    selectedCategoryId === "all"
+      ? Tag
+      : getCategoryIconComponent(
+          selectedCategory?.icon,
+          selectedCategory?.nama,
+        );
 
   const filteredProduk = produk.filter((item) => {
     const searchMatch = item.nama
@@ -141,14 +286,16 @@ export default function StaffDashboardPage() {
 
   function getProductCategory(item: Produk) {
     const itemCategoryId = getProductCategoryId(item);
-    const matchedCategory = categories.find((category) => category.id === itemCategoryId);
+    const matchedCategory = categories.find(
+      (category) => category.id === itemCategoryId,
+    );
 
     return {
       icon:
         item.kategori_icon ||
         item.category_icon ||
         matchedCategory?.icon ||
-        "📦",
+        "other",
       nama:
         item.kategori_nama ||
         item.category_name ||
@@ -195,7 +342,11 @@ export default function StaffDashboardPage() {
     return meja;
   }
 
-  function getRekodDateRange(filterType: RekodFilterType, customFrom?: string, customTo?: string) {
+  function getRekodDateRange(
+    filterType: RekodFilterType,
+    customFrom?: string,
+    customTo?: string,
+  ) {
     const now = new Date();
     const to = new Date(now);
     to.setHours(23, 59, 59, 999);
@@ -318,21 +469,29 @@ export default function StaffDashboardPage() {
 
     return (order?.order_items || []).reduce((sum: number, item: any) => {
       const qty = Number(item?.qty || item?.quantity || 0);
-      const harga = Number(item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0);
+      const harga = Number(
+        item?.harga || item?.harga_jual || item?.price || item?.unit_price || 0,
+      );
       return sum + qty * harga;
     }, 0);
   }
 
   function getOrderServiceChargeRate(order: any) {
-    const rate = Number(order?.service_charge_rate ?? order?.serviceChargeRate ?? 0);
+    const rate = Number(
+      order?.service_charge_rate ?? order?.serviceChargeRate ?? 0,
+    );
     return Number.isNaN(rate) ? 0 : rate;
   }
 
   function getOrderServiceChargeAmount(order: any) {
-    const amount = Number(order?.service_charge_amount ?? order?.serviceChargeAmount ?? 0);
+    const amount = Number(
+      order?.service_charge_amount ?? order?.serviceChargeAmount ?? 0,
+    );
     if (!Number.isNaN(amount) && amount > 0) return amount;
 
-    const enabled = Boolean(order?.service_charge_enabled ?? order?.serviceChargeEnabled);
+    const enabled = Boolean(
+      order?.service_charge_enabled ?? order?.serviceChargeEnabled,
+    );
     const rate = getOrderServiceChargeRate(order);
     if (!enabled || rate <= 0) return 0;
 
@@ -352,7 +511,11 @@ export default function StaffDashboardPage() {
     const rate = getOrderSstRate(order);
     if (!enabled || rate <= 0) return 0;
 
-    return ((getOrderLineSubtotal(order) + getOrderServiceChargeAmount(order)) * rate) / 100;
+    return (
+      ((getOrderLineSubtotal(order) + getOrderServiceChargeAmount(order)) *
+        rate) /
+      100
+    );
   }
 
   function hasReceiptCaj(receipt: RecentReceipt) {
@@ -363,21 +526,50 @@ export default function StaffDashboardPage() {
   }
 
   function getOrderTotal(order: any) {
-    const possibleTotals = [order?.total, order?.jumlah, order?.jumlah_bayaran, order?.grand_total, order?.total_amount, order?.amount];
+    const possibleTotals = [
+      order?.total,
+      order?.jumlah,
+      order?.jumlah_bayaran,
+      order?.grand_total,
+      order?.total_amount,
+      order?.amount,
+    ];
     for (const value of possibleTotals) {
       const numberValue = Number(value);
       if (!Number.isNaN(numberValue) && numberValue > 0) return numberValue;
     }
 
-    return getOrderLineSubtotal(order) + getOrderServiceChargeAmount(order) + getOrderSstAmount(order);
+    return (
+      getOrderLineSubtotal(order) +
+      getOrderServiceChargeAmount(order) +
+      getOrderSstAmount(order)
+    );
   }
 
   function getPaymentMethod(order: any) {
-    return order?.payment_method || order?.paymentMethod || order?.payment || order?.bayaran || order?.kaedah_bayaran || order?.method || null;
+    return (
+      order?.payment_method ||
+      order?.paymentMethod ||
+      order?.payment ||
+      order?.bayaran ||
+      order?.kaedah_bayaran ||
+      order?.method ||
+      null
+    );
   }
 
   function getOrderSalesDate(order: any) {
-    return order?.paid_at || order?.paidAt || order?.completed_at || order?.completedAt || order?.updated_at || order?.updatedAt || order?.created_at || order?.createdAt || null;
+    return (
+      order?.paid_at ||
+      order?.paidAt ||
+      order?.completed_at ||
+      order?.completedAt ||
+      order?.updated_at ||
+      order?.updatedAt ||
+      order?.created_at ||
+      order?.createdAt ||
+      null
+    );
   }
 
   function isOrderInRekodDateRange(order: any, from: string, to: string) {
@@ -395,7 +587,9 @@ export default function StaffDashboardPage() {
       meja: order.meja || order.table_no || order.tableNo || null,
       status: order.status,
       subtotal: getOrderLineSubtotal(order),
-      service_charge_enabled: Boolean(order?.service_charge_enabled ?? order?.serviceChargeEnabled),
+      service_charge_enabled: Boolean(
+        order?.service_charge_enabled ?? order?.serviceChargeEnabled,
+      ),
       service_charge_rate: getOrderServiceChargeRate(order),
       service_charge_amount: getOrderServiceChargeAmount(order),
       sst_enabled: Boolean(order?.sst_enabled ?? order?.sstEnabled),
@@ -407,7 +601,9 @@ export default function StaffDashboardPage() {
         id: item.id,
         nama: item.nama || item.product_name || item.nama_produk || "Produk",
         qty: Number(item.qty || item.quantity || 0),
-        harga: Number(item.harga || item.harga_jual || item.price || item.unit_price || 0),
+        harga: Number(
+          item.harga || item.harga_jual || item.price || item.unit_price || 0,
+        ),
         nota: item.nota || item.note || null,
       })),
     };
@@ -435,7 +631,9 @@ export default function StaffDashboardPage() {
         ? [
             `Subtotal: ${formatRM(receipt.subtotal)}`,
             ...(receipt.service_charge_amount > 0
-              ? [`Service Charge (${receipt.service_charge_rate}%): ${formatRM(receipt.service_charge_amount)}`]
+              ? [
+                  `Service Charge (${receipt.service_charge_rate}%): ${formatRM(receipt.service_charge_amount)}`,
+                ]
               : []),
             ...(receipt.sst_amount > 0
               ? [`SST (${receipt.sst_rate}%): ${formatRM(receipt.sst_amount)}`]
@@ -446,7 +644,9 @@ export default function StaffDashboardPage() {
       "",
       "Terima kasih.",
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([lines.join("\n")], {
+      type: "text/plain;charset=utf-8",
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -456,7 +656,6 @@ export default function StaffDashboardPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
-
 
   function buildCartFromOrder(order: any, produkSource: Produk[] = produk) {
     const restoredCart: { [id: string]: CartItem } = {};
@@ -479,7 +678,11 @@ export default function StaffDashboardPage() {
     return restoredCart;
   }
 
-  async function loadOpenOrderForMeja(meja: string, kId: string | null = kedaiId, produkSource: Produk[] = produk) {
+  async function loadOpenOrderForMeja(
+    meja: string,
+    kId: string | null = kedaiId,
+    produkSource: Produk[] = produk,
+  ) {
     if (!kId) {
       setCart({});
       setCurrentOrderId(null);
@@ -490,24 +693,34 @@ export default function StaffDashboardPage() {
     setLoadingTableOrder(true);
 
     try {
-      const { data } = await supabase
+      const { data } = (await supabase
         .from("orders")
         .select("*, order_items(*)")
         .eq("kedai_id", kId)
         .eq("meja", meja)
         .in("status", ["pending", "preparing", "ready", "done"])
         .order("created_at", { ascending: false })
-        .limit(10) as any;
+        .limit(10)) as any;
 
       const openOrder = (data || []).find((order: any) => {
-        const status = String(order?.status || "").trim().toLowerCase();
+        const status = String(order?.status || "")
+          .trim()
+          .toLowerCase();
         const paymentStatus = String(
-          order?.payment_status || order?.paymentStatus || order?.status_bayaran || "",
+          order?.payment_status ||
+            order?.paymentStatus ||
+            order?.status_bayaran ||
+            "",
         )
           .trim()
           .toLowerCase();
         const paymentMethod = String(
-          order?.payment_method || order?.paymentMethod || order?.payment || order?.bayaran || order?.kaedah_bayaran || "",
+          order?.payment_method ||
+            order?.paymentMethod ||
+            order?.payment ||
+            order?.bayaran ||
+            order?.kaedah_bayaran ||
+            "",
         )
           .trim()
           .toLowerCase();
@@ -547,7 +760,12 @@ export default function StaffDashboardPage() {
           "kad",
         ]);
 
-        const hasPaidTimestamp = Boolean(order?.paid_at || order?.paidAt || order?.completed_at || order?.completedAt);
+        const hasPaidTimestamp = Boolean(
+          order?.paid_at ||
+          order?.paidAt ||
+          order?.completed_at ||
+          order?.completedAt,
+        );
         const hasPaymentMethod = validPaymentMethods.has(paymentMethod);
 
         // "done" is still allowed here because kitchen may use it to mean siap masak.
@@ -578,7 +796,9 @@ export default function StaffDashboardPage() {
     if (nextMeja === currentMeja) return;
 
     if (cartItems.length > 0 && !orderSent) {
-      const confirmChange = window.confirm("Pesanan belum dihantar ke dapur. Tukar meja akan kosongkan pesanan ini. Teruskan?");
+      const confirmChange = window.confirm(
+        "Pesanan belum dihantar ke dapur. Tukar meja akan kosongkan pesanan ini. Teruskan?",
+      );
       if (!confirmChange) return;
     }
 
@@ -599,7 +819,9 @@ export default function StaffDashboardPage() {
 
   async function fetchProduk() {
     const cookies = document.cookie.split(";");
-    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionCookie = cookies.find((c) =>
+      c.trim().startsWith("uruspos_session="),
+    );
     const sessionValue = sessionCookie?.split("=")?.[1];
     let kId = null;
     if (sessionValue) {
@@ -608,15 +830,23 @@ export default function StaffDashboardPage() {
       setKedaiId(kId);
       setStaffNama(session.nama);
     }
-    if (!kId) { setLoading(false); return; }
+    if (!kId) {
+      setLoading(false);
+      return;
+    }
 
-    const { data: kedaiData } = await supabase
+    const { data: kedaiData } = (await supabase
       .from("kedai")
-      .select("nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate")
+      .select(
+        "nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate",
+      )
       .eq("id", kId)
-      .single() as any;
+      .single()) as any;
 
-    const savedTableCount = Math.min(20, Math.max(1, Number(kedaiData?.table_count) || 6));
+    const savedTableCount = Math.min(
+      20,
+      Math.max(1, Number(kedaiData?.table_count) || 6),
+    );
     setTableCount(savedTableCount);
     setDuitNowQrUrl(kedaiData?.duitnow_qr_url || "");
     setKedaiInfo({
@@ -631,18 +861,23 @@ export default function StaffDashboardPage() {
 
     let resolvedMeja = currentMeja;
     if (resolvedMeja !== "Bungkus") {
-      const tableNumber = Number(resolvedMeja.replace("Meja ", "").replace("T", ""));
-      resolvedMeja = tableNumber >= 1 && tableNumber <= savedTableCount ? `Meja ${tableNumber}` : "Meja 1";
+      const tableNumber = Number(
+        resolvedMeja.replace("Meja ", "").replace("T", ""),
+      );
+      resolvedMeja =
+        tableNumber >= 1 && tableNumber <= savedTableCount
+          ? `Meja ${tableNumber}`
+          : "Meja 1";
     }
     setCurrentMeja(resolvedMeja);
 
-    const { data: categoryData, error: categoryError } = await supabase
+    const { data: categoryData, error: categoryError } = (await supabase
       .from("product_categories")
       .select("id, nama, icon, is_active, sort_order")
       .eq("kedai_id", kId)
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
-      .order("nama", { ascending: true }) as any;
+      .order("nama", { ascending: true })) as any;
 
     if (!categoryError) {
       setCategories(categoryData || []);
@@ -651,7 +886,12 @@ export default function StaffDashboardPage() {
       setCategories([]);
     }
 
-    const { data } = await supabase.from("produk").select("*").eq("is_active", true).eq("kedai_id", kId).order("nama");
+    const { data } = await supabase
+      .from("produk")
+      .select("*")
+      .eq("is_active", true)
+      .eq("kedai_id", kId)
+      .order("nama");
     const produkList = data || [];
     setProduk(produkList);
     await loadOpenOrderForMeja(resolvedMeja, kId, produkList);
@@ -661,7 +901,9 @@ export default function StaffDashboardPage() {
   async function fetchRekod() {
     setLoadingRekod(true);
     const cookies = document.cookie.split(";");
-    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionCookie = cookies.find((c) =>
+      c.trim().startsWith("uruspos_session="),
+    );
     const sessionValue = sessionCookie?.split("=")?.[1];
     let kId = kedaiId;
     if (!kId && sessionValue) {
@@ -669,18 +911,30 @@ export default function StaffDashboardPage() {
       kId = session.kedai_id;
     }
 
-    const { from, to } = getRekodDateRange(rekodFilter, rekodCustomFrom, rekodCustomTo);
+    const { from, to } = getRekodDateRange(
+      rekodFilter,
+      rekodCustomFrom,
+      rekodCustomTo,
+    );
 
     const query = supabase
       .from("orders")
       .select("*, order_items(*)")
-      .in("status", ["paid", "done", "completed", "complete", "selesai", "closed", "settled"])
+      .in("status", [
+        "paid",
+        "done",
+        "completed",
+        "complete",
+        "selesai",
+        "closed",
+        "settled",
+      ])
       .order("created_at", { ascending: false })
       .limit(300);
 
     if (kId) query.eq("kedai_id", kId);
 
-    const { data, error } = await query as any;
+    const { data, error } = (await query) as any;
     if (error) {
       console.error("Fetch rekod jualan error:", error);
       setRekod([]);
@@ -688,7 +942,9 @@ export default function StaffDashboardPage() {
       return;
     }
 
-    const filtered = (data || []).filter((order: any) => isOrderInRekodDateRange(order, from, to));
+    const filtered = (data || []).filter((order: any) =>
+      isOrderInRekodDateRange(order, from, to),
+    );
     setRekod(filtered);
     setLoadingRekod(false);
   }
@@ -697,7 +953,14 @@ export default function StaffDashboardPage() {
     if (item.stok === 0) return;
     if (orderSent) setOrderSent(false);
     setIsOrderPanelOpen(true);
-    setCart((prev) => ({ ...prev, [item.id]: { ...item, qty: (prev[item.id]?.qty || 0) + 1, nota: prev[item.id]?.nota || "" } }));
+    setCart((prev) => ({
+      ...prev,
+      [item.id]: {
+        ...item,
+        qty: (prev[item.id]?.qty || 0) + 1,
+        nota: prev[item.id]?.nota || "",
+      },
+    }));
   }
 
   function updateQty(id: string, delta: number) {
@@ -706,11 +969,14 @@ export default function StaffDashboardPage() {
       const current = prev[id];
       if (!current) return prev;
       const newQty = current.qty + delta;
-      if (newQty <= 0) { const updated = { ...prev }; delete updated[id]; return updated; }
+      if (newQty <= 0) {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
+      }
       return { ...prev, [id]: { ...current, qty: newQty } };
     });
   }
-
 
   function updateNota(id: string, nota: string) {
     if (orderSent) setOrderSent(false);
@@ -734,7 +1000,7 @@ export default function StaffDashboardPage() {
     }
 
     const confirmCancel = window.confirm(
-      "Batalkan order meja ini? Order akan dibuang dari POS dan dapur."
+      "Batalkan order meja ini? Order akan dibuang dari POS dan dapur.",
     );
     if (!confirmCancel) return;
 
@@ -786,11 +1052,23 @@ export default function StaffDashboardPage() {
     let orderId = currentOrderId;
 
     if (!orderId) {
-      const { data: order } = await supabase
+      const { data: order } = (await supabase
         .from("orders")
-        .insert({ meja: currentMeja, status: "pending", subtotal, service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled), service_charge_rate: serviceChargeRate, service_charge_amount: serviceChargeAmount, sst_enabled: Boolean(kedaiInfo?.sst_enabled), sst_rate: sstRate, sst_amount: sstAmount, total, kedai_id: kedaiId } as any)
+        .insert({
+          meja: currentMeja,
+          status: "pending",
+          subtotal,
+          service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
+          service_charge_rate: serviceChargeRate,
+          service_charge_amount: serviceChargeAmount,
+          sst_enabled: Boolean(kedaiInfo?.sst_enabled),
+          sst_rate: sstRate,
+          sst_amount: sstAmount,
+          total,
+          kedai_id: kedaiId,
+        } as any)
         .select()
-        .single() as any;
+        .single()) as any;
 
       if (!order) {
         setSaving(false);
@@ -813,7 +1091,21 @@ export default function StaffDashboardPage() {
     }));
 
     await supabase.from("order_items").insert(items);
-    await supabase.from("orders").update({ meja: currentMeja, status: "preparing", subtotal, service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled), service_charge_rate: serviceChargeRate, service_charge_amount: serviceChargeAmount, sst_enabled: Boolean(kedaiInfo?.sst_enabled), sst_rate: sstRate, sst_amount: sstAmount, total } as any).eq("id", orderId);
+    await supabase
+      .from("orders")
+      .update({
+        meja: currentMeja,
+        status: "preparing",
+        subtotal,
+        service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
+        service_charge_rate: serviceChargeRate,
+        service_charge_amount: serviceChargeAmount,
+        sst_enabled: Boolean(kedaiInfo?.sst_enabled),
+        sst_rate: sstRate,
+        sst_amount: sstAmount,
+        total,
+      } as any)
+      .eq("id", orderId);
 
     setCurrentOrderId(orderId);
     setOrderSent(true);
@@ -862,7 +1154,10 @@ export default function StaffDashboardPage() {
     });
   }
 
-  async function updateOrderAsPaid(paymentMethod: "tunai" | "duitnow", cashInfo?: { received: number; change: number }) {
+  async function updateOrderAsPaid(
+    paymentMethod: "tunai" | "duitnow",
+    cashInfo?: { received: number; change: number },
+  ) {
     if (!currentOrderId) return false;
 
     const now = new Date().toISOString();
@@ -886,7 +1181,10 @@ export default function StaffDashboardPage() {
       cashier_name: staffNama,
     };
 
-    const { error: fullError } = await supabase.from("orders").update(fullPayload).eq("id", currentOrderId);
+    const { error: fullError } = await supabase
+      .from("orders")
+      .update(fullPayload)
+      .eq("id", currentOrderId);
     if (!fullError) return true;
 
     console.warn("Full paid update failed, trying safe fallback:", fullError);
@@ -906,7 +1204,10 @@ export default function StaffDashboardPage() {
       .eq("id", currentOrderId);
     if (!coreError) return true;
 
-    console.warn("Core paid update failed, trying minimal fallback:", coreError);
+    console.warn(
+      "Core paid update failed, trying minimal fallback:",
+      coreError,
+    );
 
     // Fallback 2: older schema support. payment_method is important because
     // loadOpenOrderForMeja will also treat valid payment_method as closed/paid.
@@ -916,9 +1217,15 @@ export default function StaffDashboardPage() {
       .eq("id", currentOrderId);
     if (!methodError) return true;
 
-    console.warn("Minimal payment method update failed, trying status-only fallback:", methodError);
+    console.warn(
+      "Minimal payment method update failed, trying status-only fallback:",
+      methodError,
+    );
 
-    const { error: fallbackError } = await supabase.from("orders").update({ status: "paid" } as any).eq("id", currentOrderId);
+    const { error: fallbackError } = await supabase
+      .from("orders")
+      .update({ status: "paid" } as any)
+      .eq("id", currentOrderId);
     return !fallbackError;
   }
 
@@ -947,7 +1254,9 @@ export default function StaffDashboardPage() {
 
     if (movements.length === 0) return;
 
-    const { error } = await supabase.from("stock_movements").insert(movements as any);
+    const { error } = await supabase
+      .from("stock_movements")
+      .insert(movements as any);
     if (error) console.warn("Sales stock movement log failed:", error);
   }
 
@@ -967,7 +1276,7 @@ export default function StaffDashboardPage() {
 
     const paymentUpdated = await updateOrderAsPaid(
       paymentMethod,
-      paymentMethod === "tunai" ? { received, change } : undefined
+      paymentMethod === "tunai" ? { received, change } : undefined,
     );
 
     if (!paymentUpdated) {
@@ -982,7 +1291,10 @@ export default function StaffDashboardPage() {
       const produkItem = produk.find((p) => p.id === item.id);
       if (produkItem) {
         const newStok = Math.max(0, produkItem.stok - item.qty);
-        await supabase.from("produk").update({ stok: newStok } as any).eq("id", item.id);
+        await supabase
+          .from("produk")
+          .update({ stok: newStok } as any)
+          .eq("id", item.id);
       }
     }
 
@@ -1002,20 +1314,44 @@ export default function StaffDashboardPage() {
 
   async function tukarPasswordStaff() {
     if (!newPasswordStaff.trim()) return;
-    if (newPasswordStaff !== confirmPasswordStaff) { setPasswordMsgStaff("❌ Password baru tidak sepadan."); return; }
-    if (newPasswordStaff.length < 6) { setPasswordMsgStaff("❌ Password kena sekurang-kurangnya 6 aksara."); return; }
+    if (newPasswordStaff !== confirmPasswordStaff) {
+      setPasswordMsgStaff("Password baru tidak sepadan.");
+      return;
+    }
+    if (newPasswordStaff.length < 6) {
+      setPasswordMsgStaff("Password kena sekurang-kurangnya 6 aksara.");
+      return;
+    }
     const cookies = document.cookie.split(";");
-    const sessionCookie = cookies.find(c => c.trim().startsWith("uruspos_session="));
+    const sessionCookie = cookies.find((c) =>
+      c.trim().startsWith("uruspos_session="),
+    );
     const sessionValue = sessionCookie?.split("=")?.[1];
-    const session = sessionValue ? JSON.parse(decodeURIComponent(sessionValue)) : null;
-    const { data: currentUser } = await supabase.from("users").select("password, id").eq("username", session?.username).single() as any;
-    if (currentUser?.password !== oldPassword) { setPasswordMsgStaff("❌ Password semasa tidak betul."); return; }
-    await supabase.from("users").update({ password: newPasswordStaff } as any).eq("id", currentUser.id);
-    setOldPassword(""); setNewPasswordStaff(""); setConfirmPasswordStaff("");
-    setPasswordMsgStaff("✅ Password berjaya ditukar!");
-    setTimeout(() => { setPasswordMsgStaff(""); setShowTukarPassword(false); }, 2000);
+    const session = sessionValue
+      ? JSON.parse(decodeURIComponent(sessionValue))
+      : null;
+    const { data: currentUser } = (await supabase
+      .from("users")
+      .select("password, id")
+      .eq("username", session?.username)
+      .single()) as any;
+    if (currentUser?.password !== oldPassword) {
+      setPasswordMsgStaff("Password semasa tidak betul.");
+      return;
+    }
+    await supabase
+      .from("users")
+      .update({ password: newPasswordStaff } as any)
+      .eq("id", currentUser.id);
+    setOldPassword("");
+    setNewPasswordStaff("");
+    setConfirmPasswordStaff("");
+    setPasswordMsgStaff("Password berjaya ditukar!");
+    setTimeout(() => {
+      setPasswordMsgStaff("");
+      setShowTukarPassword(false);
+    }, 2000);
   }
-
 
   const accentThemeMap: Record<string, Record<string, string>> = {
     green: {
@@ -1161,8 +1497,11 @@ export default function StaffDashboardPage() {
   };
 
   const selectedAccentColor = kedaiInfo?.accent_color || "green";
-  const accentTheme = accentThemeMap[selectedAccentColor] || accentThemeMap.green;
+  const accentTheme =
+    accentThemeMap[selectedAccentColor] || accentThemeMap.green;
   const accentStyle = {
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
     "--accent-200": accentTheme["200"],
@@ -1178,547 +1517,988 @@ export default function StaffDashboardPage() {
   } as CSSProperties;
 
   const navItems = [
-    { id: "pos", label: "Sistem POS", icon: "🛒", description: "Ambil order & hantar dapur" },
-    { id: "rekod", label: "Rekod Jualan", icon: "📋", description: "Semak order terkini" },
-    { id: "settings", label: "Tetapan", icon: "🔑", description: "Ubah password akaun" },
+    {
+      id: "pos",
+      label: "Sistem POS",
+      icon: ShoppingCart,
+      description: "Ambil order & hantar dapur",
+    },
+    {
+      id: "rekod",
+      label: "Rekod Jualan",
+      icon: ClipboardList,
+      description: "Semak order terkini",
+    },
+    {
+      id: "settings",
+      label: "Tetapan",
+      icon: Settings,
+      description: "Ubah password akaun",
+    },
   ];
 
-  const activeNav = navItems.find((item) => item.id === activeTab) || navItems[0];
+  const activeNav =
+    navItems.find((item) => item.id === activeTab) || navItems[0];
+  const userInitial = String(staffNama || "S")
+    .slice(0, 1)
+    .toUpperCase();
 
   function changeTab(tabId: string) {
     setActiveTab(tabId);
     setShowMenu(false);
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={accentStyle}>
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0 sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => setShowMenu(true)}
-            className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-black text-xl flex items-center justify-center shadow-sm active:scale-95 transition-all"
-            aria-label="Buka menu"
-          >
-            ☰
-          </button>
+  const StaffSidebarMenu = ({
+    expanded,
+    mobile = false,
+  }: {
+    expanded: boolean;
+    mobile?: boolean;
+  }) => (
+    <>
+      <div
+        className={`${expanded ? "px-5 justify-between" : "px-0 justify-center"} h-16 flex items-center border-b border-gray-100 bg-white`}
+      >
+        {expanded && (
           <div className="min-w-0">
-            <span className="text-gray-900 font-bold text-lg leading-none block">Urus<span className="text-[var(--accent-600)]">POS</span></span>
-            <div className="text-gray-400 text-xs font-bold mt-1 truncate">{activeNav.label}</div>
+            <div className="text-gray-900 font-medium text-base tracking-tight leading-none">
+              Urus<span className="text-[var(--accent-600)]">POS</span>
+            </div>
+            <div className="text-gray-400 text-[9px] font-medium tracking-widest uppercase mt-1.5">
+              Staff Dashboard
+            </div>
           </div>
-        </div>
-        <a href="/auth/logout" className="bg-gray-50 border border-gray-200 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-all">Log Keluar</a>
-      </div>
+        )}
 
-      {/* Drawer Menu */}
-      {showMenu && (
-        <div className="fixed inset-0 z-50">
+        {mobile ? (
           <button
             onClick={() => setShowMenu(false)}
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-50"
             aria-label="Tutup menu"
-          />
-          <div className="relative h-full w-[84%] max-w-sm bg-white shadow-2xl p-5 flex flex-col animate-[slideInLeft_0.22s_ease-out]">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <div className="text-gray-900 font-black text-xl leading-none">Urus<span className="text-[var(--accent-600)]">POS</span></div>
-                <div className="text-[var(--accent-600)] text-xs font-black mt-1 uppercase tracking-wide">Staff Menu</div>
-              </div>
-              <button
-                onClick={() => setShowMenu(false)}
-                className="w-11 h-11 rounded-2xl bg-gray-100 text-gray-500 font-black active:scale-95 transition-all"
-                aria-label="Tutup menu"
-              >
-                ✕
-              </button>
-            </div>
+          >
+            <X size={18} strokeWidth={1.8} />
+          </button>
+        ) : (
+          <button
+            onClick={() => setDesktopSidebarExpanded((value) => !value)}
+            className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all"
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            title={expanded ? "Tutup menu" : "Buka menu"}
+          >
+            <Menu size={18} strokeWidth={1.8} />
+          </button>
+        )}
+      </div>
 
-            <div className="bg-gradient-to-br from-[var(--accent-gradient-from)] to-[var(--accent-gradient-to)] rounded-3xl p-5 mb-5 text-white shadow-lg">
-              <div className="flex items-center gap-3">
-                {kedaiInfo?.logo_url ? (
-                  <img
-                    src={kedaiInfo.logo_url}
-                    alt="Logo kedai"
-                    className="w-14 h-14 rounded-2xl object-cover bg-white border border-white/20 flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center text-2xl flex-shrink-0">
-                    🏪
-                  </div>
+      <nav
+        className={`${expanded ? "px-4" : "px-3"} flex-1 py-5 overflow-y-auto bg-white`}
+      >
+        {expanded && (
+          <div className="text-gray-300 text-[10px] font-medium tracking-widest uppercase px-1 mb-3">
+            Menu
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.id}
+                title={!expanded ? item.label : undefined}
+                onClick={() => changeTab(item.id)}
+                className={`relative w-full flex items-center rounded-lg text-sm font-medium transition-all ${
+                  expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
+                } ${
+                  isActive
+                    ? "text-[var(--accent-700)] bg-[var(--accent-50)]"
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                <Icon
+                  size={17}
+                  strokeWidth={1.8}
+                  className={
+                    isActive ? "text-[var(--accent-600)]" : "text-gray-400"
+                  }
+                />
+
+                {expanded && (
+                  <span className="flex-1 text-left truncate">
+                    {item.label}
+                  </span>
                 )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-gray-400 text-xs font-bold mb-1">KEDAI</div>
-                  <div className="font-black text-lg leading-tight truncate">{kedaiInfo?.nama || "Kedai Saya"}</div>
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">👤 {staffNama || "Staff"}</span>
-                    <span className="bg-white/10 text-white text-xs font-black px-3 py-1 rounded-full">{activeNav.label}</span>
-                  </div>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      <div
+        className={`${expanded ? "px-4" : "px-3"} py-4 border-t border-gray-100 bg-white space-y-3`}
+      >
+        <a
+          href="/auth/logout"
+          title={!expanded ? "Log Keluar" : undefined}
+          className={`flex items-center rounded-lg text-sm font-medium text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all ${
+            expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
+          }`}
+        >
+          <LogOut size={16} strokeWidth={1.8} />
+          {expanded && <span>Log Keluar</span>}
+        </a>
+
+        {expanded ? (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] text-sm font-medium shrink-0">
+                {userInitial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-gray-900 text-sm font-medium leading-tight truncate">
+                  {staffNama || "Staff"}
+                </div>
+                <div className="text-gray-400 text-xs font-medium mt-0.5 truncate">
+                  {kedaiInfo?.nama || "Kedai Saya"}
                 </div>
               </div>
             </div>
+          </div>
+        ) : (
+          <div
+            title={staffNama || "Staff"}
+            className="mx-auto w-10 h-10 rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden flex items-center justify-center text-[var(--accent-700)] text-sm font-medium"
+          >
+            {userInitial}
+          </div>
+        )}
+      </div>
+    </>
+  );
 
-            <div className="space-y-2 flex-1">
-              {navItems.map((item) => {
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => changeTab(item.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left transition-all border ${isActive ? "bg-[var(--accent-600)] border-[var(--accent-600)] text-white shadow-lg" : "bg-gray-50 border-gray-100 text-gray-700 active:bg-gray-100"}`}
-                  >
-                    <span className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl ${isActive ? "bg-white/20" : "bg-white border border-gray-100"}`}>{item.icon}</span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block font-black text-sm">{item.label}</span>
-                      <span className={`block text-xs font-semibold mt-0.5 ${isActive ? "text-[var(--accent-100)]" : "text-gray-400"}`}>{item.description}</span>
-                    </span>
-                    {isActive && <span className="font-black">✓</span>}
-                  </button>
-                );
-              })}
-            </div>
+  return (
+    <div className="min-h-screen bg-[#f6f7f2]" style={accentStyle}>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`fixed left-0 top-0 z-40 hidden h-screen bg-white border-r border-gray-100 flex-col transition-all duration-200 lg:flex ${
+          desktopSidebarExpanded ? "w-64" : "w-20"
+        }`}
+      >
+        <StaffSidebarMenu expanded={desktopSidebarExpanded} />
+      </aside>
 
+      {/* Mobile Drawer Menu */}
+      {showMenu && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            onClick={() => setShowMenu(false)}
+            className="absolute inset-0 bg-black/40"
+            aria-label="Tutup menu"
+          />
+          <div className="relative h-full w-72 bg-white shadow-xl flex flex-col animate-[slideInLeft_0.22s_ease-out]">
+            <StaffSidebarMenu expanded mobile />
           </div>
         </div>
       )}
 
-      {/* POS TAB */}
-      {activeTab === "pos" && (
-        <>
-          {/* Menu Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="sticky top-0 z-10 bg-gray-50 pb-3">
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <label className="text-gray-500 text-[11px] font-black uppercase tracking-wide">Cari Produk</label>
-                {!loading && produk.length > 0 && (
-                  <div className="text-gray-400 text-[11px] font-bold text-right whitespace-nowrap">
-                    {productSearch.trim() || selectedCategoryId !== "all" ? `${filteredProduk.length}/${produk.length} dijumpai` : `${produk.length} produk tersedia`}
-                  </div>
-                )}
-              </div>
-              <div className="relative">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                  <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Nama produk"
-                  className="w-full bg-white border border-gray-200 text-gray-900 rounded-2xl pl-11 pr-11 py-3.5 text-sm font-bold outline-none focus:border-[var(--accent-500)] focus:ring-4 focus:ring-[var(--accent-100)] transition-all shadow-sm"
-                />
-                {productSearch && (
-                  <button
-                    onClick={clearProductSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
-                    aria-label="Kosongkan carian"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              <div className="relative mt-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCategoryDropdown((prev) => !prev)}
-                  className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
-                >
-                  <span>{selectedCategoryIcon}</span>
-                  <span>{selectedCategoryLabel}</span>
-                  <span className="text-gray-400 text-[10px]">{showCategoryDropdown ? "−" : "+"}</span>
-                </button>
-
-                {showCategoryDropdown && (
-                  <div className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-gray-100 rounded-3xl shadow-xl z-30 p-2">
-                    <button
-                      type="button"
-                      onClick={() => selectCategory("all")}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-black transition-all ${
-                        selectedCategoryId === "all"
-                          ? "bg-[var(--accent-600)] text-white"
-                          : "text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>📦</span>
-                        <span>Semua Kategori</span>
-                      </span>
-                      {selectedCategoryId === "all" && <span>✓</span>}
-                    </button>
-
-                    {categories.length === 0 ? (
-                      <div className="px-4 py-3 text-xs font-bold text-gray-400">
-                        Belum ada kategori aktif
-                      </div>
-                    ) : (
-                      categories.map((category) => (
-                        <button
-                          key={category.id}
-                          type="button"
-                          onClick={() => selectCategory(category.id)}
-                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-black transition-all ${
-                            selectedCategoryId === category.id
-                              ? "bg-[var(--accent-600)] text-white"
-                              : "text-gray-700 hover:bg-gray-50"
-                          }`}
-                        >
-                          <span className="flex items-center gap-2 min-w-0">
-                            <span>{category.icon || "📦"}</span>
-                            <span className="truncate">{category.nama}</span>
-                          </span>
-                          {selectedCategoryId === category.id && <span>✓</span>}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="text-center text-gray-400 py-10">Loading menu...</div>
-            ) : produk.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="text-4xl mb-3">🍽️</div>
-                <div className="text-gray-400 text-sm">Tiada produk lagi</div>
-                <div className="text-gray-300 text-xs mt-1">Owner perlu tambah produk dulu</div>
-              </div>
-            ) : filteredProduk.length === 0 ? (
-              <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center shadow-sm mt-2">
-                <div className="text-4xl mb-3">🔎</div>
-                <div className="text-gray-900 text-sm font-black">Produk tak dijumpai</div>
-                <div className="text-gray-400 text-xs mt-1">Cuba cari nama menu lain.</div>
-                <button onClick={resetProductFilters} className="mt-4 bg-gray-900 text-white text-xs font-black px-4 py-2.5 rounded-2xl active:scale-95 transition-all">Reset Filter</button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-3">
-                {filteredProduk.map((item) => {
-                  const category = getProductCategory(item);
-
-                  return (
-                    <button key={item.id} onClick={() => addToCart(item)} disabled={item.stok === 0}
-                      className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
-                    >
-                      {cart[item.id]?.qty > 0 && (
-                        <div className="absolute top-2 right-2 bg-[var(--accent-600)] text-white text-[10px] font-black min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
-                          {cart[item.id].qty}
-                        </div>
-                      )}
-                      <div className="text-2xl mb-1">{category.icon}</div>
-                      <div className="text-gray-900 text-xs font-bold leading-tight">{item.nama}</div>
-                      <div className="text-gray-400 text-[10px] font-bold mt-0.5 truncate">{category.nama}</div>
-                      <div className="text-[var(--accent-600)] text-xs font-black mt-1">RM {item.harga_jual.toFixed(2)}</div>
-                      {item.stok <= 5 && item.stok > 0 && <div className="text-amber-500 text-xs mt-0.5">Tinggal {item.stok}</div>}
-                      {item.stok === 0 && <div className="text-red-400 text-xs mt-0.5">Habis</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Order Panel */}
-          <div
-            className="bg-white border-t border-gray-200 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] transition-all duration-300"
-            onTouchStart={handleOrderPanelTouchStart}
-            onTouchEnd={handleOrderPanelTouchEnd}
-          >
+      {/* Header */}
+      <div
+        className={`sticky top-0 z-30 bg-[#f6f7f2]/90 backdrop-blur border-b border-black/5 transition-all duration-200 ${
+          desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
+        }`}
+      >
+        <div className="px-4 sm:px-6 py-4 w-full flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
-              onClick={() => setIsOrderPanelOpen((prev) => !prev)}
-              className="relative w-full px-4 pt-4 pb-3 flex items-center gap-3 text-left active:bg-gray-50 transition-all"
-              aria-label={isOrderPanelOpen ? "Sembunyikan panel pesanan" : "Buka panel pesanan"}
+              onClick={() => setShowMenu(true)}
+              className="lg:hidden w-10 h-10 flex items-center justify-center text-gray-500 hover:text-gray-900 rounded-2xl bg-white border border-gray-100 shadow-sm"
+              aria-label="Buka menu"
             >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-800">
-                {isOrderPanelOpen ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M6 15L12 9L18 15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-900 font-black text-sm">Pesanan</span>
-                  {cartCount > 0 && (
-                    <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-[11px] font-black px-2 py-0.5 rounded-full">{cartCount} item</span>
-                  )}
-                </div>
-                <div className="text-gray-400 text-xs font-bold mt-0.5 truncate">
-                  {loadingTableOrder ? "Menyemak order aktif..." : displayMejaLabel(currentMeja)}
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="text-gray-900 text-lg font-black">RM {total.toFixed(2)}</div>
-                <div className="text-gray-400 text-[11px] font-bold">Jumlah</div>
-              </div>
+              <Menu size={20} strokeWidth={1.8} />
             </button>
 
-            {isOrderPanelOpen && (
-              <div className="px-4 pb-4 animate-[orderPanelUp_0.22s_ease-out]">
-                {cartCount > 0 && !orderSent && (
-                  <div className="flex justify-end mb-3">
-                    <button onClick={clearCart} className="text-red-500 text-xs font-black bg-red-50 px-3 py-2 rounded-xl border border-red-100 active:scale-95 transition-all">
-                      Kosongkan
-                    </button>
-                  </div>
-                )}
+            <div className="min-w-0">
+              <div className="text-gray-900 font-medium text-sm sm:text-base truncate">
+                {activeNav.label}
+              </div>
+              <div className="hidden sm:block text-gray-400 text-xs font-medium truncate mt-0.5">
+                {kedaiInfo?.nama || "Staff Dashboard"}
+              </div>
+            </div>
+          </div>
 
-                <div className="mb-4">
-                  <label className="text-gray-500 text-[11px] font-black mb-2 block uppercase tracking-wide">Jenis Pesanan</label>
-                  <div className="relative">
-                    <select
-                      value={currentMeja}
-                      onChange={(e) => handleChangeMeja(e.target.value)}
-                      disabled={loadingTableOrder}
-                      className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-black outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
-                    >
-                      {mejaList.map((meja) => (
-                        <option key={meja} value={meja}>{displayMejaLabel(meja)}</option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">▾</span>
-                  </div>
-                  {orderSent && currentOrderId && (
-                    <div className="mt-2 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold rounded-2xl px-3 py-2">
-                      Order meja ini sudah dihantar ke dapur dan belum dibayar.
+          <div className="hidden sm:block text-gray-900 font-medium text-base tracking-tight shrink-0">
+            Urus<span className="text-[var(--accent-600)]">POS</span>
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`transition-all duration-200 min-h-[calc(100vh-73px)] flex flex-col ${
+          desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
+        }`}
+      >
+        {/* POS TAB */}
+        {activeTab === "pos" && (
+          <>
+            {/* Menu Grid */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="sticky top-0 z-10 bg-gray-50 pb-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <label className="text-gray-500 text-[11px] font-medium uppercase tracking-wide">
+                    Cari Produk
+                  </label>
+                  {!loading && produk.length > 0 && (
+                    <div className="text-gray-400 text-[11px] font-medium text-right whitespace-nowrap">
+                      {productSearch.trim() || selectedCategoryId !== "all"
+                        ? `${filteredProduk.length}/${produk.length} dijumpai`
+                        : `${produk.length} produk tersedia`}
                     </div>
                   )}
                 </div>
-
-                {cartItems.length > 0 ? (
-                  <div className="flex flex-col gap-3 mb-4 max-h-64 overflow-y-auto pr-1">
-                    {cartItems.map((item) => (
-                      <div key={item.id} className="bg-gray-50 border border-gray-100 rounded-2xl p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-gray-900 text-sm font-black truncate">{item.nama}</div>
-                            <div className="text-gray-400 text-xs font-bold mt-0.5">RM {item.harga_jual.toFixed(2)} × {item.qty}</div>
-                          </div>
-                          <div className="text-gray-900 text-sm font-black whitespace-nowrap">RM {(item.harga_jual * item.qty).toFixed(2)}</div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 mt-3">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => updateQty(item.id, -1)} className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-black flex items-center justify-center active:scale-95 transition-all">−</button>
-                            <span className="min-w-8 text-center text-gray-900 text-sm font-black">{item.qty}</span>
-                            <button onClick={() => updateQty(item.id, 1)} className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-black flex items-center justify-center active:scale-95 transition-all">+</button>
-                          </div>
-                          <span className="bg-white border border-gray-200 text-gray-500 text-xs font-bold px-3 py-2 rounded-xl">{item.qty} item</span>
-                        </div>
-
-                        <div className="mt-3">
-                          <label className="text-gray-400 text-[11px] font-black mb-1.5 block uppercase tracking-wide">Nota item</label>
-                          <input
-                            type="text"
-                            value={item.nota}
-                            onChange={(e) => updateNota(item.id, e.target.value)}
-                            placeholder="cth: tak pedas, kurang ais, asing kuah"
-                            className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-[var(--accent-500)]"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 border border-dashed border-gray-200 rounded-3xl p-5 mb-4 text-center">
-                    <div className="text-3xl mb-2">🛒</div>
-                    <div className="text-gray-900 text-sm font-black">Belum ada item</div>
-                    <div className="text-gray-400 text-xs mt-1">Pilih menu di atas untuk mula order</div>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between mb-3 bg-gray-50 rounded-2xl px-4 py-3">
-                  <span className="text-gray-500 text-sm font-bold">Jumlah</span>
-                  <span className="text-gray-900 text-2xl font-black">RM {total.toFixed(2)}</span>
+                <div className="relative">
+                  <svg
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+                  >
+                    <path
+                      d="M21 21L16.65 16.65"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Nama produk"
+                    className="w-full bg-white border border-gray-200 text-gray-900 rounded-2xl pl-11 pr-11 py-3.5 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:ring-4 focus:ring-[var(--accent-100)] transition-all shadow-sm"
+                  />
+                  {productSearch && (
+                    <button
+                      onClick={clearProductSearch}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-gray-100 text-gray-500 font-medium flex items-center justify-center active:scale-95 transition-all"
+                      aria-label="Kosongkan carian"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
 
-                {!orderSent ? (
-                  <button onClick={sendOrder} disabled={cartItems.length === 0 || saving} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all">
-                    {saving ? "Menghantar..." : cartItems.length === 0 ? "Hantar ke Dapur" : currentOrderId ? `Update Pesanan • RM ${total.toFixed(2)} 🍳` : `Hantar ke Dapur • RM ${total.toFixed(2)} 🍳`}
-                  </button>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={cancelCurrentOrder}
-                      disabled={saving}
-                      className="w-full bg-red-50 border border-red-100 text-red-500 font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
-                    >
-                      {saving ? "Loading..." : "Batalkan"}
-                    </button>
-                    <button
-                      onClick={openCheckout}
-                      disabled={saving}
-                      className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
-                    >
-                      Bayar • RM {total.toFixed(2)}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* REKOD TAB */}
-      {activeTab === "rekod" && (
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="mb-4">
-            <h2 className="text-gray-900 font-bold text-lg">Rekod Jualan</h2>
-            <p className="text-gray-400 text-xs mt-1">Semak jualan mengikut tarikh dan download receipt</p>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="relative">
-              <button
-                onClick={openRekodFilterModal}
-                className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-black shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-[var(--accent-600)]">
-                  <path d="M7 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                  <path d="M17 3V6" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                  <path d="M4 9H20" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" />
-                  <path d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round" />
-                </svg>
-                <span>{rekodFilterLabel()}</span>
-                <span className="text-gray-400 text-[10px]">▾</span>
-              </button>
-
-              {showRekodDropdown && (
-                <>
+                <div className="relative mt-3">
                   <button
-                    onClick={() => setShowRekodDropdown(false)}
-                    className="fixed inset-0 z-30 cursor-default"
-                    aria-label="Tutup filter rekod"
+                    type="button"
+                    onClick={() => setShowCategoryDropdown((prev) => !prev)}
+                    className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-900 px-4 py-2.5 rounded-full text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                  >
+                    <SelectedCategoryIcon
+                      size={14}
+                      className="text-[var(--accent-600)]"
+                      strokeWidth={2}
+                    />
+                    <span>{selectedCategoryLabel}</span>
+                    <span className="text-gray-400 text-[10px]">
+                      {showCategoryDropdown ? "−" : "+"}
+                    </span>
+                  </button>
+
+                  {showCategoryDropdown && (
+                    <div className="absolute left-0 top-full mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-gray-100 rounded-3xl shadow-xl z-30 p-2">
+                      <button
+                        type="button"
+                        onClick={() => selectCategory("all")}
+                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-medium transition-all ${
+                          selectedCategoryId === "all"
+                            ? "bg-[var(--accent-600)] text-white"
+                            : "text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Tag
+                            size={15}
+                            className="shrink-0"
+                            strokeWidth={2}
+                          />
+                          <span>Semua Kategori</span>
+                        </span>
+                        {selectedCategoryId === "all" && (
+                          <Check size={15} strokeWidth={2.2} />
+                        )}
+                      </button>
+
+                      {categories.length === 0 ? (
+                        <div className="px-4 py-3 text-xs font-medium text-gray-400">
+                          Belum ada kategori aktif
+                        </div>
+                      ) : (
+                        categories.map((category) => (
+                          <button
+                            key={category.id}
+                            type="button"
+                            onClick={() => selectCategory(category.id)}
+                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-left text-sm font-medium transition-all ${
+                              selectedCategoryId === category.id
+                                ? "bg-[var(--accent-600)] text-white"
+                                : "text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <CategoryLucideIcon
+                                value={category.icon}
+                                name={category.nama}
+                                size={15}
+                                className="shrink-0"
+                                strokeWidth={2}
+                              />
+                              <span className="truncate">{category.nama}</span>
+                            </span>
+                            {selectedCategoryId === category.id && (
+                              <Check size={15} strokeWidth={2.2} />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="text-center text-gray-400 py-10">
+                  Loading menu...
+                </div>
+              ) : produk.length === 0 ? (
+                <div className="text-center py-10">
+                  <Utensils
+                    size={34}
+                    className="text-gray-300 mx-auto mb-3"
+                    strokeWidth={1.8}
                   />
-                  <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl z-40 overflow-hidden">
-                    {[
-                      { id: "daily", label: "Hari Ini" },
-                      { id: "yesterday", label: "Semalam" },
-                      { id: "monthly", label: "Bulan Ini" },
-                      { id: "weekly", label: "7 Hari Lepas" },
-                      { id: "custom", label: "Tarikh Custom" },
-                    ].map((item) => (
+                  <div className="text-gray-400 text-sm">Tiada produk lagi</div>
+                  <div className="text-gray-300 text-xs mt-1">
+                    Owner perlu tambah produk dulu
+                  </div>
+                </div>
+              ) : filteredProduk.length === 0 ? (
+                <div className="bg-white border border-gray-100 rounded-3xl p-8 text-center shadow-sm mt-2">
+                  <Search
+                    size={34}
+                    className="text-gray-300 mx-auto mb-3"
+                    strokeWidth={1.8}
+                  />
+                  <div className="text-gray-900 text-sm font-medium">
+                    Produk tak dijumpai
+                  </div>
+                  <div className="text-gray-400 text-xs mt-1">
+                    Cuba cari nama menu lain.
+                  </div>
+                  <button
+                    onClick={resetProductFilters}
+                    className="mt-4 bg-gray-900 text-white text-xs font-medium px-4 py-2.5 rounded-2xl active:scale-95 transition-all"
+                  >
+                    Reset Filter
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-3">
+                  {filteredProduk.map((item) => {
+                    const category = getProductCategory(item);
+
+                    return (
                       <button
                         key={item.id}
-                        onClick={() => applyRekodDropdownFilter(item.id as RekodFilterType)}
-                        className={`w-full text-left px-4 py-3 text-sm font-bold border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-[var(--accent-600)] bg-[var(--accent-50)]" : "text-gray-700"}`}
+                        onClick={() => addToCart(item)}
+                        disabled={item.stok === 0}
+                        className={`bg-white rounded-2xl p-3 text-center border-2 transition-all shadow-sm relative ${cart[item.id]?.qty > 0 ? "border-[var(--accent-500)] bg-[var(--accent-50)]" : "border-gray-100"} ${item.stok === 0 ? "opacity-40" : "active:scale-95"}`}
                       >
-                        {item.label}
+                        {cart[item.id]?.qty > 0 && (
+                          <div className="absolute top-2 right-2 bg-[var(--accent-600)] text-white text-[10px] font-medium min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center shadow-sm border border-white">
+                            {cart[item.id].qty}
+                          </div>
+                        )}
+                        <div className="w-9 h-9 rounded-2xl bg-gray-50 border border-gray-100 text-[var(--accent-600)] flex items-center justify-center mx-auto mb-2">
+                          <CategoryLucideIcon
+                            value={category.icon}
+                            name={category.nama}
+                            size={17}
+                            strokeWidth={2}
+                          />
+                        </div>
+                        <div className="text-gray-900 text-xs font-medium leading-tight">
+                          {item.nama}
+                        </div>
+                        <div className="text-gray-400 text-[10px] font-medium mt-0.5 truncate">
+                          {category.nama}
+                        </div>
+                        <div className="text-[var(--accent-600)] text-xs font-medium mt-1">
+                          RM {item.harga_jual.toFixed(2)}
+                        </div>
+                        {item.stok <= 5 && item.stok > 0 && (
+                          <div className="text-amber-500 text-xs mt-0.5">
+                            Tinggal {item.stok}
+                          </div>
+                        )}
+                        {item.stok === 0 && (
+                          <div className="text-red-400 text-xs mt-0.5">
+                            Habis
+                          </div>
+                        )}
                       </button>
-                    ))}
-                  </div>
-                </>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
-            <button
-              onClick={fetchRekod}
-              disabled={loadingRekod}
-              className="bg-white border border-gray-200 text-gray-600 text-xs font-black px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 active:scale-95 transition-all"
+            {/* Order Panel */}
+            <div
+              className="bg-white border-t border-gray-200 flex-shrink-0 shadow-[0_-8px_24px_rgba(15,23,42,0.04)] transition-all duration-300"
+              onTouchStart={handleOrderPanelTouchStart}
+              onTouchEnd={handleOrderPanelTouchEnd}
             >
-              {loadingRekod ? "Loading" : "Refresh"}
-            </button>
-          </div>
+              <button
+                onClick={() => setIsOrderPanelOpen((prev) => !prev)}
+                className="relative w-full px-4 pt-4 pb-3 flex items-center gap-3 text-left active:bg-gray-50 transition-all"
+                aria-label={
+                  isOrderPanelOpen
+                    ? "Sembunyikan panel pesanan"
+                    : "Buka panel pesanan"
+                }
+              >
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-800">
+                  {isOrderPanelOpen ? (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 9L12 15L18 9"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 15L12 9L18 15"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
 
-          {loadingRekod ? (
-            <div className="text-center text-gray-400 py-10">Loading...</div>
-          ) : rekod.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="text-4xl mb-3">📋</div>
-              <div className="text-gray-400 text-sm">Tiada rekod dalam tempoh ini</div>
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-900 font-black text-sm">🧾 Receipt Preview</h3>
-                <span className="text-gray-400 text-xs font-bold">{rekod.length} rekod</span>
-              </div>
-              <div className="space-y-3">
-                {rekod.map((order) => {
-                  const receipt = toRecentReceipt(order);
-                  return (
-                    <div key={order.id} className="bg-gray-50 rounded-2xl p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-900 text-sm font-black truncate">#{receipt.id.slice(0, 8).toUpperCase()}</div>
-                          <div className="text-gray-400 text-xs mt-1">{displayMejaLabel(receipt.meja)} · {formatReceiptDate(receipt.created_at)}</div>
-                          <div className="text-gray-400 text-xs mt-1">{receipt.payment_method || "Belum direkod"}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-900 font-medium text-sm">
+                      Pesanan
+                    </span>
+                    {cartCount > 0 && (
+                      <span className="bg-[var(--accent-100)] text-[var(--accent-700)] text-[11px] font-medium px-2 py-0.5 rounded-full">
+                        {cartCount} item
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-gray-400 text-xs font-medium mt-0.5 truncate">
+                    {loadingTableOrder
+                      ? "Menyemak order aktif..."
+                      : displayMejaLabel(currentMeja)}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-gray-900 text-lg font-medium">
+                    RM {total.toFixed(2)}
+                  </div>
+                  <div className="text-gray-400 text-[11px] font-medium">
+                    Jumlah
+                  </div>
+                </div>
+              </button>
+
+              {isOrderPanelOpen && (
+                <div className="px-4 pb-4 animate-[orderPanelUp_0.22s_ease-out]">
+                  {cartCount > 0 && !orderSent && (
+                    <div className="flex justify-end mb-3">
+                      <button
+                        onClick={clearCart}
+                        className="text-red-500 text-xs font-medium bg-red-50 px-3 py-2 rounded-xl border border-red-100 active:scale-95 transition-all"
+                      >
+                        Kosongkan
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    <label className="text-gray-500 text-[11px] font-medium mb-2 block uppercase tracking-wide">
+                      Jenis Pesanan
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={currentMeja}
+                        onChange={(e) => handleChangeMeja(e.target.value)}
+                        disabled={loadingTableOrder}
+                        className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
+                      >
+                        {mejaList.map((meja) => (
+                          <option key={meja} value={meja}>
+                            {displayMejaLabel(meja)}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                        ▾
+                      </span>
+                    </div>
+                    {orderSent && currentOrderId && (
+                      <div className="mt-2 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-medium rounded-2xl px-3 py-2">
+                        Order meja ini sudah dihantar ke dapur dan belum
+                        dibayar.
+                      </div>
+                    )}
+                  </div>
+
+                  {cartItems.length > 0 ? (
+                    <div className="flex flex-col gap-3 mb-4 max-h-64 overflow-y-auto pr-1">
+                      {cartItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="bg-gray-50 border border-gray-100 rounded-2xl p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-gray-900 text-sm font-medium truncate">
+                                {item.nama}
+                              </div>
+                              <div className="text-gray-400 text-xs font-medium mt-0.5">
+                                RM {item.harga_jual.toFixed(2)} × {item.qty}
+                              </div>
+                            </div>
+                            <div className="text-gray-900 text-sm font-medium whitespace-nowrap">
+                              RM {(item.harga_jual * item.qty).toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 mt-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateQty(item.id, -1)}
+                                className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-medium flex items-center justify-center active:scale-95 transition-all"
+                              >
+                                −
+                              </button>
+                              <span className="min-w-8 text-center text-gray-900 text-sm font-medium">
+                                {item.qty}
+                              </span>
+                              <button
+                                onClick={() => updateQty(item.id, 1)}
+                                className="w-9 h-9 rounded-xl bg-white border border-gray-200 text-gray-700 text-lg font-medium flex items-center justify-center active:scale-95 transition-all"
+                              >
+                                +
+                              </button>
+                            </div>
+                            <span className="bg-white border border-gray-200 text-gray-500 text-xs font-medium px-3 py-2 rounded-xl">
+                              {item.qty} item
+                            </span>
+                          </div>
+
+                          <div className="mt-3">
+                            <label className="text-gray-400 text-[11px] font-medium mb-1.5 block uppercase tracking-wide">
+                              Nota item
+                            </label>
+                            <input
+                              type="text"
+                              value={item.nota}
+                              onChange={(e) =>
+                                updateNota(item.id, e.target.value)
+                              }
+                              placeholder="cth: tak pedas, kurang ais, asing kuah"
+                              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 outline-none focus:border-[var(--accent-500)]"
+                            />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="text-[var(--accent-600)] text-sm font-black whitespace-nowrap mr-1">{formatRM(receipt.total)}</div>
-                          <button
-                            onClick={() => setSelectedReceipt(receipt)}
-                            className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
-                            aria-label="View receipt"
-                          >
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                              <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => downloadReceipt(order)}
-                            className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
-                            aria-label="Download receipt"
-                          >
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                              <path d="M12 3V15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                              <path d="M5 21H19" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </button>
-                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-3xl p-5 mb-4 text-center">
+                      <ShoppingCart
+                        size={30}
+                        className="text-gray-300 mx-auto mb-2"
+                        strokeWidth={1.8}
+                      />
+                      <div className="text-gray-900 text-sm font-medium">
+                        Belum ada item
+                      </div>
+                      <div className="text-gray-400 text-xs mt-1">
+                        Pilih menu di atas untuk mula order
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+                  )}
 
-      {/* SETTINGS TAB */}
-      {activeTab === "settings" && (
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="mb-4">
-            <h2 className="text-gray-900 font-bold text-lg">Tetapan</h2>
-            <p className="text-gray-400 text-xs mt-1">Ubah password akaun staff</p>
-          </div>
+                  <div className="flex items-center justify-between mb-3 bg-gray-50 rounded-2xl px-4 py-3">
+                    <span className="text-gray-500 text-sm font-medium">
+                      Jumlah
+                    </span>
+                    <span className="text-gray-900 text-2xl font-medium">
+                      RM {total.toFixed(2)}
+                    </span>
+                  </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-            <h3 className="text-gray-900 font-bold text-sm mb-4">🔑 Tukar Password</h3>
-            <div className="mb-3">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
-              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
+                  {!orderSent ? (
+                    <button
+                      onClick={sendOrder}
+                      disabled={cartItems.length === 0 || saving}
+                      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+                    >
+                      {saving
+                        ? "Menghantar..."
+                        : cartItems.length === 0
+                          ? "Hantar ke Dapur"
+                          : currentOrderId
+                            ? `Update Pesanan • RM ${total.toFixed(2)}`
+                            : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
+                    </button>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={cancelCurrentOrder}
+                        disabled={saving}
+                        className="w-full bg-red-50 border border-red-100 text-red-500 font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                      >
+                        {saving ? "Loading..." : "Batalkan"}
+                      </button>
+                      <button
+                        onClick={openCheckout}
+                        disabled={saving}
+                        className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                      >
+                        Bayar • RM {total.toFixed(2)}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="mb-3">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label>
-              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
-            </div>
+          </>
+        )}
+
+        {/* REKOD TAB */}
+        {activeTab === "rekod" && (
+          <div className="flex-1 overflow-y-auto p-4">
             <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
-              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
+              <h2 className="text-gray-900 font-medium text-lg">Rekod Jualan</h2>
+              <p className="text-gray-400 text-xs mt-1">
+                Semak jualan mengikut tarikh dan download receipt
+              </p>
             </div>
-            {passwordMsgStaff && (
-              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
+
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="relative">
+                <button
+                  onClick={openRekodFilterModal}
+                  className="inline-flex items-center gap-2 bg-white border border-[var(--accent-200)] text-gray-900 px-4 py-2.5 rounded-full text-xs font-medium shadow-sm hover:border-[var(--accent-300)] hover:bg-[var(--accent-50)] active:scale-95 transition-all"
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-[var(--accent-600)]"
+                  >
+                    <path
+                      d="M7 3V6"
+                      stroke="currentColor"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M17 3V6"
+                      stroke="currentColor"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M4 9H20"
+                      stroke="currentColor"
+                      strokeWidth="2.3"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M6.5 5H17.5C18.8807 5 20 6.11929 20 7.5V18C20 19.3807 18.8807 20.5 17.5 20.5H6.5C5.11929 20.5 4 19.3807 4 18V7.5C4 6.11929 5.11929 5 6.5 5Z"
+                      stroke="currentColor"
+                      strokeWidth="2.3"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span>{rekodFilterLabel()}</span>
+                  <span className="text-gray-400 text-[10px]">▾</span>
+                </button>
+
+                {showRekodDropdown && (
+                  <>
+                    <button
+                      onClick={() => setShowRekodDropdown(false)}
+                      className="fixed inset-0 z-30 cursor-default"
+                      aria-label="Tutup filter rekod"
+                    />
+                    <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-2xl z-40 overflow-hidden">
+                      {[
+                        { id: "daily", label: "Hari Ini" },
+                        { id: "yesterday", label: "Semalam" },
+                        { id: "monthly", label: "Bulan Ini" },
+                        { id: "weekly", label: "7 Hari Lepas" },
+                        { id: "custom", label: "Tarikh Custom" },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() =>
+                            applyRekodDropdownFilter(item.id as RekodFilterType)
+                          }
+                          className={`w-full text-left px-4 py-3 text-sm font-medium border-b border-gray-50 last:border-b-0 active:bg-gray-50 ${rekodFilter === item.id ? "text-[var(--accent-600)] bg-[var(--accent-50)]" : "text-gray-700"}`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={fetchRekod}
+                disabled={loadingRekod}
+                className="bg-white border border-gray-200 text-gray-600 text-xs font-medium px-4 py-2.5 rounded-full shadow-sm disabled:opacity-50 active:scale-95 transition-all"
+              >
+                {loadingRekod ? "Loading" : "Refresh"}
+              </button>
+            </div>
+
+            {loadingRekod ? (
+              <div className="text-center text-gray-400 py-10">Loading...</div>
+            ) : rekod.length === 0 ? (
+              <div className="text-center py-10">
+                <ClipboardList
+                  size={34}
+                  className="text-gray-300 mx-auto mb-3"
+                  strokeWidth={1.8}
+                />
+                <div className="text-gray-400 text-sm">
+                  Tiada rekod dalam tempoh ini
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2">
+                    <Receipt
+                      size={15}
+                      className="text-[var(--accent-600)]"
+                      strokeWidth={2}
+                    />{" "}
+                    Receipt Preview
+                  </h3>
+                  <span className="text-gray-400 text-xs font-medium">
+                    {rekod.length} rekod
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {rekod.map((order) => {
+                    const receipt = toRecentReceipt(order);
+                    return (
+                      <div
+                        key={order.id}
+                        className="bg-gray-50 rounded-2xl p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-gray-900 text-sm font-medium truncate">
+                              #{receipt.id.slice(0, 8).toUpperCase()}
+                            </div>
+                            <div className="text-gray-400 text-xs mt-1">
+                              {displayMejaLabel(receipt.meja)} ·{" "}
+                              {formatReceiptDate(receipt.created_at)}
+                            </div>
+                            <div className="text-gray-400 text-xs mt-1">
+                              {receipt.payment_method || "Belum direkod"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <div className="text-[var(--accent-600)] text-sm font-medium whitespace-nowrap mr-1">
+                              {formatRM(receipt.total)}
+                            </div>
+                            <button
+                              onClick={() => setSelectedReceipt(receipt)}
+                              className="w-10 h-10 rounded-2xl bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                              aria-label="View receipt"
+                            >
+                              <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M21 21L16.65 16.65"
+                                  stroke="currentColor"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M11 18C14.866 18 18 14.866 18 11C18 7.13401 14.866 4 11 4C7.13401 4 4 7.13401 4 11C4 14.866 7.13401 18 11 18Z"
+                                  stroke="currentColor"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => downloadReceipt(order)}
+                              className="w-10 h-10 rounded-2xl bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shadow-sm"
+                              aria-label="Download receipt"
+                            >
+                              <svg
+                                width="17"
+                                height="17"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <path
+                                  d="M12 3V15"
+                                  stroke="currentColor"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M7 10L12 15L17 10"
+                                  stroke="currentColor"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <path
+                                  d="M5 21H19"
+                                  stroke="currentColor"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
-            <button
-              onClick={tukarPasswordStaff}
-              disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff}
-              className="w-full bg-[var(--accent-600)] text-white font-bold py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
-            >
-              Tukar Password
-            </button>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === "settings" && (
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="mb-4">
+              <h2 className="text-gray-900 font-medium text-lg">Tetapan</h2>
+              <p className="text-gray-400 text-xs mt-1">
+                Ubah password akaun staff
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+              <h3 className="text-gray-900 font-medium text-sm mb-4 flex items-center gap-2">
+                <KeyRound
+                  size={15}
+                  className="text-[var(--accent-600)]"
+                  strokeWidth={2}
+                />{" "}
+                Tukar Password
+              </h3>
+              <div className="mb-3">
+                <label className="text-gray-500 text-xs font-medium mb-1 block">
+                  PASSWORD SEMASA
+                </label>
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="text-gray-500 text-xs font-medium mb-1 block">
+                  PASSWORD BARU
+                </label>
+                <input
+                  type="password"
+                  value={newPasswordStaff}
+                  onChange={(e) => setNewPasswordStaff(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="text-gray-500 text-xs font-medium mb-1 block">
+                  CONFIRM PASSWORD BARU
+                </label>
+                <input
+                  type="password"
+                  value={confirmPasswordStaff}
+                  onChange={(e) => setConfirmPasswordStaff(e.target.value)}
+                  placeholder="••••••"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                />
+              </div>
+              {passwordMsgStaff && (
+                <div
+                  className={`text-xs font-medium mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("berjaya") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+                >
+                  {passwordMsgStaff}
+                </div>
+              )}
+              <button
+                onClick={tukarPasswordStaff}
+                disabled={
+                  !oldPassword || !newPasswordStaff || !confirmPasswordStaff
+                }
+                className="w-full bg-[var(--accent-600)] text-white font-medium py-3.5 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+              >
+                Tukar Password
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Rekod Custom Date Modal */}
       {showRekodFilterModal && (
@@ -1726,35 +2506,43 @@ export default function StaffDashboardPage() {
           <div className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-sm shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-gray-900 font-black text-lg">Tarikh Custom</h3>
-                <p className="text-gray-400 text-xs font-bold mt-0.5">Pilih range rekod jualan</p>
+                <h3 className="text-gray-900 font-medium text-lg">
+                  Tarikh Custom
+                </h3>
+                <p className="text-gray-400 text-xs font-medium mt-0.5">
+                  Pilih range rekod jualan
+                </p>
               </div>
               <button
                 onClick={() => setShowRekodFilterModal(false)}
-                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-black flex items-center justify-center active:scale-95 transition-all"
+                className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 font-medium flex items-center justify-center active:scale-95 transition-all"
               >
-                ✕
+                <X size={17} strokeWidth={2} />
               </button>
             </div>
 
             <div className="bg-gray-50 border border-gray-100 rounded-3xl p-4 mb-5">
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="text-gray-500 text-xs font-black mb-2 block">START DATE</label>
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
+                    START DATE
+                  </label>
                   <input
                     type="date"
                     value={pendingRekodCustomFrom}
                     onChange={(e) => setPendingRekodCustomFrom(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
                 <div>
-                  <label className="text-gray-500 text-xs font-black mb-2 block">END DATE</label>
+                  <label className="text-gray-500 text-xs font-medium mb-2 block">
+                    END DATE
+                  </label>
                   <input
                     type="date"
                     value={pendingRekodCustomTo}
                     onChange={(e) => setPendingRekodCustomTo(e.target.value)}
-                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-bold outline-none focus:border-[var(--accent-500)]"
+                    className="w-full border border-gray-200 bg-white rounded-2xl px-4 py-3 text-gray-900 text-sm font-medium outline-none focus:border-[var(--accent-500)]"
                   />
                 </div>
               </div>
@@ -1763,14 +2551,14 @@ export default function StaffDashboardPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowRekodFilterModal(false)}
-                className="flex-1 bg-gray-100 text-gray-600 font-black py-3.5 rounded-2xl active:scale-95 transition-all"
+                className="flex-1 bg-gray-100 text-gray-600 font-medium py-3.5 rounded-2xl active:scale-95 transition-all"
               >
                 Batal
               </button>
               <button
                 onClick={applyRekodFilterModal}
                 disabled={!pendingRekodCustomFrom || !pendingRekodCustomTo}
-                className="flex-1 bg-[var(--accent-600)] text-white font-black py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
+                className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3.5 rounded-2xl disabled:opacity-50 active:scale-95 transition-all"
               >
                 Apply
               </button>
@@ -1785,31 +2573,68 @@ export default function StaffDashboardPage() {
           <div className="bg-white rounded-t-3xl p-5 w-full max-w-sm max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-gray-900 font-black text-lg">Receipt Preview</h3>
-                <div className="text-gray-400 text-xs font-bold">#{selectedReceipt.id.slice(0, 8).toUpperCase()}</div>
+                <h3 className="text-gray-900 font-medium text-lg">
+                  Receipt Preview
+                </h3>
+                <div className="text-gray-400 text-xs font-medium">
+                  #{selectedReceipt.id.slice(0, 8).toUpperCase()}
+                </div>
               </div>
-              <button onClick={() => setSelectedReceipt(null)} className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-black">✕</button>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="w-10 h-10 rounded-2xl bg-gray-100 text-gray-500 font-medium flex items-center justify-center"
+              >
+                <X size={17} strokeWidth={2} />
+              </button>
             </div>
             <div className="border border-gray-200 rounded-2xl p-5 bg-white">
               <div className="text-center border-b border-dashed border-gray-300 pb-4 mb-4">
-                <div className="text-gray-900 font-black text-xl">{kedaiInfo?.nama || "Kedai Saya"}</div>
-                <div className="text-gray-400 text-xs font-bold mt-1">Powered by UrusPOS</div>
-                <div className="text-gray-400 text-xs mt-2">{formatReceiptDate(selectedReceipt.created_at)}</div>
+                <div className="text-gray-900 font-medium text-xl">
+                  {kedaiInfo?.nama || "Kedai Saya"}
+                </div>
+                <div className="text-gray-400 text-xs font-medium mt-1">
+                  Powered by UrusPOS
+                </div>
+                <div className="text-gray-400 text-xs mt-2">
+                  {formatReceiptDate(selectedReceipt.created_at)}
+                </div>
               </div>
               <div className="mb-4">
-                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1"><span>Order</span><span>#{selectedReceipt.id.slice(0, 8).toUpperCase()}</span></div>
-                <div className="flex justify-between text-xs text-gray-500 font-bold mb-1"><span>Jenis</span><span>{displayMejaLabel(selectedReceipt.meja)}</span></div>
-                <div className="flex justify-between text-xs text-gray-500 font-bold"><span>Bayaran</span><span>{selectedReceipt.payment_method || "Belum direkod"}</span></div>
+                <div className="flex justify-between text-xs text-gray-500 font-medium mb-1">
+                  <span>Order</span>
+                  <span>#{selectedReceipt.id.slice(0, 8).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 font-medium mb-1">
+                  <span>Jenis</span>
+                  <span>{displayMejaLabel(selectedReceipt.meja)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 font-medium">
+                  <span>Bayaran</span>
+                  <span>
+                    {selectedReceipt.payment_method || "Belum direkod"}
+                  </span>
+                </div>
               </div>
               <div className="border-t border-dashed border-gray-300 pt-4 space-y-3">
                 {selectedReceipt.order_items.map((item, index) => (
-                  <div key={`${item.nama}-${index}`} className="flex justify-between gap-3 text-sm">
+                  <div
+                    key={`${item.nama}-${index}`}
+                    className="flex justify-between gap-3 text-sm"
+                  >
                     <div className="flex-1">
-                      <div className="text-gray-900 font-bold">{item.nama}</div>
-                      <div className="text-gray-400 text-xs">{item.qty} x {formatRM(item.harga)}</div>
-                      {item.nota && <div className="text-amber-600 text-xs mt-1">Nota: {item.nota}</div>}
+                      <div className="text-gray-900 font-medium">{item.nama}</div>
+                      <div className="text-gray-400 text-xs">
+                        {item.qty} x {formatRM(item.harga)}
+                      </div>
+                      {item.nota && (
+                        <div className="text-amber-600 text-xs mt-1">
+                          Nota: {item.nota}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-gray-900 font-black">{formatRM(item.qty * item.harga)}</div>
+                    <div className="text-gray-900 font-medium">
+                      {formatRM(item.qty * item.harga)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1817,31 +2642,59 @@ export default function StaffDashboardPage() {
                 {hasReceiptCaj(selectedReceipt) && (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-500 font-bold">Subtotal</span>
-                      <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.subtotal)}</span>
+                      <span className="text-gray-500 font-medium">Subtotal</span>
+                      <span className="text-gray-900 font-medium">
+                        {formatRM(selectedReceipt.subtotal)}
+                      </span>
                     </div>
                     {selectedReceipt.service_charge_amount > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 font-bold">Service Charge ({selectedReceipt.service_charge_rate}%)</span>
-                        <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.service_charge_amount)}</span>
+                        <span className="text-gray-500 font-medium">
+                          Service Charge ({selectedReceipt.service_charge_rate}
+                          %)
+                        </span>
+                        <span className="text-gray-900 font-medium">
+                          {formatRM(selectedReceipt.service_charge_amount)}
+                        </span>
                       </div>
                     )}
                     {selectedReceipt.sst_amount > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-500 font-bold">SST ({selectedReceipt.sst_rate}%)</span>
-                        <span className="text-gray-900 font-bold">{formatRM(selectedReceipt.sst_amount)}</span>
+                        <span className="text-gray-500 font-medium">
+                          SST ({selectedReceipt.sst_rate}%)
+                        </span>
+                        <span className="text-gray-900 font-medium">
+                          {formatRM(selectedReceipt.sst_amount)}
+                        </span>
                       </div>
                     )}
                     <div className="border-t border-dashed border-gray-300 my-2"></div>
                   </>
                 )}
-                <div className="flex justify-between items-center"><span className="text-gray-900 font-black">TOTAL</span><span className="text-gray-900 font-black text-xl">{formatRM(selectedReceipt.total)}</span></div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-900 font-medium">TOTAL</span>
+                  <span className="text-gray-900 font-medium text-xl">
+                    {formatRM(selectedReceipt.total)}
+                  </span>
+                </div>
               </div>
-              <div className="text-center text-gray-400 text-xs mt-5">Terima kasih.</div>
+              <div className="text-center text-gray-400 text-xs mt-5">
+                Terima kasih.
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mt-4">
-              <button onClick={() => setSelectedReceipt(null)} className="bg-gray-100 text-gray-600 font-black py-3 rounded-2xl text-sm">Tutup</button>
-              <button onClick={() => downloadReceipt(selectedReceipt)} className="bg-[var(--accent-600)] text-white font-black py-3 rounded-2xl text-sm">Download</button>
+              <button
+                onClick={() => setSelectedReceipt(null)}
+                className="bg-gray-100 text-gray-600 font-medium py-3 rounded-2xl text-sm"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => downloadReceipt(selectedReceipt)}
+                className="bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl text-sm"
+              >
+                Download
+              </button>
             </div>
           </div>
         </div>
@@ -1854,11 +2707,20 @@ export default function StaffDashboardPage() {
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
-                <h3 className="text-gray-900 font-black text-lg">Bayaran</h3>
-                <p className="text-gray-400 text-sm mt-1">{displayMejaLabel(currentMeja)} · {cartItems.length} produk</p>
+                <h3 className="text-gray-900 font-medium text-lg">Bayaran</h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  {displayMejaLabel(currentMeja)} · {cartItems.length} produk
+                </p>
               </div>
               {paymentMode && (
-                <button onClick={() => selectPaymentMode(paymentMode === "tunai" ? "duitnow" : "tunai")} className="bg-gray-100 text-gray-600 text-xs font-black px-3 py-2 rounded-2xl active:scale-95 transition-all">
+                <button
+                  onClick={() =>
+                    selectPaymentMode(
+                      paymentMode === "tunai" ? "duitnow" : "tunai",
+                    )
+                  }
+                  className="bg-gray-100 text-gray-600 text-xs font-medium px-3 py-2 rounded-2xl active:scale-95 transition-all"
+                >
                   Tukar
                 </button>
               )}
@@ -1866,45 +2728,83 @@ export default function StaffDashboardPage() {
 
             <div className="bg-gray-50 rounded-2xl p-4 mb-4">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex justify-between gap-3 text-sm py-1">
-                  <span className="text-gray-500 flex-1">{item.nama} ×{item.qty}{item.nota ? ` — ${item.nota}` : ""}</span>
-                  <span className="text-gray-900 font-bold whitespace-nowrap">RM {(item.harga_jual * item.qty).toFixed(2)}</span>
+                <div
+                  key={item.id}
+                  className="flex justify-between gap-3 text-sm py-1"
+                >
+                  <span className="text-gray-500 flex-1">
+                    {item.nama} ×{item.qty}
+                    {item.nota ? ` — ${item.nota}` : ""}
+                  </span>
+                  <span className="text-gray-900 font-medium whitespace-nowrap">
+                    RM {(item.harga_jual * item.qty).toFixed(2)}
+                  </span>
                 </div>
               ))}
               <div className="space-y-1 text-sm pt-3 mt-2 border-t border-gray-200">
                 <div className="flex justify-between">
-                  <span className="text-gray-500 font-bold">Subtotal</span>
-                  <span className="text-gray-900 font-bold">{formatRM(subtotal)}</span>
+                  <span className="text-gray-500 font-medium">Subtotal</span>
+                  <span className="text-gray-900 font-medium">
+                    {formatRM(subtotal)}
+                  </span>
                 </div>
                 {serviceChargeAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500 font-bold">Service Charge ({serviceChargeRate}%)</span>
-                    <span className="text-gray-900 font-bold">{formatRM(serviceChargeAmount)}</span>
+                    <span className="text-gray-500 font-medium">
+                      Service Charge ({serviceChargeRate}%)
+                    </span>
+                    <span className="text-gray-900 font-medium">
+                      {formatRM(serviceChargeAmount)}
+                    </span>
                   </div>
                 )}
                 {sstAmount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500 font-bold">SST ({sstRate}%)</span>
-                    <span className="text-gray-900 font-bold">{formatRM(sstAmount)}</span>
+                    <span className="text-gray-500 font-medium">
+                      SST ({sstRate}%)
+                    </span>
+                    <span className="text-gray-900 font-medium">
+                      {formatRM(sstAmount)}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between pt-2 border-t border-gray-200">
-                  <span className="text-gray-900 font-black">Jumlah</span>
-                  <span className="text-gray-900 font-black text-lg">{formatRM(total)}</span>
+                  <span className="text-gray-900 font-medium">Jumlah</span>
+                  <span className="text-gray-900 font-medium text-lg">
+                    {formatRM(total)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {!paymentMode && (
               <>
-                <div className="text-gray-500 text-xs font-black uppercase tracking-wide mb-2">Pilih Kaedah Bayaran</div>
+                <div className="text-gray-500 text-xs font-medium uppercase tracking-wide mb-2">
+                  Pilih Kaedah Bayaran
+                </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
-                  <button onClick={() => selectPaymentMode("tunai")} disabled={saving} className="bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
-                    <div className="text-2xl mb-1">💵</div>
+                  <button
+                    onClick={() => selectPaymentMode("tunai")}
+                    disabled={saving}
+                    className="bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+                  >
+                    <Banknote
+                      size={24}
+                      className="mx-auto mb-1"
+                      strokeWidth={2}
+                    />
                     Tunai
                   </button>
-                  <button onClick={() => selectPaymentMode("duitnow")} disabled={saving} className="bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all">
-                    <div className="text-2xl mb-1">📱</div>
+                  <button
+                    onClick={() => selectPaymentMode("duitnow")}
+                    disabled={saving}
+                    className="bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all"
+                  >
+                    <Smartphone
+                      size={24}
+                      className="mx-auto mb-1"
+                      strokeWidth={2}
+                    />
                     DuitNow
                   </button>
                 </div>
@@ -1916,29 +2816,65 @@ export default function StaffDashboardPage() {
                 <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-3xl p-4 mb-3">
                   <div className="flex justify-between items-start gap-3 mb-3">
                     <div>
-                      <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide">Tunai Diterima</div>
-                      <div className="text-gray-900 text-3xl font-black mt-1">RM {cashReceivedNumber.toFixed(2)}</div>
+                      <div className="text-[var(--accent-700)] text-xs font-medium uppercase tracking-wide">
+                        Tunai Diterima
+                      </div>
+                      <div className="text-gray-900 text-3xl font-medium mt-1">
+                        RM {cashReceivedNumber.toFixed(2)}
+                      </div>
                     </div>
-                    <button onClick={setExactCashAmount} className="bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-black px-3 py-2 rounded-2xl active:scale-95 transition-all">Exact</button>
+                    <button
+                      onClick={setExactCashAmount}
+                      className="bg-white border border-[var(--accent-200)] text-[var(--accent-700)] text-xs font-medium px-3 py-2 rounded-2xl active:scale-95 transition-all"
+                    >
+                      Exact
+                    </button>
                   </div>
 
-                  <div className={`rounded-2xl p-3 ${cashReceived ? cashBalance >= 0 ? "bg-white border border-[var(--accent-200)]" : "bg-red-50 border border-red-100" : "bg-white border border-gray-100"}`}>
-                    <div className="flex justify-between text-xs font-bold mb-1">
+                  <div
+                    className={`rounded-2xl p-3 ${cashReceived ? (cashBalance >= 0 ? "bg-white border border-[var(--accent-200)]" : "bg-red-50 border border-red-100") : "bg-white border border-gray-100"}`}
+                  >
+                    <div className="flex justify-between text-xs font-medium mb-1">
                       <span className="text-gray-500">Baki perlu diberi</span>
-                      <span className={cashReceived && cashBalance < 0 ? "text-red-600" : "text-[var(--accent-700)]"}>
-                        {cashReceived ? cashBalance >= 0 ? `RM ${cashBalance.toFixed(2)}` : `Kurang RM ${Math.abs(cashBalance).toFixed(2)}` : "RM 0.00"}
+                      <span
+                        className={
+                          cashReceived && cashBalance < 0
+                            ? "text-red-600"
+                            : "text-[var(--accent-700)]"
+                        }
+                      >
+                        {cashReceived
+                          ? cashBalance >= 0
+                            ? `RM ${cashBalance.toFixed(2)}`
+                            : `Kurang RM ${Math.abs(cashBalance).toFixed(2)}`
+                          : "RM 0.00"}
                       </span>
                     </div>
-                    <div className="text-gray-400 text-[11px]">Staff perlu semak tunai diterima sebelum sahkan bayaran.</div>
+                    <div className="text-gray-400 text-[11px]">
+                      Staff perlu semak tunai diterima sebelum sahkan bayaran.
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mb-3">
-                  {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "backspace"].map((key) => (
+                  {[
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9",
+                    ".",
+                    "0",
+                    "backspace",
+                  ].map((key) => (
                     <button
                       key={key}
                       onClick={() => appendCashInput(key)}
-                      className="bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl py-4 text-lg font-black active:scale-95 active:bg-gray-100 transition-all"
+                      className="bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl py-4 text-lg font-medium active:scale-95 active:bg-gray-100 transition-all"
                     >
                       {key === "backspace" ? "⌫" : key}
                     </button>
@@ -1947,16 +2883,43 @@ export default function StaffDashboardPage() {
 
                 <div className="grid grid-cols-4 gap-2 mb-3">
                   {[5, 10, 20, 50].map((value) => (
-                    <button key={value} onClick={() => setCashReceived(String((Number(cashReceived || 0) + value).toFixed(2)))} className="bg-white border border-gray-200 text-gray-700 rounded-2xl py-2.5 text-xs font-black active:scale-95 transition-all">+RM {value}</button>
+                    <button
+                      key={value}
+                      onClick={() =>
+                        setCashReceived(
+                          String(
+                            (Number(cashReceived || 0) + value).toFixed(2),
+                          ),
+                        )
+                      }
+                      className="bg-white border border-gray-200 text-gray-700 rounded-2xl py-2.5 text-xs font-medium active:scale-95 transition-all"
+                    >
+                      +RM {value}
+                    </button>
                   ))}
                 </div>
 
-                <button onClick={() => appendCashInput("clear")} className="w-full bg-gray-100 text-gray-600 font-black py-3 rounded-2xl text-sm mb-3 active:scale-95 transition-all">Clear</button>
+                <button
+                  onClick={() => appendCashInput("clear")}
+                  className="w-full bg-gray-100 text-gray-600 font-medium py-3 rounded-2xl text-sm mb-3 active:scale-95 transition-all"
+                >
+                  Clear
+                </button>
 
-                {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl p-3 mb-3">⚠️ {paymentError}</div>}
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-medium rounded-2xl p-3 mb-3">
+                    {paymentError}
+                  </div>
+                )}
 
-                <button onClick={() => completePayment("tunai")} disabled={saving || !cashReceived || cashBalance < 0} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
-                  {saving ? "Mengesahkan..." : `Sahkan Tunai Diterima • Baki RM ${Math.max(0, cashBalance).toFixed(2)}`}
+                <button
+                  onClick={() => completePayment("tunai")}
+                  disabled={saving || !cashReceived || cashBalance < 0}
+                  className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                >
+                  {saving
+                    ? "Mengesahkan..."
+                    : `Sahkan Tunai Diterima • Baki RM ${Math.max(0, cashBalance).toFixed(2)}`}
                 </button>
               </div>
             )}
@@ -1964,33 +2927,63 @@ export default function StaffDashboardPage() {
             {paymentMode === "duitnow" && (
               <div className="mb-3">
                 <div className="bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-3xl p-5 mb-4 text-center">
-                  <div className="text-[var(--accent-700)] text-xs font-black uppercase tracking-wide mb-3">DuitNow QR Kedai</div>
+                  <div className="text-[var(--accent-700)] text-xs font-medium uppercase tracking-wide mb-3">
+                    DuitNow QR Kedai
+                  </div>
                   {duitNowQrUrl ? (
                     <div className="bg-white rounded-3xl border border-[var(--accent-100)] p-3 mx-auto w-fit shadow-sm">
-                      <img src={duitNowQrUrl} alt="DuitNow QR kedai" className="w-52 h-52 object-contain rounded-2xl mx-auto" />
+                      <img
+                        src={duitNowQrUrl}
+                        alt="DuitNow QR kedai"
+                        className="w-52 h-52 object-contain rounded-2xl mx-auto"
+                      />
                     </div>
                   ) : (
                     <div className="w-52 h-52 rounded-3xl bg-white border-2 border-dashed border-[var(--accent-200)] mx-auto flex flex-col items-center justify-center p-4">
-                      <div className="text-5xl mb-3">📱</div>
-                      <div className="text-gray-900 text-sm font-black">QR DuitNow belum diset</div>
-                      <div className="text-gray-400 text-xs mt-1 leading-relaxed">Owner perlu upload QR di Owner Dashboard → Tetapan → Setup Kedai.</div>
+                      <Smartphone
+                        size={44}
+                        className="text-[var(--accent-600)] mx-auto mb-3"
+                        strokeWidth={1.8}
+                      />
+                      <div className="text-gray-900 text-sm font-medium">
+                        QR DuitNow belum diset
+                      </div>
+                      <div className="text-gray-400 text-xs mt-1 leading-relaxed">
+                        Owner perlu upload QR di Owner Dashboard → Tetapan →
+                        Setup Kedai.
+                      </div>
                     </div>
                   )}
-                  <div className="text-gray-900 text-3xl font-black mt-4">{formatRM(total)}</div>
-                  <div className="text-[var(--accent-600)] text-xs font-bold mt-1">
-                    {duitNowQrUrl ? "Minta customer scan dan bayar jumlah ini." : "DuitNow belum boleh digunakan selagi QR belum diset."}
+                  <div className="text-gray-900 text-3xl font-medium mt-4">
+                    {formatRM(total)}
+                  </div>
+                  <div className="text-[var(--accent-600)] text-xs font-medium mt-1">
+                    {duitNowQrUrl
+                      ? "Minta customer scan dan bayar jumlah ini."
+                      : "DuitNow belum boleh digunakan selagi QR belum diset."}
                   </div>
                 </div>
 
-                {paymentError && <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl p-3 mb-3">⚠️ {paymentError}</div>}
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-100 text-red-600 text-xs font-medium rounded-2xl p-3 mb-3">
+                    {paymentError}
+                  </div>
+                )}
 
-                <button onClick={() => completePayment("duitnow")} disabled={saving || !duitNowQrUrl} className="w-full bg-[var(--accent-600)] text-white font-black py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all">
+                <button
+                  onClick={() => completePayment("duitnow")}
+                  disabled={saving || !duitNowQrUrl}
+                  className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                >
                   {saving ? "Mengesahkan..." : "Sahkan DuitNow Diterima"}
                 </button>
               </div>
             )}
 
-            <button onClick={paymentMode ? () => setPaymentMode(null) : closeCheckout} className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl text-sm active:scale-95 transition-all">
+            <button
+              onClick={paymentMode ? () => setPaymentMode(null) : closeCheckout}
+              className="w-full bg-gray-100 text-gray-600 font-medium py-3 rounded-2xl text-sm active:scale-95 transition-all"
+            >
               {paymentMode ? "Kembali" : "Batal"}
             </button>
           </div>
@@ -2002,24 +2995,78 @@ export default function StaffDashboardPage() {
         <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50">
           <div className="bg-white rounded-t-3xl p-6 w-full max-w-sm text-center">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
-            <div className="text-5xl mb-3">✅</div>
-            <h3 className="text-gray-900 font-bold text-xl">Bayaran Berjaya!</h3>
-            <div className="text-[var(--accent-600)] text-3xl font-black my-4">{formatRM(lastTotal)}</div>
+            <CircleCheck
+              size={52}
+              className="text-[var(--accent-600)] mx-auto mb-3"
+              strokeWidth={1.8}
+            />
+            <h3 className="text-gray-900 font-medium text-xl">
+              Bayaran Berjaya!
+            </h3>
+            <div className="text-[var(--accent-600)] text-3xl font-medium my-4">
+              {formatRM(lastTotal)}
+            </div>
             <div className="bg-gray-50 rounded-2xl p-4 mb-4 text-left">
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Kaedah bayaran</span><span className="text-gray-900 font-bold">{lastPaymentMethod || "-"}</span></div>
+              <div className="flex justify-between text-xs text-gray-500 py-1">
+                <span>Kaedah bayaran</span>
+                <span className="text-gray-900 font-medium">
+                  {lastPaymentMethod || "-"}
+                </span>
+              </div>
               {lastPaymentMethod === "Tunai" && (
                 <>
-                  <div className="flex justify-between text-xs text-gray-500 py-1"><span>Tunai diterima</span><span className="text-gray-900 font-bold">RM {lastCashReceived.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-xs text-gray-500 py-1"><span>Baki diberi</span><span className="text-[var(--accent-600)] font-bold">RM {lastCashChange.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-xs text-gray-500 py-1">
+                    <span>Tunai diterima</span>
+                    <span className="text-gray-900 font-medium">
+                      RM {lastCashReceived.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 py-1">
+                    <span>Baki diberi</span>
+                    <span className="text-[var(--accent-600)] font-medium">
+                      RM {lastCashChange.toFixed(2)}
+                    </span>
+                  </div>
                 </>
               )}
               <div className="border-t border-gray-200 my-2"></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Stok dikemaskini</span><span className="text-[var(--accent-600)]">✓</span></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>COGS direkod</span><span className="text-[var(--accent-600)]">✓</span></div>
-              <div className="flex justify-between text-xs text-gray-500 py-1"><span>Laporan dikemaskini</span><span className="text-[var(--accent-600)]">✓</span></div>
+              <div className="flex justify-between text-xs text-gray-500 py-1">
+                <span>Stok dikemaskini</span>
+                <Check
+                  size={14}
+                  className="text-[var(--accent-600)]"
+                  strokeWidth={2.2}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 py-1">
+                <span>COGS direkod</span>
+                <Check
+                  size={14}
+                  className="text-[var(--accent-600)]"
+                  strokeWidth={2.2}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 py-1">
+                <span>Laporan dikemaskini</span>
+                <Check
+                  size={14}
+                  className="text-[var(--accent-600)]"
+                  strokeWidth={2.2}
+                />
+              </div>
             </div>
-            <button onClick={() => { setShowSuccess(false); clearCart(); }} className="w-full bg-[var(--accent-600)] text-white font-bold py-4 rounded-2xl text-sm mb-3">Jualan Baru</button>
-            <button className="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl text-sm">📱 Resit WhatsApp</button>
+            <button
+              onClick={() => {
+                setShowSuccess(false);
+                clearCart();
+              }}
+              className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm mb-3"
+            >
+              Jualan Baru
+            </button>
+            <button className="w-full bg-gray-100 text-gray-600 font-medium py-3 rounded-2xl text-sm inline-flex items-center justify-center gap-2">
+              <Smartphone size={15} strokeWidth={2} /> Resit WhatsApp
+            </button>
           </div>
         </div>
       )}
@@ -2028,25 +3075,79 @@ export default function StaffDashboardPage() {
       {showTukarPassword && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <h3 className="text-gray-900 font-bold text-lg mb-6">🔑 Tukar Password</h3>
+            <h3 className="text-gray-900 font-medium text-lg mb-6 flex items-center gap-2">
+              <KeyRound
+                size={18}
+                className="text-[var(--accent-600)]"
+                strokeWidth={2}
+              />{" "}
+              Tukar Password
+            </h3>
             <div className="mb-3">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD SEMASA</label>
-              <input type="password" value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
+              <label className="text-gray-500 text-xs font-medium mb-1 block">
+                PASSWORD SEMASA
+              </label>
+              <input
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="••••••"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+              />
             </div>
             <div className="mb-3">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">PASSWORD BARU</label>
-              <input type="password" value={newPasswordStaff} onChange={(e) => setNewPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
+              <label className="text-gray-500 text-xs font-medium mb-1 block">
+                PASSWORD BARU
+              </label>
+              <input
+                type="password"
+                value={newPasswordStaff}
+                onChange={(e) => setNewPasswordStaff(e.target.value)}
+                placeholder="••••••"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+              />
             </div>
             <div className="mb-4">
-              <label className="text-gray-500 text-xs font-bold mb-1 block">CONFIRM PASSWORD BARU</label>
-              <input type="password" value={confirmPasswordStaff} onChange={(e) => setConfirmPasswordStaff(e.target.value)} placeholder="••••••" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]" />
+              <label className="text-gray-500 text-xs font-medium mb-1 block">
+                CONFIRM PASSWORD BARU
+              </label>
+              <input
+                type="password"
+                value={confirmPasswordStaff}
+                onChange={(e) => setConfirmPasswordStaff(e.target.value)}
+                placeholder="••••••"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+              />
             </div>
             {passwordMsgStaff && (
-              <div className={`text-xs font-bold mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("✅") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}>{passwordMsgStaff}</div>
+              <div
+                className={`text-xs font-medium mb-3 p-3 rounded-xl ${passwordMsgStaff.includes("berjaya") ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
+              >
+                {passwordMsgStaff}
+              </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => { setShowTukarPassword(false); setOldPassword(""); setNewPasswordStaff(""); setConfirmPasswordStaff(""); setPasswordMsgStaff(""); }} className="flex-1 bg-gray-100 text-gray-600 font-bold py-3 rounded-xl">Batal</button>
-              <button onClick={tukarPasswordStaff} disabled={!oldPassword || !newPasswordStaff || !confirmPasswordStaff} className="flex-1 bg-[var(--accent-600)] text-white font-bold py-3 rounded-xl disabled:opacity-50">Tukar</button>
+              <button
+                onClick={() => {
+                  setShowTukarPassword(false);
+                  setOldPassword("");
+                  setNewPasswordStaff("");
+                  setConfirmPasswordStaff("");
+                  setPasswordMsgStaff("");
+                }}
+                className="flex-1 bg-gray-100 text-gray-600 font-medium py-3 rounded-xl"
+              >
+                Batal
+              </button>
+              <button
+                onClick={tukarPasswordStaff}
+                disabled={
+                  !oldPassword || !newPasswordStaff || !confirmPasswordStaff
+                }
+                className="flex-1 bg-[var(--accent-600)] text-white font-medium py-3 rounded-xl disabled:opacity-50"
+              >
+                Tukar
+              </button>
             </div>
           </div>
         </div>
@@ -2054,15 +3155,24 @@ export default function StaffDashboardPage() {
 
       <style jsx global>{`
         @keyframes slideInLeft {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(0);
+          }
         }
         @keyframes orderPanelUp {
-          from { transform: translateY(12px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
+          from {
+            transform: translateY(12px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
         }
       `}</style>
-
     </div>
   );
 }
