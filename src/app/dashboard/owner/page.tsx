@@ -932,6 +932,8 @@ export default function OwnerDashboardPage() {
   const [activeInventoryTab, setActiveInventoryTab] = useState("inventory");
   const [recordsPage, setRecordsPage] = useState(1);
   const [receiptsPage, setReceiptsPage] = useState(1);
+  const [inventoriPage, setInventoriPage] = useState(1);
+  const [rumusanMenuPage, setRumusanMenuPage] = useState(1);
   const [activeSettingsTab, setActiveSettingsTab] = useState("kedai");
 
   // useEffect 1 — fetch session & kedai info
@@ -953,6 +955,14 @@ export default function OwnerDashboardPage() {
   useEffect(() => {
     setReceiptsPage(1);
   }, [activeReportTab, filter, customFrom, customTo, reportData.recentReceipts.length]);
+
+  useEffect(() => {
+    setInventoriPage(1);
+  }, [inventorySearch, selectedCategoryFilter]);
+
+  useEffect(() => {
+    setRumusanMenuPage(1);
+  }, [filter, customFrom, customTo]);
 
   async function fetchSessionAndKedai() {
     const session = getCookieSession();
@@ -3003,6 +3013,81 @@ export default function OwnerDashboardPage() {
     reportData.recentReceipts.length,
   );
 
+  const ITEMS_PER_PAGE = 20;
+
+  const inventoriTotalPages = Math.max(1, Math.ceil(filteredProduk.length / ITEMS_PER_PAGE));
+  const safeInventoriPage = Math.min(inventoriPage, inventoriTotalPages);
+  const paginatedInventori = filteredProduk.slice(
+    (safeInventoriPage - 1) * ITEMS_PER_PAGE,
+    safeInventoriPage * ITEMS_PER_PAGE,
+  );
+
+  const rumusanTotalPages = Math.max(1, Math.ceil(reportData.inventorySummary.length / ITEMS_PER_PAGE));
+  const safeRumusanPage = Math.min(rumusanMenuPage, rumusanTotalPages);
+  const paginatedRumusan = reportData.inventorySummary.slice(
+    (safeRumusanPage - 1) * ITEMS_PER_PAGE,
+    safeRumusanPage * ITEMS_PER_PAGE,
+  );
+
+  const PaginationUI = ({
+    currentPage,
+    totalPages,
+    totalItems,
+    itemLabel,
+    onPageChange,
+  }: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemLabel: string;
+    onPageChange: (page: number) => void;
+  }) => {
+    const getPageNumbers = () => {
+      const pages: number[] = [];
+      const start = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+      const end = Math.min(totalPages, start + 4);
+      for (let i = start; i <= end; i++) pages.push(i);
+      return pages;
+    };
+    return (
+      <div className="flex justify-between items-center px-5 py-4 mt-0 border-t border-gray-100">
+        <span className="text-xs text-gray-400 font-medium">
+          Halaman {currentPage} / {totalPages} &bull; {totalItems} {itemLabel} dijumpai
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            className="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+          >
+            ←
+          </button>
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`w-8 h-8 rounded-xl text-xs font-medium flex items-center justify-center transition-all ${
+                page === currentPage
+                  ? "bg-[var(--accent-600)] text-white"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+          >
+            →
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
   const FilterBar = () => (
     <div className="relative inline-block">
       <button
@@ -3420,7 +3505,7 @@ export default function OwnerDashboardPage() {
           desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
         }`}
       >
-        <div className="p-4 max-w-2xl mx-auto lg:max-w-7xl lg:px-6">
+        <div className="p-4 mx-auto lg:max-w-none lg:px-8">
           {/* DASHBOARD */}
           {activeTab === "dashboard" && (
             <div>
@@ -4166,7 +4251,7 @@ export default function OwnerDashboardPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                              {filteredProduk.map((p, index) => {
+                              {paginatedInventori.map((p, index) => {
                                 const margin = getProductMargin(p);
                                 const category = resolveProductCategory(p);
                                 return (
@@ -4254,7 +4339,7 @@ export default function OwnerDashboardPage() {
                         </div>
 
                         <div className="lg:hidden p-4 space-y-3">
-                          {filteredProduk.map((p, index) => {
+                          {paginatedInventori.map((p, index) => {
                             const margin = getProductMargin(p);
                             const category = resolveProductCategory(p);
                             return (
@@ -4348,6 +4433,13 @@ export default function OwnerDashboardPage() {
                             );
                           })}
                         </div>
+                        <PaginationUI
+                          currentPage={safeInventoriPage}
+                          totalPages={inventoriTotalPages}
+                          totalItems={filteredProduk.length}
+                          itemLabel="menu"
+                          onPageChange={setInventoriPage}
+                        />
                       </>
                     )}
                   </div>
@@ -4440,7 +4532,7 @@ export default function OwnerDashboardPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                              {reportData.inventorySummary.map((item) => {
+                              {paginatedRumusan.map((item) => {
                                 const status =
                                   item.stokAkhir <= 0
                                     ? "Habis"
@@ -4488,7 +4580,7 @@ export default function OwnerDashboardPage() {
                         </div>
 
                         <div className="lg:hidden p-4 space-y-3">
-                          {reportData.inventorySummary.map((item) => {
+                          {paginatedRumusan.map((item) => {
                             const status =
                               item.stokAkhir <= 0
                                 ? "Habis"
@@ -4554,6 +4646,13 @@ export default function OwnerDashboardPage() {
                             );
                           })}
                         </div>
+                        <PaginationUI
+                          currentPage={safeRumusanPage}
+                          totalPages={rumusanTotalPages}
+                          totalItems={reportData.inventorySummary.length}
+                          itemLabel="menu"
+                          onPageChange={setRumusanMenuPage}
+                        />
                       </>
                     )}
                   </div>
@@ -4729,38 +4828,13 @@ export default function OwnerDashboardPage() {
                           })}
                         </div>
 
-                        {reportData.stockMovements.length > RECORDS_PER_PAGE && (
-                          <div className="border-t border-gray-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div className="text-gray-400 text-xs font-medium text-center sm:text-left">
-                              Papar {recordsStartIndex}–{recordsEndIndex} daripada {reportData.stockMovements.length} rekod
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() =>
-                                  setRecordsPage((page) => Math.max(1, page - 1))
-                                }
-                                disabled={safeRecordsPage <= 1}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
-                              >
-                                Sebelum
-                              </button>
-                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-medium">
-                                {safeRecordsPage} / {recordsTotalPages}
-                              </div>
-                              <button
-                                onClick={() =>
-                                  setRecordsPage((page) =>
-                                    Math.min(recordsTotalPages, page + 1),
-                                  )
-                                }
-                                disabled={safeRecordsPage >= recordsTotalPages}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
-                              >
-                                Seterusnya
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                        <PaginationUI
+                          currentPage={safeRecordsPage}
+                          totalPages={recordsTotalPages}
+                          totalItems={reportData.stockMovements.length}
+                          itemLabel="rekod"
+                          onPageChange={setRecordsPage}
+                        />
                       </>
                     )}
                   </div>
@@ -5780,28 +5854,28 @@ export default function OwnerDashboardPage() {
                     ) : (
                       <>
                         <div className="hidden lg:block overflow-x-auto">
-                          <table className="w-full table-fixed text-left text-xs">
+                          <table className="w-full min-w-[700px] text-left text-xs">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-100">
-                                <th className="w-[17%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                   Resit No
                                 </th>
-                                <th className="w-[13%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                   No Meja
                                 </th>
-                                <th className="w-[15%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                   Tarikh
                                 </th>
-                                <th className="w-[11%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                   Masa
                                 </th>
-                                <th className="w-[17%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                                   Cara Pembayaran
                                 </th>
-                                <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">
                                   Jumlah
                                 </th>
-                                <th className="w-[15%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right">
+                                <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-right whitespace-nowrap">
                                   Action
                                 </th>
                               </tr>
@@ -5827,10 +5901,16 @@ export default function OwnerDashboardPage() {
                                     {formatReceiptTimeOnly(receipt.created_at)}
                                   </td>
                                   <td className="px-4 py-4">
-                                    <span className="inline-flex items-center gap-1.5 bg-[var(--accent-50)] border border-[var(--accent-100)] text-[var(--accent-700)] text-xs font-medium px-3 py-1.5 rounded-full">
-                                      <CreditCard size={13} strokeWidth={2} />
-                                      {formatPaymentMethod(receipt.payment_method)}
-                                    </span>
+                                    {(() => {
+                                      const method = formatPaymentMethod(receipt.payment_method);
+                                      const isTunai = method === "Tunai";
+                                      return (
+                                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border ${isTunai ? "bg-gray-100 text-gray-700 border-gray-200" : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"}`}>
+                                          <CreditCard size={13} strokeWidth={2} />
+                                          {method}
+                                        </span>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="px-4 py-4 text-right text-gray-900 font-medium">
                                     {formatRM(receipt.total)}
@@ -5861,77 +5941,57 @@ export default function OwnerDashboardPage() {
                           {paginatedReceipts.map((receipt) => (
                             <div
                               key={`receipt-card-${receipt.id}`}
-                              className="bg-gray-50 rounded-3xl p-4 border border-gray-100"
+                              className="bg-white rounded-3xl px-4 py-3.5 border border-gray-100 flex items-center gap-3"
                             >
-                              <div className="flex items-start justify-between gap-3 mb-3">
-                                <div className="min-w-0">
-                                  <div className="font-mono text-xs font-medium text-gray-900 truncate">
-                                    #{receipt.id.slice(0, 8).toUpperCase()}
-                                  </div>
-                                  <div className="text-gray-400 text-xs font-medium mt-1">
-                                    {displayMejaLabel(receipt.meja)} · {formatReceiptDateOnly(receipt.created_at)} · {formatReceiptTimeOnly(receipt.created_at)}
-                                  </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-mono text-xs font-medium text-gray-900 truncate">
+                                  #{receipt.id.slice(0, 8).toUpperCase()}
                                 </div>
-                                <div className="text-right shrink-0">
+                                <div className="text-gray-400 text-xs font-medium mt-0.5">
+                                  {displayMejaLabel(receipt.meja)} · {formatReceiptDateOnly(receipt.created_at)} · {formatReceiptTimeOnly(receipt.created_at)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="text-right">
                                   <div className="text-gray-900 text-sm font-medium">
                                     {formatRM(receipt.total)}
                                   </div>
-                                  <div className="text-[var(--accent-700)] bg-[var(--accent-50)] border border-[var(--accent-100)] rounded-full px-2 py-0.5 text-[10px] font-medium mt-1 inline-block">
-                                    {formatPaymentMethod(receipt.payment_method)}
-                                  </div>
+                                  {(() => {
+                                    const method = formatPaymentMethod(receipt.payment_method);
+                                    const isTunai = method === "Tunai";
+                                    return (
+                                      <div className={`rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5 inline-block border ${isTunai ? "bg-gray-100 text-gray-700 border-gray-200" : "text-[var(--accent-700)] bg-[var(--accent-50)] border-[var(--accent-100)]"}`}>
+                                        {method}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
                                 <button
                                   onClick={() => setSelectedReceipt(receipt)}
-                                  className="bg-gray-900 text-white text-xs font-medium py-2.5 rounded-2xl active:scale-95 transition-all"
+                                  className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center active:scale-95 transition-all shrink-0"
+                                  aria-label="View receipt"
                                 >
-                                  View
+                                  <Search size={15} strokeWidth={2} />
                                 </button>
                                 <button
                                   onClick={() => downloadReceipt(receipt)}
-                                  className="bg-[var(--accent-600)] text-white text-xs font-medium py-2.5 rounded-2xl active:scale-95 transition-all"
+                                  className="w-10 h-10 rounded-full bg-[var(--accent-600)] text-white flex items-center justify-center active:scale-95 transition-all shrink-0"
+                                  aria-label="Download receipt"
                                 >
-                                  Download
+                                  <FileText size={15} strokeWidth={2} />
                                 </button>
                               </div>
                             </div>
                           ))}
                         </div>
 
-                        {reportData.recentReceipts.length > RECEIPTS_PER_PAGE && (
-                          <div className="border-t border-gray-50 px-4 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <div className="text-gray-400 text-xs font-medium text-center sm:text-left">
-                              Papar {receiptsStartIndex}–{receiptsEndIndex} daripada {reportData.recentReceipts.length} resit
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() =>
-                                  setReceiptsPage((page) => Math.max(1, page - 1))
-                                }
-                                disabled={safeReceiptsPage <= 1}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
-                              >
-                                Sebelum
-                              </button>
-                              <div className="min-w-20 text-center px-3 py-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-700 text-xs font-medium">
-                                {safeReceiptsPage} / {receiptsTotalPages}
-                              </div>
-                              <button
-                                onClick={() =>
-                                  setReceiptsPage((page) =>
-                                    Math.min(receiptsTotalPages, page + 1),
-                                  )
-                                }
-                                disabled={safeReceiptsPage >= receiptsTotalPages}
-                                className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 active:scale-95 transition-all"
-                              >
-                                Seterusnya
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                        <PaginationUI
+                          currentPage={safeReceiptsPage}
+                          totalPages={receiptsTotalPages}
+                          totalItems={reportData.recentReceipts.length}
+                          itemLabel="resit"
+                          onPageChange={setReceiptsPage}
+                        />
                       </>
                     )}
                   </div>
@@ -5967,29 +6027,29 @@ export default function OwnerDashboardPage() {
                 </div>
               ) : (
                 <>
-                  <div className="hidden lg:block bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-                    <table className="w-full table-fixed text-left text-xs">
+                  <div className="hidden lg:block bg-white rounded-3xl border border-gray-100 shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-xs">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="w-[8%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                             Icon
                           </th>
-                          <th className="w-[22%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                             Nama
                           </th>
-                          <th className="w-[20%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                             ID Pengguna
                           </th>
-                          <th className="w-[16%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap">
                             Jawatan
                           </th>
-                          <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center whitespace-nowrap">
                             Suspend
                           </th>
-                          <th className="w-[12%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center whitespace-nowrap">
                             Ubah Password
                           </th>
-                          <th className="w-[10%] px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center">
+                          <th className="px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide text-center whitespace-nowrap">
                             Remove
                           </th>
                         </tr>
@@ -6048,7 +6108,7 @@ export default function OwnerDashboardPage() {
                               <td className="px-4 py-4 text-center">
                                 <button
                                   onClick={() => toggleStaff(s.id, s.is_active)}
-                                  className={`inline-flex items-center justify-center px-3 py-2 rounded-xl border text-xs font-medium active:scale-95 transition-all ${
+                                  className={`inline-flex items-center justify-center px-3 py-1.5 rounded-full border text-[11px] font-medium active:scale-95 transition-all whitespace-nowrap ${
                                     s.is_active
                                       ? "bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
                                       : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-200)] hover:bg-[var(--accent-100)]"
@@ -6185,7 +6245,7 @@ export default function OwnerDashboardPage() {
               </div>
 
               {activeSettingsTab === "kedai" && (
-                <div className="max-w-3xl space-y-8">
+                <div className="w-full lg:max-w-3xl mx-auto space-y-8">
                   {/* Setup Meja */}
                   <div className="bg-white rounded-2xl border border-[#e8e7e0] overflow-hidden shadow-sm">
                     <div className="px-5 sm:px-6 py-5 border-b border-[#f0efe8] flex items-start justify-between gap-4">
@@ -6557,15 +6617,8 @@ export default function OwnerDashboardPage() {
               )}
 
               {activeSettingsTab === "theme" && (
+                <div className="w-full lg:max-w-2xl mx-auto">
                 <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                  <div className="flex justify-end mb-5">
-                    <span
-                      className={`${selectedAccent.sample} text-white text-xs font-medium px-3 py-1.5 rounded-full`}
-                    >
-                      {selectedAccent.label}
-                    </span>
-                  </div>
-
                   {themeMsg && (
                     <div
                       className={`text-xs font-medium mb-4 p-3 rounded-xl ${isSuccessMessage(themeMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
@@ -6575,13 +6628,20 @@ export default function OwnerDashboardPage() {
                   )}
 
                   <div className="mb-6">
-                    <div className="mb-4">
-                      <h4 className="text-gray-900 text-sm font-medium">
-                        Pilih Tema
-                      </h4>
-                      <p className="text-gray-400 text-xs font-medium mt-1">
-                        Sesuaikan paparan workspace owner dashboard.
-                      </p>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div>
+                        <h4 className="text-gray-900 text-sm font-medium">
+                          Pilih Tema
+                        </h4>
+                        <p className="text-gray-400 text-xs font-medium mt-1">
+                          Sesuaikan paparan workspace owner dashboard.
+                        </p>
+                      </div>
+                      <span
+                        className={`${selectedAccent.sample} text-white text-xs font-medium px-3 py-1.5 rounded-full shrink-0`}
+                      >
+                        {selectedAccent.label}
+                      </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8">
@@ -6701,60 +6761,74 @@ export default function OwnerDashboardPage() {
                     </button>
                   </div>
                 </div>
+                </div>
               )}
 
               {activeSettingsTab === "password" && (
-                <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                  <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-medium mb-1 block">
-                      PASSWORD SEMASA
-                    </label>
-                    <input
-                      type="password"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="••••••"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="text-gray-500 text-xs font-medium mb-1 block">
-                      PASSWORD BARU
-                    </label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="text-gray-500 text-xs font-medium mb-1 block">
-                      CONFIRM PASSWORD BARU
-                    </label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••"
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
-                    />
-                  </div>
-                  {passwordMsg && (
-                    <div
-                      className={`text-xs font-medium mb-3 p-3 rounded-xl ${isSuccessMessage(passwordMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}
-                    >
-                      {passwordMsg}
+                <div className="w-full lg:max-w-md mx-auto">
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 mb-4 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--accent-50)] border border-[var(--accent-100)] flex items-center justify-center text-[var(--accent-700)] text-lg font-medium shrink-0">
+                      {String(sessionUser?.nama || sessionUser?.username || "O").slice(0, 1).toUpperCase()}
                     </div>
-                  )}
-                  <div className="flex justify-end">
+                    <div className="min-w-0">
+                      <div className="text-gray-900 text-sm font-medium truncate">
+                        {sessionUser?.nama || sessionUser?.username || "Owner"}
+                      </div>
+                      <div className="text-gray-400 text-xs mt-0.5 truncate">
+                        {kedaiInfo?.nama || "Kedai Saya"} &bull; Owner
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                    <h3 className="text-gray-900 font-medium text-sm flex items-center gap-2 mb-5">
+                      <KeyRound size={16} className="text-[var(--accent-600)]" strokeWidth={2} />
+                      Tukar Password
+                    </h3>
+                    <div className="mb-3">
+                      <label className="text-gray-500 text-xs font-medium mb-1 block">
+                        PASSWORD SEMASA
+                      </label>
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-gray-500 text-xs font-medium mb-1 block">
+                        PASSWORD BARU
+                      </label>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label className="text-gray-500 text-xs font-medium mb-1 block">
+                        CONFIRM PASSWORD BARU
+                      </label>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••"
+                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-sm outline-none focus:border-[var(--accent-500)]"
+                      />
+                    </div>
+                    {passwordMsg && (
+                      <div className={`text-xs font-medium mb-3 p-3 rounded-xl ${isSuccessMessage(passwordMsg) ? "bg-[var(--accent-50)] text-[var(--accent-700)]" : "bg-red-50 text-red-600"}`}>
+                        {passwordMsg}
+                      </div>
+                    )}
                     <button
                       onClick={tukarPassword}
-                      disabled={
-                        !currentPassword || !newPassword || !confirmPassword
-                      }
-                      className="h-10 px-5 bg-[var(--accent-600)] text-white font-medium rounded-xl text-xs disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
+                      disabled={!currentPassword || !newPassword || !confirmPassword}
+                      className="w-full bg-[var(--accent-600)] text-white font-medium py-3 rounded-2xl text-sm disabled:opacity-50 active:scale-95 transition-all hover:bg-[var(--accent-700)]"
                     >
                       Tukar Password
                     </button>

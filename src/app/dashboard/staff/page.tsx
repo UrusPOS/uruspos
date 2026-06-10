@@ -622,7 +622,7 @@ export default function StaffDashboardPage() {
       `Receipt: #${receiptNo}`,
       `Tarikh: ${formatReceiptDate(receipt.created_at)}`,
       `Jenis: ${displayMejaLabel(receipt.meja)}`,
-      `Bayaran: ${receipt.payment_method || "Belum direkod"}`,
+      `Bayaran: ${formatPaymentLabel(receipt.payment_method)}`,
       "",
       "ITEM",
       ...receipt.order_items.flatMap((item) => {
@@ -2886,9 +2886,17 @@ export default function StaffDashboardPage() {
                               {displayMejaLabel(receipt.meja)} ·{" "}
                               {formatReceiptDate(receipt.created_at)}
                             </div>
-                            <div className="text-gray-400 text-xs mt-1">
-                              {receipt.payment_method || "Belum direkod"}
-                            </div>
+                            {(() => {
+                              const method = formatPaymentLabel(receipt.payment_method);
+                              const isTunai = method === "Tunai";
+                              return (
+                                <div className="mt-1">
+                                  <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${isTunai ? "bg-gray-100 text-gray-600 border-gray-200" : "bg-[var(--accent-50)] text-[var(--accent-700)] border-[var(--accent-100)]"}`}>
+                                    {method}
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="text-[var(--accent-600)] text-sm font-medium whitespace-nowrap mr-1">
