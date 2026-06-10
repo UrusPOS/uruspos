@@ -3420,7 +3420,7 @@ export default function OwnerDashboardPage() {
           desktopSidebarExpanded ? "lg:ml-64" : "lg:ml-20"
         }`}
       >
-        <div className="p-4 max-w-2xl mx-auto lg:max-w-5xl lg:px-6">
+        <div className="p-4 max-w-2xl mx-auto lg:max-w-7xl lg:px-6">
           {/* DASHBOARD */}
           {activeTab === "dashboard" && (
             <div>
@@ -3466,8 +3466,8 @@ export default function OwnerDashboardPage() {
                 </button>
               )}
 
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-5">
-                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-5 mb-5">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 xl:p-6 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
@@ -3486,7 +3486,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 xl:p-6 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
@@ -3505,7 +3505,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 xl:p-6 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
@@ -3524,7 +3524,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 shadow-sm min-h-[118px] sm:min-h-[124px]">
+                <div className="bg-white rounded-3xl border border-gray-100 p-4 sm:p-5 xl:p-6 shadow-sm min-h-[118px] sm:min-h-[124px]">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-gray-500 text-[10px] sm:text-xs font-medium">
@@ -3544,7 +3544,7 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 mb-4 overflow-hidden">
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 xl:p-6 mb-4 overflow-hidden">
                 <div className="flex items-start justify-between gap-3 mb-5">
                   <div>
                     <div className="text-gray-900 font-medium text-sm">
@@ -3735,8 +3735,8 @@ export default function OwnerDashboardPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden lg:col-span-5">
                   <div className="p-5 border-b border-gray-50 flex items-start justify-between gap-3">
                     <div>
                       <div className="text-gray-900 font-medium text-sm">
@@ -3807,7 +3807,7 @@ export default function OwnerDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 lg:col-span-7">
                   <div className="flex items-start justify-between gap-3 mb-5">
                     <div>
                       <div className="text-gray-900 font-medium text-sm">
