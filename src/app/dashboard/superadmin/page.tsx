@@ -441,6 +441,9 @@ export default function SuperadminDashboardPage() {
     kedaiNama: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState("utama");
+  const [kedaiPage, setKedaiPage] = useState(1);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(false);
   const [showCredentials, setShowCredentials] = useState<string | null>(null);
@@ -1137,6 +1140,69 @@ export default function SuperadminDashboardPage() {
       ? Math.max(...topKedaiBySales.map((k) => Number(k.jualan || 0)))
       : 0;
 
+  const PaginationUI = ({
+    currentPage,
+    totalPages,
+    totalItems,
+    itemLabel,
+    onPageChange,
+  }: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemLabel: string;
+    onPageChange: (page: number) => void;
+  }) => {
+    const getPageNumbers = () => {
+      const pages: number[] = [];
+      const maxVisible = 5;
+      let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+      let end = start + maxVisible - 1;
+      if (end > totalPages) {
+        end = totalPages;
+        start = Math.max(1, end - maxVisible + 1);
+      }
+      for (let i = start; i <= end; i++) pages.push(i);
+      return pages;
+    };
+    return (
+      <div className="flex justify-between items-center px-5 py-4 mt-0 border-t border-gray-100">
+        <span className="text-xs text-gray-400 font-medium">
+          Halaman {currentPage} / {totalPages} &bull; {totalItems} {itemLabel} dijumpai
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+            className="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+          >
+            ←
+          </button>
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className={`w-8 h-8 rounded-xl text-xs font-medium flex items-center justify-center transition-all ${
+                page === currentPage
+                  ? "bg-green-600 text-white"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+            className="w-8 h-8 rounded-xl border border-gray-200 bg-white text-gray-600 text-xs font-medium flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
+          >
+            →
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const navItems = [
     { id: "utama", label: "Utama", icon: LayoutDashboard },
     { id: "klien", label: "Kedai", icon: Store },
@@ -1310,7 +1376,7 @@ export default function SuperadminDashboardPage() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 sm:p-6 max-w-6xl mx-auto w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:px-8 w-full">
           {activeTab === "utama" && (
             <div>
               <div className="flex items-center justify-between mb-6">
@@ -1727,7 +1793,7 @@ export default function SuperadminDashboardPage() {
                       </thead>
 
                       <tbody className="divide-y divide-gray-50">
-                        {kedaiList.map((kedai) => {
+                        {kedaiList.slice((kedaiPage - 1) * ITEMS_PER_PAGE, kedaiPage * ITEMS_PER_PAGE).map((kedai) => {
                           const s = monthlyKedaiStats[kedai.id];
 
                           return (
@@ -1799,7 +1865,7 @@ export default function SuperadminDashboardPage() {
                   </div>
 
                   <div className="md:hidden flex flex-col gap-3">
-                    {kedaiList.map((kedai) => {
+                    {kedaiList.slice((kedaiPage - 1) * ITEMS_PER_PAGE, kedaiPage * ITEMS_PER_PAGE).map((kedai) => {
                       const s = monthlyKedaiStats[kedai.id];
 
                       return (
@@ -1862,6 +1928,13 @@ export default function SuperadminDashboardPage() {
                       </div>
                     )}
                   </div>
+                  <PaginationUI
+                    currentPage={kedaiPage}
+                    totalPages={Math.max(1, Math.ceil(kedaiList.length / ITEMS_PER_PAGE))}
+                    totalItems={kedaiList.length}
+                    itemLabel="kedai"
+                    onPageChange={setKedaiPage}
+                  />
                 </>
               )}
             </div>
@@ -2004,7 +2077,7 @@ export default function SuperadminDashboardPage() {
                       </thead>
 
                       <tbody className="divide-y divide-gray-50">
-                        {invoiceList.map((invoice) => {
+                        {invoiceList.slice((invoicePage - 1) * ITEMS_PER_PAGE, invoicePage * ITEMS_PER_PAGE).map((invoice) => {
                           const status = invoiceStatus(invoice);
 
                           return (
@@ -2100,7 +2173,7 @@ export default function SuperadminDashboardPage() {
                   </div>
 
                   <div className="md:hidden flex flex-col gap-3">
-                    {invoiceList.map((invoice) => {
+                    {invoiceList.slice((invoicePage - 1) * ITEMS_PER_PAGE, invoicePage * ITEMS_PER_PAGE).map((invoice) => {
                       const status = invoiceStatus(invoice);
 
                       return (
@@ -2196,6 +2269,13 @@ export default function SuperadminDashboardPage() {
                       </div>
                     )}
                   </div>
+                  <PaginationUI
+                    currentPage={invoicePage}
+                    totalPages={Math.max(1, Math.ceil(invoiceList.length / ITEMS_PER_PAGE))}
+                    totalItems={invoiceList.length}
+                    itemLabel="invoice"
+                    onPageChange={setInvoicePage}
+                  />
                 </>
               )}
             </div>
