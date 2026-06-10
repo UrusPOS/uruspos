@@ -36,6 +36,7 @@ type Order = {
   preparing_at: string | null;
   completed_at: string | null;
   order_number: string | null;
+  created_by: string | null;
   order_items: OrderItem[];
 };
 
@@ -94,6 +95,7 @@ export default function KitchenDashboardPage() {
     if (session?.kedai_id) {
       setKedaiId(session.kedai_id);
       fetchKedaiNama(session.kedai_id);
+      if (session.id) registerKitchenPush(session.id, session.kedai_id);
     }
     if (session?.nama) setKitchenNama(session.nama);
 
@@ -129,6 +131,47 @@ export default function KitchenDashboardPage() {
     const { data } = (await supabase.from("kedai").select("nama, accent_color").eq("id", kId).single()) as any;
     if (data?.nama) setKedaiNama(data.nama);
     if (data?.accent_color) setAccentColor(data.accent_color);
+  }
+
+  async function registerKitchenPush(userId: string, kId: string) {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const existingSub = await registration.pushManager.getSubscription();
+      const subscription = existingSub || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+      });
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription, user_id: userId, kedai_id: kId, role: "kitchen" }),
+      });
+    } catch (err) {
+      console.error("Kitchen push registration error:", err);
+    }
+  }
+
+  async function sendPushToStaff(order: Order, title: string, body: string) {
+    if (!order.created_by || !kedaiId) return;
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_user_id: order.created_by,
+          kedai_id: kedaiId,
+          title,
+          body,
+          tag: `order-${order.id}`,
+        }),
+      });
+    } catch (err) {
+      console.error("Send push error:", err);
+    }
   }
 
   async function fetchOrders() {
@@ -191,6 +234,8 @@ export default function KitchenDashboardPage() {
       .from("orders")
       .update({ status: "preparing", preparing_at: new Date().toISOString() } as any)
       .eq("id", id);
+    const order = orders.find((o) => o.id === id);
+    if (order) await sendPushToStaff(order, "🔥 Sedang Disiapkan", `${formatMeja(order.meja)} — Order sedang disiapkan oleh dapur.`);
     fetchOrders();
   }
 
@@ -199,6 +244,8 @@ export default function KitchenDashboardPage() {
       .from("orders")
       .update({ status: "done", completed_at: new Date().toISOString() } as any)
       .eq("id", id);
+    const order = orders.find((o) => o.id === id);
+    if (order) await sendPushToStaff(order, "✅ Order Siap!", `${formatMeja(order.meja)} — Order siap! Boleh hantar ke meja.`);
     fetchOrders();
   }
 

@@ -186,6 +186,7 @@ export default function StaffDashboardPage() {
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [staffNama, setStaffNama] = useState("Staff");
+  const [staffUserId, setStaffUserId] = useState<string | null>(null);
   const [kedaiInfo, setKedaiInfo] = useState<{
     nama: string;
     logo_url?: string | null;
@@ -836,6 +837,10 @@ export default function StaffDashboardPage() {
       kId = session.kedai_id;
       setKedaiId(kId);
       setStaffNama(session.nama);
+      if (session.id) {
+        setStaffUserId(session.id);
+        registerPushSubscription(session.id, kId);
+      }
     }
     if (!kId) {
       setLoading(false);
@@ -1052,6 +1057,55 @@ export default function StaffDashboardPage() {
   const cashReceivedNumber = Number(cashReceived || 0);
   const cashBalance = cashReceivedNumber - total;
 
+  async function sendPushToKitchen(kId: string, meja: string, itemCount: number) {
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_role: "kitchen",
+          kedai_id: kId,
+          title: "🛎 Order Baru Masuk!",
+          body: `${meja} — ${itemCount} item. Sila siapkan.`,
+          tag: "new-order",
+        }),
+      });
+    } catch (err) {
+      console.error("Send push to kitchen error:", err);
+    }
+  }
+
+  async function registerPushSubscription(userId: string, kId: string) {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+
+      const existingSub = await registration.pushManager.getSubscription();
+      const subscription = existingSub || await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+      });
+
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription,
+          user_id: userId,
+          kedai_id: kId,
+          role: "staff",
+        }),
+      });
+    } catch (err) {
+      console.error("Push registration error:", err);
+    }
+  }
+
   async function sendOrder() {
     if (cartItems.length === 0 || !kedaiId) return;
     setSaving(true);
@@ -1073,6 +1127,7 @@ export default function StaffDashboardPage() {
           sst_amount: sstAmount,
           total,
           kedai_id: kedaiId,
+          created_by: staffUserId,
         } as any)
         .select()
         .single()) as any;
@@ -1117,6 +1172,10 @@ export default function StaffDashboardPage() {
     setCurrentOrderId(orderId);
     setOrderSent(true);
     setSaving(false);
+
+    // Notify kitchen
+    const itemCount = cartItems.reduce((t, i) => t + i.qty, 0);
+    if (kedaiId) await sendPushToKitchen(kedaiId, currentMeja, itemCount);
   }
 
   function resetPaymentState() {
