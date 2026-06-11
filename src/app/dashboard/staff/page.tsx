@@ -1157,7 +1157,7 @@ export default function StaffDashboardPage() {
       .from("orders")
       .update({
         meja: currentMeja,
-        status: "preparing",
+        status: "pending",
         subtotal,
         service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
         service_charge_rate: serviceChargeRate,
