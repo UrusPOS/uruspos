@@ -1,5 +1,6 @@
 "use client";
 
+import TetapanPage from "@/app/dashboard/superadmin/tetapan/page";
 import { useEffect, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabase";
@@ -2299,23 +2300,9 @@ export default function SuperadminDashboardPage() {
             </div>
           )}
 
-          {activeTab === "tetapan" && (
-            <div>
-              <div className="mb-6">
-                <h1 className="text-gray-900 font-semibold text-xl">Tetapan</h1>
-                <p className="text-gray-400 text-sm mt-0.5">
-                  Konfigurasi sistem
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-                <Settings size={32} className="text-gray-200 mx-auto mb-3" />
-                <div className="text-gray-400 text-sm">
-                  Tetapan sistem akan ditambah.
-                </div>
-              </div>
-            </div>
-          )}
+        {activeTab === "tetapan" && (
+        <TetapanPage />
+        )}
         </main>
       </div>
 
