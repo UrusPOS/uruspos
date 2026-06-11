@@ -52,11 +52,14 @@ import {
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  Legend,
 } from "recharts";
 
 // Safe icon aliases — replaces lucide icons that may not exist in older versions
@@ -929,6 +932,9 @@ export default function OwnerDashboardPage() {
   const [pendingCustomFrom, setPendingCustomFrom] = useState("");
   const [pendingCustomTo, setPendingCustomTo] = useState("");
   const [activeReportTab, setActiveReportTab] = useState("sales-summary");
+  const [kitchenOrders, setKitchenOrders] = useState<any[]>([]);
+  const [kitchenPage, setKitchenPage] = useState(1);
+  const [loadingKitchen, setLoadingKitchen] = useState(false);
   const [activeInventoryTab, setActiveInventoryTab] = useState("inventory");
   const [recordsPage, setRecordsPage] = useState(1);
   const [receiptsPage, setReceiptsPage] = useState(1);
@@ -955,6 +961,13 @@ export default function OwnerDashboardPage() {
   useEffect(() => {
     setReceiptsPage(1);
   }, [activeReportTab, filter, customFrom, customTo, reportData.recentReceipts.length]);
+
+  useEffect(() => {
+    if (activeReportTab === "kitchen-performance" || activeReportTab === "kitchen-records") {
+      fetchKitchenOrders();
+    }
+    setKitchenPage(1);
+  }, [activeReportTab, filter, customFrom, customTo]);
 
   useEffect(() => {
     setInventoriPage(1);
@@ -2866,6 +2879,18 @@ export default function OwnerDashboardPage() {
       label: "Rekod Resit",
       description: "Senarai resit jualan",
     },
+    {
+      id: "kitchen-performance",
+      icon: ChefHat,
+      label: "Prestasi Dapur",
+      description: "Avg masa tunggu & masak",
+    },
+    {
+      id: "kitchen-records",
+      icon: ClipboardList,
+      label: "Rekod Persiapan",
+      description: "Sejarah pesanan yang disiapkan",
+    },
   ];
 
   const inventoryMenuItems = [
@@ -2946,6 +2971,43 @@ export default function OwnerDashboardPage() {
     setShowReportSubmenu(false);
     setShowSettingsSubmenu(false);
     setShowMobileMenu(false);
+  }
+
+  async function fetchKitchenOrders() {
+    if (!sessionUser?.kedai_id) return;
+    setLoadingKitchen(true);
+
+    const now = new Date();
+    let from: Date;
+    let to: Date | null = null;
+
+    if (filter === "hari_ini") {
+      from = new Date(now); from.setHours(0, 0, 0, 0);
+    } else if (filter === "minggu_ini") {
+      from = new Date(now); from.setDate(now.getDate() - now.getDay()); from.setHours(0, 0, 0, 0);
+    } else if (filter === "bulan_ini") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filter === "custom" && customFrom) {
+      from = new Date(customFrom); from.setHours(0, 0, 0, 0);
+      if (customTo) { to = new Date(customTo); to.setHours(23, 59, 59, 999); }
+    } else {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    let query = supabase
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("kedai_id", sessionUser.kedai_id)
+      .eq("status", "done")
+      .not("preparing_at", "is", null)
+      .gte("created_at", from.toISOString())
+      .order("completed_at", { ascending: false });
+
+    if (to) query = query.lte("created_at", to.toISOString());
+
+    const { data, error } = await query as any;
+    if (!error) setKitchenOrders(data || []);
+    setLoadingKitchen(false);
   }
 
   function changeReportTab(reportTabId: string) {
@@ -5997,6 +6059,193 @@ export default function OwnerDashboardPage() {
                   </div>
                 </>
               )}
+
+              {activeReportTab === "kitchen-performance" && (
+                <>
+                  {loadingKitchen ? (
+                    <div className="text-center py-10 text-gray-400 text-sm">Memuatkan...</div>
+                  ) : kitchenOrders.length === 0 ? (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-12 text-center">
+                      <ChefHat size={34} className="text-gray-300 mx-auto mb-3" />
+                      <div className="text-gray-900 text-sm font-medium">Tiada data prestasi dapur</div>
+                      <div className="text-gray-400 text-xs font-medium mt-1">Belum ada order yang disiapkan untuk tempoh ini.</div>
+                    </div>
+                  ) : (() => {
+                    const validOrders = kitchenOrders.filter((o: any) => o.preparing_at && o.completed_at);
+                    const avgWait = validOrders.length > 0 ? Math.round(validOrders.reduce((sum: number, o: any) => sum + (new Date(o.preparing_at).getTime() - new Date(o.created_at).getTime()) / 60000, 0) / validOrders.length) : 0;
+                    const avgCook = validOrders.length > 0 ? Math.round(validOrders.reduce((sum: number, o: any) => sum + (new Date(o.completed_at).getTime() - new Date(o.preparing_at).getTime()) / 60000, 0) / validOrders.length) : 0;
+                    const avgTotal = validOrders.length > 0 ? Math.round(validOrders.reduce((sum: number, o: any) => sum + (new Date(o.completed_at).getTime() - new Date(o.created_at).getTime()) / 60000, 0) / validOrders.length) : 0;
+                    const formatMin = (m: number) => m < 1 ? "< 1 min" : m < 60 ? `${m} min` : `${Math.floor(m/60)}j ${m%60}m`;
+
+                    // Group by date for chart
+                    const byDate: Record<string, { wait: number[], cook: number[], total: number[] }> = {};
+                    validOrders.forEach((o: any) => {
+                      const date = new Date(o.created_at).toLocaleDateString("ms-MY", { day: "2-digit", month: "short" });
+                      if (!byDate[date]) byDate[date] = { wait: [], cook: [], total: [] };
+                      byDate[date].wait.push((new Date(o.preparing_at).getTime() - new Date(o.created_at).getTime()) / 60000);
+                      byDate[date].cook.push((new Date(o.completed_at).getTime() - new Date(o.preparing_at).getTime()) / 60000);
+                      byDate[date].total.push((new Date(o.completed_at).getTime() - new Date(o.created_at).getTime()) / 60000);
+                    });
+                    const chartData = Object.entries(byDate).map(([date, v]) => ({
+                      date,
+                      "Masa Tunggu": Math.round(v.wait.reduce((a, b) => a + b, 0) / v.wait.length),
+                      "Masa Masak": Math.round(v.cook.reduce((a, b) => a + b, 0) / v.cook.length),
+                      "Total": Math.round(v.total.reduce((a, b) => a + b, 0) / v.total.length),
+                    }));
+
+                    return (
+                      <>
+                        {/* Stats Cards */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                          {[
+                            { label: "Order Siap", value: kitchenOrders.length.toString(), sub: "Jumlah order disiapkan", color: "text-[var(--accent-600)]" },
+                            { label: "Avg Masa Tunggu", value: formatMin(avgWait), sub: "Dari order masuk ke mula masak", color: "text-orange-500" },
+                            { label: "Avg Masa Masak", value: formatMin(avgCook), sub: "Dari mula masak ke siap", color: "text-amber-500" },
+                            { label: "Avg Total Masa", value: formatMin(avgTotal), sub: "Dari order masuk ke siap", color: "text-blue-500" },
+                          ].map(({ label, value, sub, color }) => (
+                            <div key={label} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                              <div className="text-gray-400 text-xs font-medium mb-1">{label}</div>
+                              <div className={`${color} text-2xl font-medium`}>{value}</div>
+                              <div className="text-gray-400 text-[10px] font-medium mt-1">{sub}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Bar Chart */}
+                        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+                          <div className="mb-4">
+                            <h3 className="text-gray-900 font-medium text-sm">Trend Masa Persiapan</h3>
+                            <p className="text-gray-400 text-xs font-medium mt-0.5">Avg masa tunggu & masak per hari (minit)</p>
+                          </div>
+                          {chartData.length < 2 ? (
+                            <div className="text-center py-8 text-gray-400 text-xs font-medium">Data kurang — perlukan lebih dari 1 hari untuk paparkan graf</div>
+                          ) : (
+                            <ResponsiveContainer width="100%" height={280}>
+                              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} unit=" min" />
+                                <Tooltip
+                                  contentStyle={{ borderRadius: "12px", border: "1px solid #f3f4f6", fontSize: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                                  formatter={(value: any, name: string) => [`${value} min`, name]}
+                                />
+                                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "12px" }} />
+                                <Bar dataKey="Masa Tunggu" fill="#f97316" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Masa Masak" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="Total" fill="var(--accent-600)" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
+              )}
+
+              {activeReportTab === "kitchen-records" && (
+                <>
+                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-5 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <h3 className="text-gray-900 font-medium text-base flex items-center gap-2">
+                          <ClipboardList size={17} className="text-[var(--accent-600)]" />
+                          Rekod Persiapan
+                        </h3>
+                        <p className="text-gray-400 text-xs font-medium mt-1">Sejarah pesanan yang telah disiapkan</p>
+                      </div>
+                      <span className="bg-gray-50 border border-gray-100 text-gray-500 text-xs font-medium px-3 py-2 rounded-full">{kitchenOrders.length} rekod</span>
+                    </div>
+                    {loadingKitchen ? (
+                      <div className="text-center py-10 text-gray-400 text-sm">Memuatkan...</div>
+                    ) : kitchenOrders.length === 0 ? (
+                      <div className="text-center py-10">
+                        <ClipboardList size={34} className="text-gray-300 mx-auto mb-3" />
+                        <div className="text-gray-900 text-sm font-medium">Tiada rekod persiapan</div>
+                        <div className="text-gray-400 text-xs font-medium mt-1">Belum ada order yang disiapkan untuk tempoh ini.</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="hidden lg:block overflow-x-auto">
+                          <table className="w-full min-w-[700px] text-left text-xs">
+                            <thead>
+                              <tr className="bg-gray-50 border-b border-gray-100">
+                                {["Order ID", "Meja", "Items", "Masa Tunggu", "Masa Masak", "Total Masa"].map((h, i) => (
+                                  <th key={h} className={`px-4 py-3 text-[10px] font-medium text-gray-400 uppercase tracking-wide whitespace-nowrap ${i >= 3 ? "text-right" : ""}`}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                              {kitchenOrders.slice((kitchenPage - 1) * 20, kitchenPage * 20).map((order: any) => {
+                                const waitMs = order.preparing_at ? new Date(order.preparing_at).getTime() - new Date(order.created_at).getTime() : null;
+                                const cookMs = order.preparing_at && order.completed_at ? new Date(order.completed_at).getTime() - new Date(order.preparing_at).getTime() : null;
+                                const totalMs = order.completed_at ? new Date(order.completed_at).getTime() - new Date(order.created_at).getTime() : null;
+                                const fmt = (ms: number | null) => ms === null ? "-" : ms < 60000 ? "< 1 min" : ms < 3600000 ? `${Math.floor(ms/60000)} min` : `${Math.floor(ms/3600000)}j ${Math.floor((ms%3600000)/60000)}m`;
+                                const itemCount = order.order_items?.reduce((t: number, i: any) => t + i.qty, 0) || 0;
+                                return (
+                                  <tr key={order.id} className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50 transition-colors">
+                                    <td className="px-4 py-4 font-mono text-gray-800 text-xs">#{order.id.slice(0, 8).toUpperCase()}</td>
+                                    <td className="px-4 py-4 text-gray-700">{order.meja || "Bungkus"}</td>
+                                    <td className="px-4 py-4 text-gray-700">{itemCount} item</td>
+                                    <td className="px-4 py-4 text-right text-orange-500 font-medium">{fmt(waitMs)}</td>
+                                    <td className="px-4 py-4 text-right text-amber-500 font-medium">{fmt(cookMs)}</td>
+                                    <td className="px-4 py-4 text-right text-[var(--accent-600)] font-medium">{fmt(totalMs)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="lg:hidden flex flex-col gap-3 p-4">
+                          {kitchenOrders.slice((kitchenPage - 1) * 20, kitchenPage * 20).map((order: any) => {
+                            const waitMs = order.preparing_at ? new Date(order.preparing_at).getTime() - new Date(order.created_at).getTime() : null;
+                            const cookMs = order.preparing_at && order.completed_at ? new Date(order.completed_at).getTime() - new Date(order.preparing_at).getTime() : null;
+                            const totalMs = order.completed_at ? new Date(order.completed_at).getTime() - new Date(order.created_at).getTime() : null;
+                            const fmt = (ms: number | null) => ms === null ? "-" : ms < 60000 ? "< 1 min" : ms < 3600000 ? `${Math.floor(ms/60000)} min` : `${Math.floor(ms/3600000)}j ${Math.floor((ms%3600000)/60000)}m`;
+                            return (
+                              <div key={order.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                                <div className="flex items-start justify-between gap-3 mb-3">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-900 font-medium text-sm">{order.meja || "Bungkus"}</span>
+                                      <span className="bg-[var(--accent-50)] text-[var(--accent-700)] text-[10px] font-medium px-2 py-0.5 rounded-full">Siap</span>
+                                    </div>
+                                    <div className="text-gray-400 text-xs mt-0.5 font-mono">#{order.id.slice(0, 8).toUpperCase()}</div>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                  {[["Tunggu", fmt(waitMs), "text-orange-500"], ["Masak", fmt(cookMs), "text-amber-500"], ["Total", fmt(totalMs), "text-[var(--accent-600)]"]].map(([label, val, color]) => (
+                                    <div key={label} className="bg-white rounded-xl p-2 text-center">
+                                      <div className="text-gray-400 text-[10px] font-medium">{label}</div>
+                                      <div className={`${color} text-xs font-medium mt-0.5`}>{val}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="space-y-1">
+                                  {order.order_items?.map((item: any) => (
+                                    <div key={item.id} className="flex items-center gap-2 text-xs">
+                                      <span className="text-[var(--accent-600)] font-medium min-w-6">{item.qty}×</span>
+                                      <span className="text-gray-500 line-through">{item.nama}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <PaginationUI
+                          currentPage={kitchenPage}
+                          totalPages={Math.max(1, Math.ceil(kitchenOrders.length / 20))}
+                          totalItems={kitchenOrders.length}
+                          itemLabel="rekod"
+                          onPageChange={setKitchenPage}
+                        />
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+
             </div>
           )}
 

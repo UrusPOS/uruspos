@@ -8,6 +8,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import {
+  Lock,
   Banknote,
   Box,
   CakeSlice,
@@ -228,6 +229,7 @@ export default function StaffDashboardPage() {
   const [passwordMsgStaff, setPasswordMsgStaff] = useState("");
 
   const [tableCount, setTableCount] = useState(6);
+  const [busyMejaSet, setBusyMejaSet] = useState<Set<string>>(new Set());
   const [productSearch, setProductSearch] = useState("");
   const [isOrderPanelOpen, setIsOrderPanelOpen] = useState(false);
   const [orderPanelTouchStartY, setOrderPanelTouchStartY] = useState<
@@ -825,6 +827,18 @@ export default function StaffDashboardPage() {
     setRekodPage(1);
   }, [rekod]);
 
+  async function fetchBusyMeja(kId: string) {
+    const { data } = await supabase
+      .from("orders")
+      .select("meja")
+      .eq("kedai_id", kId)
+      .in("status", ["pending", "preparing"]) as any;
+    if (data) {
+      const busy = new Set<string>(data.map((o: any) => o.meja).filter(Boolean));
+      setBusyMejaSet(busy);
+    }
+  }
+
   async function fetchProduk() {
     const cookies = document.cookie.split(";");
     const sessionCookie = cookies.find((c) =>
@@ -841,6 +855,7 @@ export default function StaffDashboardPage() {
         setStaffUserId(session.id);
         registerPushSubscription(session.id, kId);
       }
+      fetchBusyMeja(kId);
     }
     if (!kId) {
       setLoading(false);
@@ -1172,6 +1187,7 @@ export default function StaffDashboardPage() {
     setCurrentOrderId(orderId);
     setOrderSent(true);
     setSaving(false);
+    if (kedaiId) fetchBusyMeja(kedaiId);
 
     // Notify kitchen
     const itemCount = cartItems.reduce((t, i) => t + i.qty, 0);
@@ -1906,7 +1922,18 @@ export default function StaffDashboardPage() {
         {activeTab === "pos" && (
           <div className="flex flex-1 flex-col lg:flex-row min-h-0">
             {/* Menu Grid */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 relative">
+              {orderSent && (
+                <div className="absolute inset-0 z-20 bg-[#f6f7f2]/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-3">
+                  <div className="bg-white border border-amber-100 rounded-3xl p-6 text-center shadow-sm max-w-xs mx-4">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center mx-auto mb-2">
+                      <Lock size={20} className="text-amber-500" strokeWidth={1.8} />
+                    </div>
+                    <div className="text-gray-900 font-medium text-sm mb-1">Order Sedang Diproses</div>
+                    <div className="text-gray-400 text-xs font-medium">Selesaikan atau batalkan order semasa sebelum buat order baru.</div>
+                  </div>
+                </div>
+              )}
               <div className="sticky top-0 z-10 bg-[#f6f7f2] pb-3">
                 <div className="flex items-center justify-between gap-3 mb-2">
                   <label className="text-gray-500 text-[11px] font-medium uppercase tracking-wide">
@@ -2160,22 +2187,26 @@ export default function StaffDashboardPage() {
                   <select
                     value={currentMeja}
                     onChange={(e) => handleChangeMeja(e.target.value)}
-                    disabled={loadingTableOrder}
-                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
+                    disabled={loadingTableOrder || orderSent}
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {mejaList.map((meja) => (
-                      <option key={meja} value={meja}>
-                        {displayMejaLabel(meja)}
-                      </option>
-                    ))}
+                    {mejaList.map((meja) => {
+                      const isBusy = busyMejaSet.has(meja) && meja !== currentMeja;
+                      return (
+                        <option key={meja} value={meja} disabled={isBusy}>
+                          {displayMejaLabel(meja)}{isBusy ? " — Sibuk" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                   <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
                     ▾
                   </span>
                 </div>
                 {orderSent && currentOrderId && (
-                  <div className="mt-2 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-medium rounded-2xl px-3 py-2">
-                    Order meja ini sudah dihantar ke dapur dan belum dibayar.
+                  <div className="mt-2 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-medium rounded-2xl px-3 py-2 flex items-center gap-2">
+                    <Lock size={13} strokeWidth={2} className="shrink-0" />
+                    <span>Order dah dihantar ke dapur. Selesaikan atau batalkan untuk tukar meja.</span>
                   </div>
                 )}
               </div>
@@ -2434,11 +2465,14 @@ export default function StaffDashboardPage() {
                         disabled={loadingTableOrder}
                         className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-900 rounded-2xl px-4 py-3.5 pr-10 text-sm font-medium outline-none focus:border-[var(--accent-500)] focus:bg-white transition-all disabled:opacity-60"
                       >
-                        {mejaList.map((meja) => (
-                          <option key={meja} value={meja}>
-                            {displayMejaLabel(meja)}
-                          </option>
-                        ))}
+                        {mejaList.map((meja) => {
+                          const isBusy = busyMejaSet.has(meja) && meja !== currentMeja;
+                          return (
+                            <option key={meja} value={meja} disabled={isBusy}>
+                              {displayMejaLabel(meja)}{isBusy ? " — Sibuk" : ""}
+                            </option>
+                          );
+                        })}
                       </select>
                       <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
                         ▾
