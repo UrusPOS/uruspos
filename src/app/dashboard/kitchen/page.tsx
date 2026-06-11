@@ -319,8 +319,8 @@ export default function KitchenDashboardPage() {
     return formatDuration(end - start);
   }
 
-  const pendingOrders = orders.filter((o) => o.status === "pending");
-  const preparingOrders = orders.filter((o) => o.status === "preparing" || o.status === "paid");
+  const pendingOrders = orders.filter((o) => o.status === "pending" || o.status === "paid");
+  const preparingOrders = orders.filter((o) => o.status === "preparing");
   const doneOrders = orders.filter((o) => o.status === "done");
   const allActiveOrders = [...pendingOrders, ...preparingOrders];
   const takeawayCount = allActiveOrders.filter((o) => isBungkus(o.meja)).length;
@@ -524,7 +524,13 @@ export default function KitchenDashboardPage() {
                 {bungkus ? <ShoppingBag size={15} className="text-gray-500" strokeWidth={1.8} /> : <Utensils size={15} className="text-gray-500" strokeWidth={1.8} />}
                 <span className="text-white font-medium text-lg">{mejaLabel}</span>
               </div>
-              <span className="bg-orange-500/20 text-orange-400 text-[10px] font-medium px-2.5 py-0.5 rounded-full">Baru</span>
+              <span className={`text-[10px] font-medium px-2.5 py-0.5 rounded-full ${
+                order.status === "paid"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-orange-500/20 text-orange-400"
+              }`}>
+                {order.status === "paid" ? "Dah Bayar" : "Baru"}
+              </span>
             </div>
             <div className="text-gray-500 text-xs mt-1 font-mono">{displayId}</div>
           </div>
