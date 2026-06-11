@@ -853,7 +853,10 @@ export default function OwnerDashboardPage() {
     sst_rate?: number | null;
     service_charge_enabled?: boolean | null;
     service_charge_rate?: number | null;
+    font_size?: number | null;
+    bahasa?: string | null;
   } | null>(null);
+  const [bahasaGlobal, setBahasaGlobal] = useState('BM')
 
   const [stats, setStats] = useState({
     jumlahJualan: 0,
@@ -944,7 +947,10 @@ export default function OwnerDashboardPage() {
 
   // useEffect 1 — fetch session & kedai info
   useEffect(() => {
-    fetchSessionAndKedai();
+    fetchSessionAndKedai()
+    supabase.from('sistem_tetapan').select('nilai').eq('kunci', 'bahasa_global').single().then(({ data }) => {
+      if (data?.nilai) setBahasaGlobal(data.nilai)
+    })
   }, [activeTab]);
 
   // useEffect 2 — fetch data bila filter berubah
@@ -1005,7 +1011,7 @@ export default function OwnerDashboardPage() {
       const { data, error } = (await supabase
         .from("kedai")
         .select(
-          "nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate",
+          "nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate, font_size, bahasa",
         )
         .eq("id", resolvedKedaiId)
         .single()) as any;
@@ -1014,7 +1020,7 @@ export default function OwnerDashboardPage() {
         const fallback = (await supabase
           .from("kedai")
           .select(
-            "nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate",
+            "nama, status, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate, font_size, bahasa",
           )
           .eq("id", resolvedKedaiId)
           .single()) as any;
@@ -2819,6 +2825,7 @@ export default function OwnerDashboardPage() {
   const accentStyle = {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+    fontSize: `${kedaiInfo?.font_size || 14}px`,
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
     "--accent-200": accentTheme["200"],

@@ -72,6 +72,10 @@ export default function KitchenDashboardPage() {
   const [kitchenNama, setKitchenNama] = useState("Dapur");
   const [kedaiNama, setKedaiNama] = useState("");
   const [accentColor, setAccentColor] = useState("green");
+  const [fontSizeKedai, setFontSizeKedai] = useState(14);
+  const [bahasaGlobal, setBahasaGlobal] = useState('BM');
+  const [bahasaKedai, setBahasaKedai] = useState<string | null>(null);
+  const lang = bahasaKedai || bahasaGlobal;
   const [kedaiId, setKedaiId] = useState<string | null>(null);
   const [activeMobileTab, setActiveMobileTab] = useState<"baru" | "menyiapkan" | "siap">("baru");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -98,6 +102,10 @@ export default function KitchenDashboardPage() {
       if (session.id) registerKitchenPush(session.id, session.kedai_id);
     }
     if (session?.nama) setKitchenNama(session.nama);
+
+    supabase.from('sistem_tetapan').select('nilai').eq('kunci', 'bahasa_global').single().then(({ data }) => {
+      if (data?.nilai) setBahasaGlobal(data.nilai);
+    });
 
     fetchOrders();
 
@@ -128,9 +136,11 @@ export default function KitchenDashboardPage() {
   }
 
   async function fetchKedaiNama(kId: string) {
-    const { data } = (await supabase.from("kedai").select("nama, accent_color").eq("id", kId).single()) as any;
+    const { data } = (await supabase.from("kedai").select("nama, accent_color, font_size, bahasa").eq("id", kId).single()) as any;
     if (data?.nama) setKedaiNama(data.nama);
     if (data?.accent_color) setAccentColor(data.accent_color);
+    if (data?.font_size) setFontSizeKedai(data.font_size);
+    if (data?.bahasa) setBahasaKedai(data.bahasa);
   }
 
   async function registerKitchenPush(userId: string, kId: string) {
@@ -577,6 +587,7 @@ export default function KitchenDashboardPage() {
 
   const accentTheme = accentThemeMap[accentColor] || accentThemeMap.green;
   const accentStyle = {
+    fontSize: `${fontSizeKedai}px`,
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
     "--accent-200": accentTheme["200"],

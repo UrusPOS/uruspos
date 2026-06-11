@@ -196,7 +196,56 @@ export default function StaffDashboardPage() {
     service_charge_rate?: number;
     sst_enabled?: boolean;
     sst_rate?: number;
+    font_size?: number | null;
+    bahasa?: string | null;
   } | null>(null);
+
+  const [bahasaGlobal, setBahasaGlobal] = useState('BM')
+
+  const lang = kedaiInfo?.bahasa || bahasaGlobal
+
+  const labels: Record<string, Record<string, string>> = {
+    BM: {
+      hantar_dapur: 'Hantar ke Dapur',
+      checkout: 'Checkout',
+      pilih_meja: 'Pilih Meja',
+      rekod: 'Rekod',
+      jumlah: 'Jumlah',
+      tunai: 'Tunai',
+      duitnow: 'DuitNow',
+      bungkus: 'Bungkus',
+      meja: 'Meja',
+      cari: 'Cari produk...',
+      order_baru: 'Order Baru',
+      cart_kosong: 'Cart kosong',
+      stok: 'Stok',
+      log_keluar: 'Log Keluar',
+      pos: 'POS',
+      semua: 'Semua',
+    },
+    EN: {
+      hantar_dapur: 'Send to Kitchen',
+      checkout: 'Checkout',
+      pilih_meja: 'Select Table',
+      rekod: 'Records',
+      jumlah: 'Total',
+      tunai: 'Cash',
+      duitnow: 'DuitNow',
+      bungkus: 'Takeaway',
+      meja: 'Table',
+      cari: 'Search products...',
+      order_baru: 'New Order',
+      cart_kosong: 'Cart empty',
+      stok: 'Stock',
+      log_keluar: 'Log Out',
+      pos: 'POS',
+      semua: 'All',
+    },
+  }
+
+  function t(key: string): string {
+    return labels[lang]?.[key] || labels['BM'][key] || key
+  }
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
@@ -816,7 +865,10 @@ export default function StaffDashboardPage() {
   }
 
   useEffect(() => {
-    fetchProduk();
+    fetchProduk()
+    supabase.from('sistem_tetapan').select('nilai').eq('kunci', 'bahasa_global').single().then(({ data }) => {
+      if (data?.nilai) setBahasaGlobal(data.nilai)
+    })
   }, []);
 
   useEffect(() => {
@@ -865,7 +917,7 @@ export default function StaffDashboardPage() {
     const { data: kedaiData } = (await supabase
       .from("kedai")
       .select(
-        "nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate",
+        "nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate, font_size, bahasa",
       )
       .eq("id", kId)
       .single()) as any;
@@ -884,6 +936,8 @@ export default function StaffDashboardPage() {
       service_charge_rate: Number(kedaiData?.service_charge_rate || 0),
       sst_enabled: Boolean(kedaiData?.sst_enabled),
       sst_rate: Number(kedaiData?.sst_rate || 0),
+      font_size: kedaiData?.font_size || 14,
+      bahasa: kedaiData?.bahasa || null,
     });
 
     let resolvedMeja = currentMeja;
@@ -1584,6 +1638,7 @@ export default function StaffDashboardPage() {
   const accentStyle = {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+    fontSize: `${kedaiInfo?.font_size || 14}px`,
     "--accent-50": accentTheme["50"],
     "--accent-100": accentTheme["100"],
     "--accent-200": accentTheme["200"],
