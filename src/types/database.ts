@@ -1,11 +1,14 @@
 import type { UserRole } from "./auth";
 
+export type KedaiType = "simple" | "standard" | "full";
+
 export interface Kedai {
   id: string;
   nama: string;
   logo_url: string | null;
   tema_warna: string | null;
   status: string;
+  kedai_type: KedaiType;
 }
 
 export interface AppUser {

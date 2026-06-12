@@ -2,6 +2,8 @@ export const USER_ROLES = [
   "superadmin",
   "owner",
   "staff",
+  "waiter",
+  "cashier",
   "kitchen",
 ] as const;
 
@@ -22,6 +24,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   superadmin: "Superadmin",
   owner: "Pemilik Kedai",
   staff: "Kakitangan / Kaunter",
+  waiter: "Pelayan",
+  cashier: "Juruwang",
   kitchen: "Dapur",
 };
 
@@ -29,5 +33,7 @@ export const ROLE_HOME_PATHS: Record<UserRole, string> = {
   superadmin: "/dashboard/superadmin",
   owner: "/dashboard/owner",
   staff: "/dashboard/staff",
+  waiter: "/dashboard/staff",
+  cashier: "/dashboard/cashier",
   kitchen: "/dashboard/kitchen",
 };

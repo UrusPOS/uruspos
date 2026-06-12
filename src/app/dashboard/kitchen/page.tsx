@@ -73,6 +73,7 @@ export default function KitchenDashboardPage() {
   const [kedaiNama, setKedaiNama] = useState("");
   const [accentColor, setAccentColor] = useState("green");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
+  const [kedaiType, setKedaiType] = useState<"simple" | "standard" | "full">("standard");
   const [activeMobileTab, setActiveMobileTab] = useState<"baru" | "menyiapkan" | "siap">("baru");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [desktopSidebarExpanded, setDesktopSidebarExpanded] = useState(true);
@@ -128,9 +129,10 @@ export default function KitchenDashboardPage() {
   }
 
   async function fetchKedaiNama(kId: string) {
-    const { data } = (await supabase.from("kedai").select("nama, accent_color").eq("id", kId).single()) as any;
+    const { data } = (await supabase.from("kedai").select("nama, accent_color, kedai_type").eq("id", kId).single()) as any;
     if (data?.nama) setKedaiNama(data.nama);
     if (data?.accent_color) setAccentColor(data.accent_color);
+    if (data?.kedai_type) setKedaiType(data.kedai_type);
   }
 
   async function registerKitchenPush(userId: string, kId: string) {
@@ -171,6 +173,25 @@ export default function KitchenDashboardPage() {
       });
     } catch (err) {
       console.error("Send push error:", err);
+    }
+  }
+
+  async function sendPushToRole(role: string, order: Order, title: string, body: string) {
+    if (!kedaiId) return;
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_role: role,
+          kedai_id: kedaiId,
+          title,
+          body,
+          tag: `order-${order.id}-${role}`,
+        }),
+      });
+    } catch (err) {
+      console.error("Send push to role error:", err);
     }
   }
 
@@ -245,7 +266,15 @@ export default function KitchenDashboardPage() {
       .update({ status: "done", completed_at: new Date().toISOString() } as any)
       .eq("id", id);
     const order = orders.find((o) => o.id === id);
-    if (order) await sendPushToStaff(order, "Order Siap", `${formatMeja(order.meja)} — Order siap! Boleh hantar ke meja.`);
+    if (order) {
+      if (kedaiType === "full") {
+        // Notify waiter (order creator) dan cashier sekaligus
+        await sendPushToStaff(order, "Order Siap", `${formatMeja(order.meja)} — Order siap! Pergi amek makanan.`);
+        await sendPushToRole("cashier", order, "Order Siap", `${formatMeja(order.meja)} — Order siap! Boleh proses payment.`);
+      } else {
+        await sendPushToStaff(order, "Order Siap", `${formatMeja(order.meja)} — Order siap! Boleh hantar ke meja.`);
+      }
+    }
     fetchOrders();
   }
 

@@ -850,6 +850,7 @@ export default function OwnerDashboardPage() {
     sst_rate?: number | null;
     service_charge_enabled?: boolean | null;
     service_charge_rate?: number | null;
+    kedai_type?: string | null;
   } | null>(null);
 
   const [stats, setStats] = useState({
@@ -982,7 +983,7 @@ export default function OwnerDashboardPage() {
       const { data, error } = (await supabase
         .from("kedai")
         .select(
-          "nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate",
+          "nama, status, table_count, logo_url, duitnow_qr_url, accent_color, theme_mode, sst_enabled, sst_rate, service_charge_enabled, service_charge_rate, kedai_type",
         )
         .eq("id", resolvedKedaiId)
         .single()) as any;
@@ -7028,10 +7029,19 @@ export default function OwnerDashboardPage() {
                     ROLE
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { id: "staff", label: "Cashier" },
-                      { id: "kitchen", label: "Dapur" },
-                    ].map((r) => (
+                    {(kedaiInfo?.kedai_type === "simple"
+                      ? [{ id: "staff", label: "Staff" }]
+                      : kedaiInfo?.kedai_type === "full"
+                        ? [
+                            { id: "waiter", label: "Waiter" },
+                            { id: "cashier", label: "Cashier" },
+                            { id: "kitchen", label: "Dapur" },
+                          ]
+                        : [
+                            { id: "staff", label: "Staff" },
+                            { id: "kitchen", label: "Dapur" },
+                          ]
+                    ).map((r) => (
                       <button
                         key={r.id}
                         onClick={() => setNewStaffRole(r.id)}

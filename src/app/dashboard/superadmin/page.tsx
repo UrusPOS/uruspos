@@ -33,6 +33,7 @@ type Kedai = {
   tema_warna: string;
   created_at: string;
   kod_kedai?: string | null;
+  kedai_type: "simple" | "standard" | "full";
 };
 
 type KedaiStats = {
@@ -433,6 +434,7 @@ export default function SuperadminDashboardPage() {
   const [showAddKedai, setShowAddKedai] = useState(false);
   const [newKedaiNama, setNewKedaiNama] = useState("");
   const [newKedaiPlan, setNewKedaiPlan] = useState("beta");
+  const [newKedaiType, setNewKedaiType] = useState<"simple" | "standard" | "full">("standard");
   const [saving, setSaving] = useState(false);
   const [newKedaiOwnerNama, setNewKedaiOwnerNama] = useState("");
   const [newKedaiTelefon, setNewKedaiTelefon] = useState("");
@@ -455,6 +457,8 @@ export default function SuperadminDashboardPage() {
     top: number;
     left: number;
   } | null>(null);
+  const [showEditKedai, setShowEditKedai] = useState<Kedai | null>(null);
+  const [editKedaiType, setEditKedaiType] = useState<"simple" | "standard" | "full">("standard");
 
   useEffect(() => {
     fetchKedai();
@@ -798,6 +802,16 @@ export default function SuperadminDashboardPage() {
     fetchKedai();
   }
 
+  async function updateKedaiType(id: string, type: "simple" | "standard" | "full") {
+    await supabase
+      .from("kedai")
+      .update({ kedai_type: type } as any)
+      .eq("id", id);
+    setKedaiList((prev) =>
+      prev.map((k) => k.id === id ? { ...k, kedai_type: type } : k)
+    );
+  }
+
   async function deleteKedai(id: string) {
     const { data: orders } = (await supabase
       .from("orders")
@@ -860,6 +874,7 @@ export default function SuperadminDashboardPage() {
         status: newKedaiPlan,
         tema_warna: "#16a34a",
         kod_kedai: kodKedai,
+        kedai_type: newKedaiType,
       } as any)
       .select()
       .single()) as any;
@@ -885,6 +900,7 @@ export default function SuperadminDashboardPage() {
     setNewKedaiOwnerNama("");
     setNewKedaiTelefon("");
     setNewKedaiPlan("beta");
+    setNewKedaiType("standard");
     setShowAddKedai(false);
     setSaving(false);
     fetchKedai();
@@ -923,6 +939,8 @@ export default function SuperadminDashboardPage() {
   function openMaklumatKedai(kedai: Kedai) {
     setOpenKedaiActionMenu(null);
     setKedaiActionMenuPosition(null);
+    setShowEditKedai(kedai);
+    setEditKedaiType(kedai.kedai_type || "standard");
     fetchCredentials(kedai.id);
   }
 
@@ -980,28 +998,11 @@ export default function SuperadminDashboardPage() {
               onClick={(event) => event.stopPropagation()}
             >
               <button
-                onClick={() => openPlanSemasa(kedai)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-all"
-              >
-                <Repeat2 size={14} />
-                Plan Semasa
-              </button>
-
-              <button
-                onClick={() => openSuspendKedai(kedai)}
-                disabled={kedai.status === "suspended"}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <X size={14} />
-                Suspend
-              </button>
-
-              <button
                 onClick={() => openMaklumatKedai(kedai)}
                 className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
               >
-                <Key size={14} />
-                Maklumat Kedai
+                <Eye size={14} />
+                Edit Kedai
               </button>
             </div>,
             document.body,
@@ -1787,6 +1788,9 @@ export default function SuperadminDashboardPage() {
                           <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                             Status
                           </th>
+                          <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                            Jenis Operasi
+                          </th>
                           <th className="text-right px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                             Tindakan
                           </th>
@@ -1837,6 +1841,18 @@ export default function SuperadminDashboardPage() {
                                   }`}
                                 >
                                   {statusLabel(kedai.status)}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+                                  kedai.kedai_type === "full"
+                                    ? "bg-purple-50 text-purple-700 border-purple-100"
+                                    : kedai.kedai_type === "simple"
+                                      ? "bg-blue-50 text-blue-700 border-blue-100"
+                                      : "bg-gray-50 text-gray-600 border-gray-200"
+                                }`}>
+                                  {kedai.kedai_type === "full" ? "Full" : kedai.kedai_type === "simple" ? "Simple" : "Standard"}
                                 </span>
                               </td>
 
@@ -2675,6 +2691,56 @@ export default function SuperadminDashboardPage() {
               </div>
             </div>
 
+            <div className="mb-5">
+  <label className="text-gray-500 text-xs font-medium mb-2 block">
+    JENIS OPERASI
+  </label>
+
+  <div className="flex flex-col gap-2">
+    <button
+      onClick={() => setNewKedaiType("simple")}
+      className={`py-3 px-4 rounded-lg border text-sm font-medium transition-all text-left ${
+        newKedaiType === "simple"
+          ? "bg-blue-50 border-blue-200 text-blue-700"
+          : "bg-gray-50 border-gray-200 text-gray-500"
+      }`}
+    >
+      Simple — Owner + Staff
+      <div className="text-xs font-normal mt-0.5 opacity-70">
+        Staff ambik order & payment. Tiada kitchen display.
+      </div>
+    </button>
+
+    <button
+      onClick={() => setNewKedaiType("standard")}
+      className={`py-3 px-4 rounded-lg border text-sm font-medium transition-all text-left ${
+        newKedaiType === "standard"
+          ? "bg-green-50 border-green-200 text-green-700"
+          : "bg-gray-50 border-gray-200 text-gray-500"
+      }`}
+    >
+      Standard — Owner + Staff + Kitchen
+      <div className="text-xs font-normal mt-0.5 opacity-70">
+        Staff hantar order ke dapur. Ada push notification.
+      </div>
+    </button>
+
+    <button
+      onClick={() => setNewKedaiType("full")}
+      className={`py-3 px-4 rounded-lg border text-sm font-medium transition-all text-left ${
+        newKedaiType === "full"
+          ? "bg-purple-50 border-purple-200 text-purple-700"
+          : "bg-gray-50 border-gray-200 text-gray-500"
+      }`}
+    >
+      Full — Owner + Waiter + Cashier + Kitchen
+      <div className="text-xs font-normal mt-0.5 opacity-70">
+        Waiter ambik order, kitchen masak, cashier proses payment.
+      </div>
+    </button>
+  </div>
+</div>
+
             <div className="flex gap-2">
               <button
                 onClick={() => setShowAddKedai(false)}
@@ -2751,89 +2817,153 @@ export default function SuperadminDashboardPage() {
         </div>
       )}
 
-      {showCredentials && (
+{showEditKedai && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
           <div
             className="bg-white rounded-2xl p-6 w-full max-w-sm border border-gray-100 shadow-xl"
             style={{ maxHeight: "85vh", overflowY: "auto" }}
           >
             <div className="flex items-center justify-between mb-5">
-              <div className="text-gray-900 font-semibold">Maklumat Kedai</div>
-
+              <div>
+                <div className="text-gray-900 font-semibold">Edit Kedai</div>
+                <div className="text-gray-400 text-xs mt-0.5">{showEditKedai.nama}</div>
+              </div>
               <button
-                onClick={() => setShowCredentials(null)}
+                onClick={() => setShowEditKedai(null)}
                 className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-50"
               >
                 <X size={16} />
               </button>
             </div>
 
-            {loadingCreds ? (
-              <div className="text-center text-gray-400 py-6 text-sm">
-                Memuatkan...
+            {/* 1. Plan Semasa */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="text-gray-500 text-xs font-medium mb-3 uppercase tracking-wide">Plan Semasa</div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "beta", label: "Beta", cls: "bg-amber-50 border-amber-200 text-amber-700" },
+                  { id: "active", label: "Aktif", cls: "bg-green-50 border-green-200 text-green-700" },
+                  { id: "suspended", label: "Suspend", cls: "bg-red-50 border-red-200 text-red-600" },
+                ].map((plan) => (
+                  <button
+                    key={plan.id}
+                    onClick={async () => {
+                      await supabase.from("kedai").update({ status: plan.id } as any).eq("id", showEditKedai.id);
+                      setShowEditKedai({ ...showEditKedai, status: plan.id });
+                      setKedaiList((prev) => prev.map((k) => k.id === showEditKedai.id ? { ...k, status: plan.id } : k));
+                    }}
+                    className={`py-2 rounded-lg border text-xs font-medium transition-all ${
+                      showEditKedai.status === plan.id ? plan.cls : "bg-white border-gray-200 text-gray-400"
+                    }`}
+                  >
+                    {plan.label}
+                  </button>
+                ))}
               </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {credentialsList.map((user, i) => (
-                  <div key={i} className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-gray-900 text-sm font-medium">
-                        {user.nama}
-                      </span>
+            </div>
 
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+            {/* 2. Jenis Kedai */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="text-gray-500 text-xs font-medium mb-3 uppercase tracking-wide">Jenis Operasi</div>
+              <div className="flex flex-col gap-2">
+                {[
+                  { id: "simple", label: "Simple", desc: "Owner + Staff sahaja" },
+                  { id: "standard", label: "Standard", desc: "Owner + Staff + Kitchen" },
+                  { id: "full", label: "Full", desc: "Owner + Waiter + Cashier + Kitchen" },
+                ].map((type) => (
+                  <button
+                    key={type.id}
+                    onClick={async () => {
+                      setEditKedaiType(type.id as any);
+                      await updateKedaiType(showEditKedai.id, type.id as any);
+                      setShowEditKedai({ ...showEditKedai, kedai_type: type.id as any });
+                    }}
+                    className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                      editKedaiType === type.id
+                        ? type.id === "full"
+                          ? "bg-purple-50 border-purple-200 text-purple-700"
+                          : type.id === "simple"
+                            ? "bg-blue-50 border-blue-200 text-blue-700"
+                            : "bg-green-50 border-green-200 text-green-700"
+                        : "bg-white border-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {type.label}
+                    <div className="text-xs font-normal mt-0.5 opacity-70">{type.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Maklumat Kedai */}
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="text-gray-500 text-xs font-medium mb-3 uppercase tracking-wide">Maklumat Kedai</div>
+              {loadingCreds ? (
+                <div className="text-center text-gray-400 py-4 text-sm">Memuatkan...</div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {credentialsList.map((user, i) => (
+                    <div key={i} className="bg-white rounded-xl p-3 border border-gray-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-900 text-sm font-medium">{user.nama}</span>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                           user.role === "owner"
                             ? "bg-green-50 text-green-700 border-green-100"
-                            : user.role === "staff"
-                              ? "bg-blue-50 text-blue-700 border-blue-100"
-                              : "bg-orange-50 text-orange-700 border-orange-100"
-                        }`}
-                      >
-                        {user.role}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Username</span>
-                        <span className="text-gray-900 font-mono">
-                          {user.username}
+                            : user.role === "kitchen"
+                              ? "bg-orange-50 text-orange-700 border-orange-100"
+                              : "bg-blue-50 text-blue-700 border-blue-100"
+                        }`}>
+                          {user.role}
                         </span>
                       </div>
-
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Password</span>
-                        <span className="text-gray-900 font-mono">
-                          {user.password || "abc123"}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Status</span>
-                        <span
-                          className={
-                            user.is_active ? "text-green-600" : "text-red-500"
-                          }
-                        >
-                          {user.is_active ? "Aktif" : "Tidak Aktif"}
-                        </span>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Username</span>
+                          <span className="text-gray-900 font-mono">{user.username}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Password</span>
+                          <span className="text-gray-900 font-mono">{user.password || "abc123"}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">Status</span>
+                          <span className={user.is_active ? "text-green-600" : "text-red-500"}>
+                            {user.is_active ? "Aktif" : "Tidak Aktif"}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                  {credentialsList.length === 0 && (
+                    <div className="text-center text-gray-400 py-4 text-sm">Tiada user.</div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                {credentialsList.length === 0 && (
-                  <div className="text-center text-gray-400 py-6 text-sm">
-                    Tiada user.
-                  </div>
-                )}
-              </div>
-            )}
+            {/* 4. Suspend */}
+            <div className="mb-4 p-4 bg-red-50 rounded-xl border border-red-100">
+              <div className="text-red-700 text-xs font-medium mb-2 uppercase tracking-wide">Zon Bahaya</div>
+              <button
+                onClick={async () => {
+                  const targetStatus = showEditKedai.status === "suspended" ? "active" : "suspended";
+                  await supabase.from("kedai").update({ status: targetStatus } as any).eq("id", showEditKedai.id);
+                  setKedaiList((prev) => prev.map((k) => k.id === showEditKedai.id ? { ...k, status: targetStatus } : k));
+                  setShowEditKedai({ ...showEditKedai, status: targetStatus });
+                }}
+                className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  showEditKedai.status === "suspended"
+                    ? "bg-green-600 text-white hover:bg-green-700"
+                    : "bg-red-600 text-white hover:bg-red-700"
+                }`}
+              >
+                {showEditKedai.status === "suspended" ? "Aktifkan Semula" : "Suspend Kedai"}
+              </button>
+            </div>
 
             <button
-              onClick={() => setShowCredentials(null)}
-              className="w-full mt-4 py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium"
+              onClick={() => setShowEditKedai(null)}
+              className="w-full py-2.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium"
             >
               Tutup
             </button>

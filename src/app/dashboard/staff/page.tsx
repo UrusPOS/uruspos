@@ -186,6 +186,7 @@ export default function StaffDashboardPage() {
   const [cart, setCart] = useState<{ [id: string]: CartItem }>({});
   const [currentMeja, setCurrentMeja] = useState("Meja 1");
   const [kedaiId, setKedaiId] = useState<string | null>(null);
+  const [kedaiType, setKedaiType] = useState<"simple" | "standard" | "full">("standard");
   const [staffNama, setStaffNama] = useState("Staff");
   const [staffUserId, setStaffUserId] = useState<string | null>(null);
   const [kedaiInfo, setKedaiInfo] = useState<{
@@ -917,7 +918,7 @@ export default function StaffDashboardPage() {
     const { data: kedaiData } = (await supabase
       .from("kedai")
       .select(
-        "nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate, font_size, bahasa",
+        "nama, table_count, duitnow_qr_url, logo_url, accent_color, service_charge_enabled, service_charge_rate, sst_enabled, sst_rate, font_size, bahasa, kedai_type",
       )
       .eq("id", kId)
       .single()) as any;
@@ -928,6 +929,7 @@ export default function StaffDashboardPage() {
     );
     setTableCount(savedTableCount);
     setDuitNowQrUrl(kedaiData?.duitnow_qr_url || "");
+    setKedaiType(kedaiData?.kedai_type || "standard");
     setKedaiInfo({
       nama: kedaiData?.nama || "Kedai Saya",
       logo_url: kedaiData?.logo_url || null,
@@ -1243,9 +1245,11 @@ export default function StaffDashboardPage() {
     setSaving(false);
     if (kedaiId) fetchBusyMeja(kedaiId);
 
-    // Notify kitchen
-    const itemCount = cartItems.reduce((t, i) => t + i.qty, 0);
-    if (kedaiId) await sendPushToKitchen(kedaiId, currentMeja, itemCount);
+    // Notify kitchen (skip kalau simple — tiada kitchen)
+    if (kedaiType !== "simple") {
+      const itemCount = cartItems.reduce((t, i) => t + i.qty, 0);
+      if (kedaiId) await sendPushToKitchen(kedaiId, currentMeja, itemCount);
+    }
   }
 
   function resetPaymentState() {
@@ -1396,41 +1400,49 @@ export default function StaffDashboardPage() {
     if (error) console.warn("Sales stock movement log failed:", error);
   }
 
-  async function completePayment(paymentMethod: "tunai" | "duitnow") {
-    if (!currentOrderId) return;
-
+  async function finishPayment(orderId: string, paymentMethod: "tunai" | "duitnow") {
     const received = Number(cashReceived || 0);
     const change = paymentMethod === "tunai" ? received - total : 0;
 
-    if (paymentMethod === "tunai" && (!cashReceived || received < total)) {
-      setPaymentError("Jumlah tunai diterima tidak mencukupi.");
-      return;
+    const now = new Date().toISOString();
+    const fullPayload: any = {
+      status: "paid",
+      payment_status: "paid",
+      payment_method: paymentMethod,
+      cash_received: paymentMethod === "tunai" ? received : null,
+      cash_change: paymentMethod === "tunai" ? change : null,
+      subtotal,
+      service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
+      service_charge_rate: serviceChargeRate,
+      service_charge_amount: serviceChargeAmount,
+      sst_enabled: Boolean(kedaiInfo?.sst_enabled),
+      sst_rate: sstRate,
+      sst_amount: sstAmount,
+      total,
+      paid_at: now,
+      completed_at: now,
+      cashier_name: staffNama,
+    };
+
+    const { error } = await supabase
+      .from("orders")
+      .update(fullPayload)
+      .eq("id", orderId);
+
+    if (error) {
+      await supabase
+        .from("orders")
+        .update({ status: "paid", payment_method: paymentMethod, paid_at: now } as any)
+        .eq("id", orderId);
     }
 
-    setSaving(true);
-    setPaymentError("");
-
-    const paymentUpdated = await updateOrderAsPaid(
-      paymentMethod,
-      paymentMethod === "tunai" ? { received, change } : undefined,
-    );
-
-    if (!paymentUpdated) {
-      setSaving(false);
-      setPaymentError("Gagal sahkan bayaran. Cuba sekali lagi.");
-      return;
-    }
-
-    await recordSalesStockMovements(currentOrderId);
+    await recordSalesStockMovements(orderId);
 
     for (const item of cartItems) {
       const produkItem = produk.find((p) => p.id === item.id);
       if (produkItem) {
         const newStok = Math.max(0, produkItem.stok - item.qty);
-        await supabase
-          .from("produk")
-          .update({ stok: newStok } as any)
-          .eq("id", item.id);
+        await supabase.from("produk").update({ stok: newStok } as any).eq("id", item.id);
       }
     }
 
@@ -1446,6 +1458,74 @@ export default function StaffDashboardPage() {
     setShowSuccess(true);
     setSaving(false);
     fetchProduk();
+  }
+
+  async function completePayment(paymentMethod: "tunai" | "duitnow") {
+    const received = Number(cashReceived || 0);
+    const change = paymentMethod === "tunai" ? received - total : 0;
+
+    if (paymentMethod === "tunai" && (!cashReceived || received < total)) {
+      setPaymentError("Jumlah tunai diterima tidak mencukupi.");
+      return;
+    }
+
+    setSaving(true);
+    setPaymentError("");
+
+    // Kedai simple — create order terus masa bayar
+    if (kedaiType === "simple" && !currentOrderId) {
+      if (cartItems.length === 0 || !kedaiId) {
+        setSaving(false);
+        return;
+      }
+
+      const { data: newOrder } = (await supabase
+        .from("orders")
+        .insert({
+          meja: currentMeja,
+          status: "pending",
+          subtotal,
+          service_charge_enabled: Boolean(kedaiInfo?.service_charge_enabled),
+          service_charge_rate: serviceChargeRate,
+          service_charge_amount: serviceChargeAmount,
+          sst_enabled: Boolean(kedaiInfo?.sst_enabled),
+          sst_rate: sstRate,
+          sst_amount: sstAmount,
+          total,
+          kedai_id: kedaiId,
+          created_by: staffUserId,
+        } as any)
+        .select()
+        .single()) as any;
+
+      if (!newOrder) {
+        setSaving(false);
+        setPaymentError("Gagal cipta order. Cuba sekali lagi.");
+        return;
+      }
+
+      const items = cartItems.map((item) => ({
+        order_id: newOrder.id,
+        produk_id: item.id,
+        nama: item.nama,
+        qty: item.qty,
+        harga: item.harga_jual,
+        kos: item.kos_produk,
+        nota: item.nota || "",
+      }));
+
+      await supabase.from("order_items").insert(items);
+      setCurrentOrderId(newOrder.id);
+      await finishPayment(newOrder.id, paymentMethod);
+      return;
+    }
+
+    if (!currentOrderId) {
+      setSaving(false);
+      return;
+    }
+
+    await finishPayment(currentOrderId, paymentMethod);
   }
 
   async function tukarPasswordStaff() {
@@ -2384,19 +2464,29 @@ export default function StaffDashboardPage() {
                 </div>
 
                 {!orderSent ? (
-                  <button
-                    onClick={sendOrder}
-                    disabled={cartItems.length === 0 || saving}
-                    className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
-                  >
-                    {saving
-                      ? "Menghantar..."
-                      : cartItems.length === 0
-                        ? "Hantar ke Dapur"
-                        : currentOrderId
-                          ? `Update Pesanan • RM ${total.toFixed(2)}`
-                          : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
-                  </button>
+  kedaiType === "simple" ? (
+    <button
+      onClick={openCheckout}
+      disabled={cartItems.length === 0 || saving}
+      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+    >
+      {cartItems.length === 0 ? "Bayar" : `Bayar • RM ${total.toFixed(2)}`}
+    </button>
+  ) : (
+    <button
+      onClick={sendOrder}
+      disabled={cartItems.length === 0 || saving}
+      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+    >
+      {saving
+        ? "Menghantar..."
+        : cartItems.length === 0
+          ? "Hantar ke Dapur"
+          : currentOrderId
+            ? `Update Pesanan • RM ${total.toFixed(2)}`
+            : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
+    </button>
+  )
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -2406,13 +2496,20 @@ export default function StaffDashboardPage() {
                     >
                       {saving ? "Loading..." : "Batalkan"}
                     </button>
-                    <button
-                      onClick={openCheckout}
-                      disabled={saving}
-                      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
-                    >
-                      Bayar • RM {total.toFixed(2)}
-                    </button>
+                    {kedaiType !== "full" && (
+                      <button
+                        onClick={openCheckout}
+                        disabled={saving}
+                        className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                      >
+                        Bayar • RM {total.toFixed(2)}
+                      </button>
+                    )}
+                    {kedaiType === "full" && (
+                      <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-medium py-4 rounded-2xl text-sm text-center">
+                        Tunggu Cashier
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2628,19 +2725,29 @@ export default function StaffDashboardPage() {
                   </div>
 
                   {!orderSent ? (
-                    <button
-                      onClick={sendOrder}
-                      disabled={cartItems.length === 0 || saving}
-                      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
-                    >
-                      {saving
-                        ? "Menghantar..."
-                        : cartItems.length === 0
-                          ? "Hantar ke Dapur"
-                          : currentOrderId
-                            ? `Update Pesanan • RM ${total.toFixed(2)}`
-                            : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
-                    </button>
+  kedaiType === "simple" ? (
+    <button
+      onClick={openCheckout}
+      disabled={cartItems.length === 0 || saving}
+      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+    >
+      {cartItems.length === 0 ? "Bayar" : `Bayar • RM ${total.toFixed(2)}`}
+    </button>
+  ) : (
+    <button
+      onClick={sendOrder}
+      disabled={cartItems.length === 0 || saving}
+      className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-30 active:scale-95 transition-all"
+    >
+      {saving
+        ? "Menghantar..."
+        : cartItems.length === 0
+          ? "Hantar ke Dapur"
+          : currentOrderId
+            ? `Update Pesanan • RM ${total.toFixed(2)}`
+            : `Hantar ke Dapur • RM ${total.toFixed(2)}`}
+    </button>
+  )
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <button
@@ -2650,13 +2757,20 @@ export default function StaffDashboardPage() {
                       >
                         {saving ? "Loading..." : "Batalkan"}
                       </button>
-                      <button
-                        onClick={openCheckout}
-                        disabled={saving}
-                        className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
-                      >
-                        Bayar • RM {total.toFixed(2)}
-                      </button>
+                      {kedaiType !== "full" && (
+                        <button
+                          onClick={openCheckout}
+                          disabled={saving}
+                          className="w-full bg-[var(--accent-600)] text-white font-medium py-4 rounded-2xl text-sm disabled:opacity-40 active:scale-95 transition-all"
+                        >
+                          Bayar • RM {total.toFixed(2)}
+                        </button>
+                      )}
+                      {kedaiType === "full" && (
+                        <div className="w-full bg-gray-50 border border-gray-200 text-gray-400 font-medium py-4 rounded-2xl text-sm text-center">
+                          Tunggu Cashier
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
